@@ -1,0 +1,18 @@
+{
+  "session_id": "S2026-10-05-A",
+  "decided_by": "user, 2026-10-05 (a 3, b skin+1, c 300/1000, d -20)",
+  "purpose": "NOZZLE SIMULATION ONLY - NOT VALIDATED - DO NOT SEND",
+  "hand_capture": {"recording": "20261005_122005.db3", "head": {"x": 104.501, "y": 96.199, "z": -20.000},
+                   "source": "? status line reported by the user"},
+  "design_dir": "outputs/webui/20261005-123310-design",
+  "region_dir": "outputs/webui/20261005-123229-region",
+  "hand_run_dir": "outputs/step04/hand_20261005_122005",
+  "xy_calibration": "validation/S2026-10-05-A/results/nozzle_xy_calibration_20261005-114607.json",
+  "z_calibration": "validation/S2026-10-05-A/results/nozzle_z_calibration_20261005-121427.json",
+  "standoff_mm": 3.0,
+  "floor_above_skin_mm": 1.0,
+  "draw_feed_mm_min": 300.0,
+  "travel_feed_mm_min": 1000.0,
+  "travel_z": -20.0,
+  "firmware_z_floor": -97.0
+}
