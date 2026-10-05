@@ -1,0 +1,56 @@
+{
+  "schema": "nozzle_dry_run/1",
+  "created": "20261005-133542",
+  "status": "DRY RUN - NO HAND - NO DISPENSING",
+  "motion_ready_for_hand": false,
+  "program_file": "DRY_RUN_NO_HAND_20261005-133542.gcode",
+  "params": {
+    "decided_by": "user, 2026-10-05 (L 40, T -5, F -35, S 300/1000, conditions confirmed)",
+    "conditions_confirmed_by_user": [
+      "bed empty - no hand, no block under the circle area",
+      "valve/dispenser disconnected or unpressurised",
+      "user at the emergency stop while it runs",
+      "home ($H) immediately before running"
+    ],
+    "source_config": "validation/S2026-10-05-A/nozzle_sim_inputs_v2.json",
+    "design": {
+      "shape": "circle",
+      "diameter_mm": 20.0,
+      "centre_machine_xy": [
+        57.91,
+        47.03
+      ],
+      "rotation_deg": 0.0,
+      "jump_mm": 3.0
+    },
+    "lift_mm": 40.0,
+    "travel_z": -5.0,
+    "floor_z": -35.0,
+    "draw_feed_mm_min": 300.0,
+    "travel_feed_mm_min": 1000.0
+  },
+  "lines": 137,
+  "drawing_moves": 127,
+  "z_range_drawing": [
+    -27.677,
+    -13.992
+  ],
+  "xy_range": [
+    [
+      47.93,
+      68.1
+    ],
+    [
+      36.9,
+      57.16
+    ]
+  ],
+  "drawing_length_mm": 74.3,
+  "estimated_drawing_time_s": 14.9,
+  "independent_check": "passed: only G21/G90/G53 G0/G53 G1; every Z >= floor; sideways rapids only at travel Z; ends at travel Z",
+  "not_covered": [
+    "holder / Z-rail block clearance not modelled (bed must be empty)",
+    "acceleration and feed actually reached are set by the controller",
+    "this does not validate drawing on skin"
+  ]
+}

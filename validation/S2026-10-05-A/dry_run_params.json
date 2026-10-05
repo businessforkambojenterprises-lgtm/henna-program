@@ -1,0 +1,12 @@
+{
+  "decided_by": "user, 2026-10-05 (L 40, T -5, F -35, S 300/1000, conditions confirmed)",
+  "conditions_confirmed_by_user": ["bed empty - no hand, no block under the circle area", "valve/dispenser disconnected or unpressurised",
+                                   "user at the emergency stop while it runs", "home ($H) immediately before running"],
+  "source_config": "validation/S2026-10-05-A/nozzle_sim_inputs_v2.json",
+  "design": {"shape": "circle", "diameter_mm": 20.0, "centre_machine_xy": [57.91, 47.03], "rotation_deg": 0.0, "jump_mm": 3.0},
+  "lift_mm": 40.0,
+  "travel_z": -5.0,
+  "floor_z": -35.0,
+  "draw_feed_mm_min": 300.0,
+  "travel_feed_mm_min": 1000.0
+}
