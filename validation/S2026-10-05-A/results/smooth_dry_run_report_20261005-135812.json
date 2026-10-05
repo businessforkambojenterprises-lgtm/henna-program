@@ -1,0 +1,78 @@
+{
+  "schema": "nozzle_smooth_dry_run/1",
+  "created": "20261005-135812",
+  "motion_ready_for_hand": false,
+  "program_file": "DRY_RUN_SMOOTH_NO_HAND_20261005-135812.gcode",
+  "dry_params": {
+    "decided_by": "user, 2026-10-05 (L 40, T -5, F -35, S 300/1000, conditions confirmed)",
+    "conditions_confirmed_by_user": [
+      "bed empty - no hand, no block under the circle area",
+      "valve/dispenser disconnected or unpressurised",
+      "user at the emergency stop while it runs",
+      "home ($H) immediately before running"
+    ],
+    "source_config": "validation/S2026-10-05-A/nozzle_sim_inputs_v2.json",
+    "design": {
+      "shape": "circle",
+      "diameter_mm": 20.0,
+      "centre_machine_xy": [
+        57.91,
+        47.03
+      ],
+      "rotation_deg": 0.0,
+      "jump_mm": 3.0
+    },
+    "lift_mm": 40.0,
+    "travel_z": -5.0,
+    "floor_z": -35.0,
+    "draw_feed_mm_min": 300.0,
+    "travel_feed_mm_min": 1000.0
+  },
+  "smoothing_window_mm": 3.0,
+  "calibration": {
+    "g": 0.97919,
+    "d_ref_mm": 164.07,
+    "k_mm": 141.1
+  },
+  "path_stats": {
+    "planned_points": 126,
+    "on_measured_skin": 126,
+    "rejected_outside_region": 0,
+    "rejected_missing_depth": 0,
+    "depth_jump_breaks": 0,
+    "strokes": 1,
+    "output_points": 64,
+    "smoothing_window_mm": 3.0,
+    "max_raise_above_standoff_due_to_floor_mm": 0.438
+  },
+  "hand_top": {
+    "min_depth_mm": 168.6,
+    "hand_top_contact_z": -47.49,
+    "pixels": 68725,
+    "note": "0.5th percentile of measured depth inside grown landmark hull"
+  },
+  "corners": {
+    "step15_pixel_snapped": {
+      "direction_change_deg_median": 31.76,
+      "direction_change_deg_max": 54.59,
+      "nozzle_z_step_mm_max": 0.919
+    },
+    "step16_smooth": {
+      "direction_change_deg_median": 5.71,
+      "direction_change_deg_max": 5.71,
+      "nozzle_z_step_mm_max": 1.007
+    }
+  },
+  "dry_run": {
+    "lines": 74,
+    "z_range": [
+      -27.429,
+      -14.094
+    ]
+  },
+  "labels": {
+    "x_y": "PLANNED (exact circle); measured skin pixel within 0.5 mm",
+    "z": "smoothed MEASURED skin + standoff; never below RAW measured skin + 1 mm",
+    "interpolated_skin_points": 0
+  }
+}
