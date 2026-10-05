@@ -1,0 +1,153 @@
+{
+  "schema": "camera_tool_z_calibration/1",
+  "created": "2026-10-05T12:14:27",
+  "motion_ready": false,
+  "gcode": null,
+  "tool": "nozzle (dispenser disconnected)",
+  "model": "Z_contact = Z_capture - (camera_depth_mm - k_mm)",
+  "xy_calibration": "C:\\Users\\DELL\\Desktop\\Ai+d405\\outputs\\webui\\20261005-114607-calib\\calibration.json",
+  "inputs": {
+    "session_id": "S2026-10-05-A",
+    "tool": "nozzle (dispenser disconnected)",
+    "block_height_mm": 38.0,
+    "xy_calibration": "outputs/webui/20261005-114607-calib/calibration.json",
+    "xy_verification": "outputs/webui/20261005-115122-verify (prediction RMS 1.79 mm)",
+    "recording_a": {
+      "path": "C:/Users/DELL/Documents/20261005_120026.db3",
+      "head": {
+        "x": 145.8,
+        "y": 42.599,
+        "z": -40.0
+      }
+    },
+    "recording_b": {
+      "path": "C:/Users/DELL/Documents/20261005_120435.db3",
+      "head": {
+        "x": 145.8,
+        "y": 42.599,
+        "z": -20.0
+      }
+    },
+    "touches": [
+      {
+        "label": "T1",
+        "x": 84.799,
+        "y": 112.0,
+        "z_contact": -63.3
+      },
+      {
+        "label": "T2",
+        "x": 76.399,
+        "y": 124.299,
+        "z_contact": -63.6
+      },
+      {
+        "label": "T3",
+        "x": 104.501,
+        "y": 96.199,
+        "z_contact": -62.0
+      }
+    ],
+    "source": "head poses and touches from ? status lines reported by the user"
+  },
+  "result": {
+    "touches": [
+      {
+        "label": "T1",
+        "machine_xy": [
+          84.799,
+          112.0
+        ],
+        "z_contact": -63.3,
+        "camera_xy_mm": [
+          -38.29,
+          8.9
+        ],
+        "pixel_uv": [
+          323,
+          257
+        ],
+        "xy_miss_mm": 0.18,
+        "depth_a_mm": 164.2,
+        "depth_pixels_used": 25,
+        "k_mm": 140.9,
+        "pixel_uv_b": [
+          334,
+          255
+        ],
+        "depth_b_mm": 183.2,
+        "depth_change_mm": 19.0,
+        "predicted_z_contact": -63.1,
+        "z_residual_mm": 0.2
+      },
+      {
+        "label": "T2",
+        "machine_xy": [
+          76.399,
+          124.299
+        ],
+        "z_contact": -63.6,
+        "camera_xy_mm": [
+          -50.61,
+          17.29
+        ],
+        "pixel_uv": [
+          291,
+          279
+        ],
+        "xy_miss_mm": 0.2,
+        "depth_a_mm": 164.8,
+        "depth_pixels_used": 25,
+        "k_mm": 141.2,
+        "pixel_uv_b": [
+          305,
+          275
+        ],
+        "depth_b_mm": 184.2,
+        "depth_change_mm": 19.4,
+        "predicted_z_contact": -63.7,
+        "z_residual_mm": -0.1
+      },
+      {
+        "label": "T3",
+        "machine_xy": [
+          104.501,
+          96.199
+        ],
+        "z_contact": -62.0,
+        "camera_xy_mm": [
+          -22.46,
+          -10.77
+        ],
+        "pixel_uv": [
+          364,
+          205
+        ],
+        "xy_miss_mm": 0.21,
+        "depth_a_mm": 163.2,
+        "depth_pixels_used": 25,
+        "k_mm": 141.2,
+        "pixel_uv_b": [
+          371,
+          208
+        ],
+        "depth_b_mm": 183.5,
+        "depth_change_mm": 20.3,
+        "predicted_z_contact": -62.1,
+        "z_residual_mm": -0.1
+      }
+    ],
+    "k_mm": 141.1,
+    "k_spread_mm": 0.3,
+    "z_rms_mm": 0.14,
+    "head_move_mm": 20.0,
+    "mean_depth_change_mm": 19.57,
+    "z_scale_check": 0.9783
+  },
+  "valid_only_for": "this tool, camera mount and capture orientation; depth measured along the camera axis",
+  "warnings": [
+    "Touch spots located through the X/Y calibration (about 2 mm X/Y uncertainty).",
+    "Camera tilt is not modelled; z_scale_check near 1.0 indicates it is small.",
+    "Not machine-ready."
+  ]
+}

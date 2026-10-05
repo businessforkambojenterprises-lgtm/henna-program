@@ -1,0 +1,304 @@
+{
+  "schema": "camera_tool_xy_calibration/1",
+  "created": "2026-10-05T11:46:18",
+  "motion_ready": false,
+  "gcode": null,
+  "tool": "nozzle (dispenser disconnected)",
+  "session_id": "S2026-10-05-A",
+  "axes": "X/Y only (Z excluded)",
+  "valid_only_for": "this tool, head Z -40.0 at capture, this camera mount and bed; re-measure after any change",
+  "model": "tool_XY = head_XY_at_capture + R @ camera_xy_mm + t",
+  "inputs": {
+    "recording": "C:\\Users\\DELL\\Documents\\20261005_113208.db3",
+    "recording_sha256": "ae0b178961989bb3c74a5fa582a2a2c24a1f371d46006185b16ecc2c1d300c72",
+    "frame_index": 571,
+    "frame": {
+      "depth_frame_number": 1010,
+      "colour_frame_number": 996,
+      "depth_timestamp_ms": 1791180147998.9216,
+      "colour_timestamp_ms": 1791180147999.2256,
+      "timestamp_domain": "global_time"
+    },
+    "targets_file": "C:\\Users\\DELL\\Desktop\\Ai+d405\\validation\\S2026-10-05-A\\nozzle_targets_pose1.json",
+    "head_pose_at_capture": {
+      "recording": "20261005_113208.db3",
+      "x": 145.8,
+      "y": 42.599,
+      "z": -40.0
+    },
+    "clicks_px": {
+      "K0": [
+        348.2,
+        243.7
+      ],
+      "K2": [
+        348.2,
+        81.7
+      ],
+      "K3": [
+        507.4,
+        244.8
+      ],
+      "K4": [
+        349.3,
+        398.2
+      ],
+      "V1": [
+        239.2,
+        129.5
+      ],
+      "V2": [
+        464.9,
+        133.9
+      ],
+      "V3": [
+        456.2,
+        352.5
+      ],
+      "V4": [
+        238.2,
+        346.0
+      ]
+    }
+  },
+  "camera_intrinsics_colour": {
+    "width": 848,
+    "height": 480,
+    "fx": 435.4101257324219,
+    "fy": 434.7133483886719,
+    "ppx": 424.37677001953125,
+    "ppy": 233.95225524902344,
+    "model": "inverse_brown_conrady",
+    "coeffs": [
+      -0.05318453907966614,
+      0.0563274547457695,
+      0.0002754419401753694,
+      0.0005459064850583673,
+      -0.018623869866132736
+    ]
+  },
+  "result": {
+    "dots": [
+      {
+        "label": "K0",
+        "pixel_uv": [
+          348.2,
+          243.7
+        ],
+        "machine_xy": [
+          88.899,
+          108.501
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          -35.46,
+          4.54,
+          202.3
+        ],
+        "status": "used",
+        "residual_mm": [
+          -0.27,
+          -0.67
+        ],
+        "residual_len_mm": 0.72
+      },
+      {
+        "label": "K2",
+        "pixel_uv": [
+          348.2,
+          81.7
+        ],
+        "machine_xy": [
+          163.702,
+          107.999
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          -35.44,
+          -70.93,
+          201.0
+        ],
+        "status": "used",
+        "residual_mm": [
+          -0.93,
+          -1.26
+        ],
+        "residual_len_mm": 1.57
+      },
+      {
+        "label": "K3",
+        "pixel_uv": [
+          507.4,
+          244.8
+        ],
+        "machine_xy": [
+          89.598,
+          34.7
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          38.02,
+          4.97,
+          199.1
+        ],
+        "status": "used",
+        "residual_mm": [
+          0.75,
+          -0.99
+        ],
+        "residual_len_mm": 1.24
+      },
+      {
+        "label": "K4",
+        "pixel_uv": [
+          349.3,
+          398.2
+        ],
+        "machine_xy": [
+          17.098,
+          108.501
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          -35.26,
+          77.21,
+          202.8
+        ],
+        "status": "used",
+        "residual_mm": [
+          0.6,
+          -0.36
+        ],
+        "residual_len_mm": 0.7
+      },
+      {
+        "label": "V1",
+        "pixel_uv": [
+          239.2,
+          129.5
+        ],
+        "machine_xy": [
+          144.2,
+          162.8
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          -86.72,
+          -48.99,
+          201.7
+        ],
+        "status": "used",
+        "residual_mm": [
+          1.58,
+          2.29
+        ],
+        "residual_len_mm": 2.78
+      },
+      {
+        "label": "V2",
+        "pixel_uv": [
+          464.9,
+          133.9
+        ],
+        "machine_xy": [
+          140.599,
+          55.7
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          18.56,
+          -45.92,
+          198.9
+        ],
+        "status": "used",
+        "residual_mm": [
+          0.89,
+          0.48
+        ],
+        "residual_len_mm": 1.01
+      },
+      {
+        "label": "V3",
+        "pixel_uv": [
+          456.2,
+          352.5
+        ],
+        "machine_xy": [
+          36.499,
+          58.4
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          14.79,
+          55.2,
+          201.7
+        ],
+        "status": "used",
+        "residual_mm": [
+          -2.08,
+          -0.44
+        ],
+        "residual_len_mm": 2.13
+      },
+      {
+        "label": "V4",
+        "pixel_uv": [
+          238.2,
+          346.0
+        ],
+        "machine_xy": [
+          40.301,
+          162.2
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          -87.62,
+          52.79,
+          202.7
+        ],
+        "status": "used",
+        "residual_mm": [
+          -0.54,
+          0.94
+        ],
+        "residual_len_mm": 1.09
+      }
+    ],
+    "R": [
+      [
+        0.001498,
+        -0.999999
+      ],
+      [
+        -0.999999,
+        -0.001498
+      ]
+    ],
+    "t_mm": [
+      -52.04,
+      31.12
+    ],
+    "rotation_deg": -89.91,
+    "mirrored": true,
+    "rms_mm": 1.56,
+    "max_residual_mm": 2.78,
+    "scale_check": 1.0106,
+    "dots_used": 8,
+    "target_depth_mm_range": [
+      198.9,
+      202.8
+    ]
+  },
+  "how_to_read": {
+    "t_mm": "X/Y offset (mm) added to the head position; with R it maps a camera point to the tool X/Y over it",
+    "rotation_deg": "camera X/Y axes rotated relative to machine X/Y",
+    "mirrored": "true if camera axes are flipped relative to machine axes",
+    "rms_mm / max_residual_mm": "how far the fitted model misses your hovered points; includes hover aim and click error",
+    "scale_check": "should be close to 1.0; far from 1 means camera mm and machine mm disagree"
+  },
+  "warnings": [
+    "PENCIL calibration practice run. Not the nozzle. Not machine-ready.",
+    "One head pose only: the offset is fitted, not independently verified. A second recording at another head pose is needed to verify it.",
+    "Camera tilt is not modelled; valid only near the target height used here."
+  ]
+}
