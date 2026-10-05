@@ -32,7 +32,7 @@ def _j(p):
         return json.load(f)
 
 
-def hand_top(hand_run_dir, k_mm, head_z, grow_px=25):
+def hand_top(hand_run_dir, k_mm, head_z, grow_px=25, depth_fn=None):
     """Highest measured skin point inside the (grown) hull of all 21 landmarks -> contact Z."""
     z = np.load(os.path.join(ROOT, hand_run_dir, "frame_bundle.npz"))
     raw, scale = z["depth_raw_aligned"], float(z["depth_scale_m_per_unit"])
@@ -47,6 +47,8 @@ def hand_top(hand_run_dir, k_mm, head_z, grow_px=25):
     if not len(d):
         raise NozzlePathError("no measured depth over the hand")
     d_min = float(np.percentile(d, 0.5))  # robust to single-pixel speckle
+    if depth_fn:
+        d_min = float(depth_fn(d_min))
     return {"min_depth_mm": round(d_min, 1), "hand_top_contact_z": round(head_z - (d_min - k_mm), 2),
             "pixels": int(len(d)), "note": "0.5th percentile of measured depth inside grown landmark hull"}
 

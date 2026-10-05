@@ -1,0 +1,79 @@
+{
+  "schema": "camera_depth_scale/1",
+  "created": "2026-10-05T13:29:49",
+  "motion_ready": false,
+  "inputs": {
+    "session_id": "S2026-10-05-A",
+    "purpose": "camera depth scale; block on paper, moved after the caliper test and untouched during R1-R4",
+    "z_ref": -40.0,
+    "d_ref_mm": 164.07,
+    "d_ref_source": "mean camera depth of the 3 block touch spots in the Z calibration (k = 141.1 measured there)",
+    "grid_step_px": 40,
+    "recordings": [
+      {
+        "label": "R1",
+        "path": "C:/Users/DELL/Documents/20261005_132310.db3",
+        "head": {
+          "x": 145.8,
+          "y": 42.599,
+          "z": -20.0
+        }
+      },
+      {
+        "label": "R2",
+        "path": "C:/Users/DELL/Documents/20261005_132454.db3",
+        "head": {
+          "x": 145.8,
+          "y": 42.599,
+          "z": -40.0
+        }
+      },
+      {
+        "label": "R3",
+        "path": "C:/Users/DELL/Documents/20261005_132606.db3",
+        "head": {
+          "x": 145.8,
+          "y": 42.599,
+          "z": -50.0
+        }
+      },
+      {
+        "label": "R4",
+        "path": "C:/Users/DELL/Documents/20261005_132651.db3",
+        "head": {
+          "x": 145.8,
+          "y": 42.599,
+          "z": -60.0
+        }
+      }
+    ]
+  },
+  "model": "d_camera = a_spot + g * (Z_head - Z_ref); correction d_true = d_ref + (d_camera - d_ref) / g",
+  "g": 0.97919,
+  "d_ref_mm": 164.07,
+  "g_all_spots_before_outlier_removal": 0.98077,
+  "outlier_rule": "drop spots whose own straight-line fit RMS > 0.5 mm or slope > 0.1 from median",
+  "spots_used": 86,
+  "spots_dropped_as_outliers": 91,
+  "spots_measured_in_all_recordings": 177,
+  "spots_tried": 201,
+  "fit_rms_mm": 0.555,
+  "per_spot_slope": {
+    "min": 0.8923,
+    "median": 0.9794,
+    "max": 1.0691,
+    "p5": 0.9269,
+    "p95": 1.0245
+  },
+  "mean_residual_by_head_z_mm": {
+    "-20.0": -0.002,
+    "-40.0": 0.014,
+    "-50.0": -0.019,
+    "-60.0": 0.007
+  },
+  "spot_depth_range_mm": [
+    144.6,
+    244.9
+  ],
+  "note": "Z axis verified by caliper (49.89 mm for 50 commanded), so g describes the camera."
+}

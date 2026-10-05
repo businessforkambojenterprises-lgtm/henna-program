@@ -1,0 +1,14 @@
+{
+  "session_id": "S2026-10-05-A",
+  "purpose": "camera depth scale; block on paper, moved after the caliper test and untouched during R1-R4",
+  "z_ref": -40.0,
+  "d_ref_mm": 164.07,
+  "d_ref_source": "mean camera depth of the 3 block touch spots in the Z calibration (k = 141.1 measured there)",
+  "grid_step_px": 40,
+  "recordings": [
+    {"label": "R1", "path": "C:/Users/DELL/Documents/20261005_132310.db3", "head": {"x": 145.800, "y": 42.599, "z": -20.000}},
+    {"label": "R2", "path": "C:/Users/DELL/Documents/20261005_132454.db3", "head": {"x": 145.800, "y": 42.599, "z": -40.000}},
+    {"label": "R3", "path": "C:/Users/DELL/Documents/20261005_132606.db3", "head": {"x": 145.800, "y": 42.599, "z": -50.000}},
+    {"label": "R4", "path": "C:/Users/DELL/Documents/20261005_132651.db3", "head": {"x": 145.800, "y": 42.599, "z": -60.000}}
+  ]
+}

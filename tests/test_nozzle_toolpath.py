@@ -32,6 +32,14 @@ class Mapping(unittest.TestCase):
         np.testing.assert_allclose(s[0][:, 3], skin + 3.0)
         np.testing.assert_allclose(s[0][:, 4], skin + 1.0)
 
+    def test_depth_correction_applied(self):
+        from henna_preview.depth_scale import correct_depth
+        fn = lambda d: correct_depth(d, 0.98, 164.0)  # noqa: E731
+        s = map_strokes(SEG, HEAD, CAL, K, P, depth_fn=fn)
+        d = correct_depth(np.array([180.0, 182.0, 185.0]), 0.98, 164.0)
+        np.testing.assert_allclose(s[0][:, 2], HEAD["z"] - (d - K))
+        self.assertTrue((s[0][:, 2] < build()[0][0][:, 2]).all())  # deeper than block -> corrected skin is lower
+
     def test_travel_must_clear_drawing(self):
         with self.assertRaises(NozzlePathError):
             build(dict(P, travel_z=-70.0))

@@ -45,8 +45,11 @@ def check_params(p):
         raise NozzlePathError("travel Z must be at or below Z home (0)")
 
 
-def map_strokes(segments_cam_xyz, head, xy_cal, k_mm, p):
-    """-> list of strokes, each (N, 5): x, y, skin_z, draw_z, floor_z."""
+def map_strokes(segments_cam_xyz, head, xy_cal, k_mm, p, depth_fn=None):
+    """-> list of strokes, each (N, 5): x, y, skin_z, draw_z, floor_z.
+
+    depth_fn (optional) corrects camera depth before conversion, e.g. the step-14 scale correction.
+    """
     R, t = np.asarray(xy_cal["R"], float), np.asarray(xy_cal["t_mm"], float)
     strokes = []
     for seg in segments_cam_xyz:
@@ -56,7 +59,8 @@ def map_strokes(segments_cam_xyz, head, xy_cal, k_mm, p):
         if not np.isfinite(a).all():
             raise NozzlePathError("non-measured point in a segment")
         xy = predict(a[:, :2], [head["x"], head["y"]], R, t)
-        skin = head["z"] - (a[:, 2] - k_mm)
+        d = depth_fn(a[:, 2]) if depth_fn else a[:, 2]
+        skin = head["z"] - (d - k_mm)
         strokes.append(np.column_stack([xy, skin, skin + p["standoff_mm"], skin + p["floor_above_skin_mm"]]))
     if not strokes:
         raise NozzlePathError("no drawable segments")

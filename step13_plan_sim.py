@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 
 from henna_preview import MOTION_READY
 from henna_preview.nozzle_toolpath import NozzlePathError, check_params, gcode_lines, independent_check, map_strokes
+from henna_preview.depth_scale import correct_depth
 from henna_preview.plan_design import plan_points, project_plan
 from henna_preview.region import polygon_mask, require_accepted
 from step12_nozzle_sim import ROOT, _j, hand_top
@@ -41,13 +42,21 @@ def build(cfg, shape, diameter, centre, rotation, jump):
     if "nozzle" not in str(xy.get("tool", "")).lower() or "nozzle" not in str(zc.get("tool", "")).lower():
         raise NozzlePathError("X/Y and Z calibrations must both be NOZZLE calibrations")
     k = float(zc["result"]["k_mm"])
+    depth_fn, scale_info = None, None
+    if cfg.get("depth_scale"):
+        ds = _j(cfg["depth_scale"])
+        g, d_ref = float(ds["g"]), float(ds["d_ref_mm"])
+        if not 0.9 < g < 1.1:
+            raise NozzlePathError(f"depth scale g={g} is outside the plausible range 0.9..1.1")
+        depth_fn = lambda d, g=g, d_ref=d_ref: correct_depth(d, g, d_ref)  # noqa: E731
+        scale_info = {"g": g, "d_ref_mm": d_ref, "file": cfg["depth_scale"]}
     frame = load_frame(cfg["hand_run_dir"])
     h, w = frame["depth_raw_aligned"].shape
     mask = polygon_mask(region["polygon_px"], w, h)
     plan, closed = plan_points(shape, diameter, centre, rotation)
     proj = project_plan(plan, closed, frame, mask, head, xy["result"], jump_mm=jump)
-    strokes = map_strokes(proj["segments_cam_xyz"], head, xy["result"], k, p)
-    top = hand_top(cfg["hand_run_dir"], k, head["z"])
+    strokes = map_strokes(proj["segments_cam_xyz"], head, xy["result"], k, p, depth_fn)
+    top = hand_top(cfg["hand_run_dir"], k, head["z"], depth_fn=depth_fn)
     if p["travel_z"] < top["hand_top_contact_z"] + p["standoff_mm"]:
         raise NozzlePathError("travel Z does not clear the hand top + standoff")
     lines, floors = gcode_lines(strokes, p)
@@ -55,7 +64,7 @@ def build(cfg, shape, diameter, centre, rotation, jump):
     allxy = np.vstack([s[:, :2] for s in strokes])
     rad = np.hypot(allxy[:, 0] - centre[0], allxy[:, 1] - centre[1])
     return {"p": p, "plan": plan, "strokes": strokes, "lines": lines, "draw_moves": n, "hand_top": top, "k": k,
-            "projection": proj["stats"], "status": proj["status"],
+            "projection": proj["stats"], "status": proj["status"], "depth_scale": scale_info,
             "roundness": {"planned_radius_mm": diameter / 2, "measured_radius_min_mm": round(float(rad.min()), 2),
                           "measured_radius_max_mm": round(float(rad.max()), 2),
                           "x_span_mm": round(float(np.ptp(allxy[:, 0])), 2), "y_span_mm": round(float(np.ptp(allxy[:, 1])), 2)}}
@@ -97,12 +106,12 @@ def main():
            "status": "NOZZLE SIMULATION - NOT VALIDATED - DO NOT SEND", "motion_ready": MOTION_READY,
            "design": {"shape": a.shape, "diameter_mm": a.diameter_mm, "centre_machine_xy": a.centre,
                       "rotation_deg": a.rotation, "jump_mm": a.jump_mm, "planned_in": "machine X/Y (plan view, option A)"},
-           "inputs": cfg, "k_mm": r["k"], "projection": r["projection"], "roundness": r["roundness"],
+           "inputs": cfg, "k_mm": r["k"], "depth_scale": r["depth_scale"], "projection": r["projection"], "roundness": r["roundness"],
            "hand_top": r["hand_top"], "independent_check": f"passed: {r['draw_moves']} drawing moves",
            "skin_z_range": [round(float(min(s[:, 2].min() for s in r["strokes"])), 2),
                             round(float(max(s[:, 2].max() for s in r["strokes"])), 2)]}
     json.dump(rep, open(os.path.join(out, "report.json"), "w", encoding="utf-8"), indent=2)
-    print(json.dumps({k: rep[k] for k in ("projection", "roundness", "skin_z_range")}, indent=2))
+    print(json.dumps({k: rep[k] for k in ("depth_scale", "projection", "roundness", "skin_z_range", "hand_top")}, indent=2))
     print("Wrote:", out)
 
 
