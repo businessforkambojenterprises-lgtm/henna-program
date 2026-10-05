@@ -1,0 +1,15 @@
+{
+  "session_id": "S2026-10-05-A",
+  "tool": "nozzle (dispenser disconnected)",
+  "block_height_mm": 38.0,
+  "xy_calibration": "outputs/webui/20261005-114607-calib/calibration.json",
+  "xy_verification": "outputs/webui/20261005-115122-verify (prediction RMS 1.79 mm)",
+  "recording_a": {"path": "C:/Users/DELL/Documents/20261005_120026.db3", "head": {"x": 145.800, "y": 42.599, "z": -40.000}},
+  "recording_b": {"path": "C:/Users/DELL/Documents/20261005_120435.db3", "head": {"x": 145.800, "y": 42.599, "z": -20.000}},
+  "touches": [
+    {"label": "T1", "x": 84.799, "y": 112.000, "z_contact": -63.300},
+    {"label": "T2", "x": 76.399, "y": 124.299, "z_contact": -63.600},
+    {"label": "T3", "x": 104.501, "y": 96.199, "z_contact": -62.000}
+  ],
+  "source": "head poses and touches from ? status lines reported by the user"
+}

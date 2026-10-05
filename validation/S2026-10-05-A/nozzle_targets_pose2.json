@@ -1,0 +1,48 @@
+{
+  "schema": "pencil_targets/1",
+  "session_id": "S2026-10-05-A",
+  "tool": "nozzle (dispenser disconnected)",
+  "axes": "X/Y only; Z excluded",
+  "units": "mm, GRBL machine coordinates (MPos)",
+  "source": "nozzle tip hovered over each dot; values from ? status lines reported by the user; K1 unreachable (Y travel) and omitted",
+  "head_pose_at_capture": {
+    "recording": "20261005_113350.db3",
+    "x": 165.8,
+    "y": 112.599,
+    "z": -40.0
+  },
+  "targets": {
+    "K0": [
+      88.899,
+      108.501
+    ],
+    "K2": [
+      163.702,
+      107.999
+    ],
+    "K3": [
+      89.598,
+      34.7
+    ],
+    "K4": [
+      17.098,
+      108.501
+    ],
+    "V1": [
+      144.2,
+      162.8
+    ],
+    "V2": [
+      140.599,
+      55.7
+    ],
+    "V3": [
+      36.499,
+      58.4
+    ],
+    "V4": [
+      40.301,
+      162.2
+    ]
+  }
+}
