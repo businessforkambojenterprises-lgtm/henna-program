@@ -1,0 +1,8 @@
+hand_landmarker.task
+  Source:   https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
+  Fetched:  2026-10-01 (approved by user)
+  Size:     7,819,105 bytes
+  SHA-256:  fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1
+  Use:      pretrained MediaPipe Hand Landmarker (21 landmarks). Not retrained.
+            Landmarks are image-space estimates; "world landmarks" are model
+            estimates, not measured skin height or machine coordinates.

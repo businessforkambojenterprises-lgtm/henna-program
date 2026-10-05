@@ -1,0 +1,8 @@
+<Idle|MPos:100.000,150.000,0.000|FS:0,0|Pn:P>
+[PRODUCER:MKS DLC32]
+[V2.2.6(8M.H35.20241121)]
+[VER:1.1h.2024112101:]
+[OPT:VMPH,63,512]
+[MSG:Using machine:MKS DLC32]
+[MSG:Mode=STA:Status=Connected (network details omitted from this copy)]
+ok

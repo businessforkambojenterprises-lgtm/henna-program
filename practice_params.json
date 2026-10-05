@@ -1,0 +1,12 @@
+{
+  "decided_by": "user, 2026-10-05",
+  "tool": "pencil (NOT nozzle)",
+  "purpose": "PENCIL PRACTICE toolpath in the simulator only; not validated; do not send",
+  "draw_z": -88.0,
+  "z_floor": -95.0,
+  "draw_feed_mm_min": 300.0,
+  "travel_feed_mm_min": 1000.0,
+  "travel_z": -60.0,
+  "approved_calibration": "outputs/webui/20261003-163918-calib/calibration.json",
+  "approved_calibration_reason": "pencil calibration after $101 fix; verified at pose 2: prediction RMS 2.06 mm (20261003-164349-verify)"
+}

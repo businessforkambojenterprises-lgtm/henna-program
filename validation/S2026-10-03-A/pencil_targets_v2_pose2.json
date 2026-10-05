@@ -1,0 +1,22 @@
+{
+  "schema": "pencil_targets/1",
+  "session_id": "S2026-10-03-A",
+  "tool": "pencil (NOT nozzle)",
+  "axes": "X/Y only; Z excluded by user decision",
+  "units": "mm, GRBL machine coordinates (MPos)",
+  "purpose": "VERIFICATION pose for v2 calibration (same dots, different head pose)",
+  "revision": "v2: hover readings re-taken after $101 changed 538.6 -> 550.43 (Y scale corrected and confirmed 100 mm); supersedes pencil_targets.json and pencil_targets_pose2.json",
+  "source": "pencil hovered over each dot; values from ? status lines reported by the user; K0 re-taken low (replaces the reading taken at Z -11)",
+  "head_pose_at_capture": {"recording": "20261003_161432.db3", "x": 165.800, "y": 112.599, "z": -40.000},
+  "targets": {
+    "K0": [91.901, 95.500],
+    "K1": [95.201, 171.401],
+    "K2": [169.699, 95.000],
+    "K3": [92.600, 21.699],
+    "K4": [21.499, 98.300],
+    "V1": [148.199, 150.800],
+    "V2": [143.601, 41.700],
+    "V3": [39.501, 45.401],
+    "V4": [43.300, 148.300]
+  }
+}

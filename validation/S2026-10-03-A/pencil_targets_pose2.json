@@ -1,0 +1,21 @@
+{
+  "schema": "pencil_targets/1",
+  "session_id": "S2026-10-03-A",
+  "tool": "pencil (NOT nozzle)",
+  "axes": "X/Y only; Z excluded by user decision",
+  "units": "mm, GRBL machine coordinates (MPos)",
+  "purpose": "VERIFICATION pose: same taped paper and same hovered dot positions as pencil_targets.json, different head position at capture",
+  "source": "targets copied from pencil_targets.json; head pose from the ? status line reported by the user for this recording",
+  "head_pose_at_capture": {"recording": "20261003_123351.db3", "x": 165.800, "y": 112.599, "z": -40.000},
+  "targets": {
+    "K0": [92.600, 97.300],
+    "K1": [96.399, 173.299],
+    "K2": [169.699, 100.499],
+    "K3": [92.600, 25.499],
+    "K4": [21.499, 100.499],
+    "V1": [150.800, 152.800],
+    "V2": [145.800, 42.599],
+    "V3": [40.499, 49.699],
+    "V4": [44.598, 153.801]
+  }
+}

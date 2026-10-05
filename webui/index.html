@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Henna Preview</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--text:#1f1e1c;--muted:#6b6a66;--border:#e2e0da;--accent:#185fa5;--accent-bg:#e6f1fb;
+--ok:#3b6d11;--ok-bg:#eaf3de;--warn:#854f0b;--warn-bg:#faeeda;--bad:#a32d2d;--bad-bg:#fcebeb;--canvas:#fafaf8}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#1b1b1a;--card:#252523;--text:#ecebe6;--muted:#a3a29c;--border:#3a3936;
+--accent:#85b7eb;--accent-bg:#0c2a47;--ok:#97c459;--ok-bg:#1f3309;--warn:#fac775;--warn-bg:#3d2605;--bad:#f09595;--bad-bg:#3d1414;--canvas:#1f1f1e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1180px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;font-weight:600;margin:0 0 6px}
+h2{font-size:15px;font-weight:600;margin:0 0 10px}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.pill{font-size:12px;padding:3px 10px;border-radius:999px}
+.p-bad{background:var(--bad-bg);color:var(--bad)}.p-warn{background:var(--warn-bg);color:var(--warn)}.p-info{background:var(--accent-bg);color:var(--accent)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.tab{font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted)}
+.tab.on{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.tab[disabled]{opacity:.55;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+select,input[type=number]{width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit}
+.radio{display:flex;gap:14px;font-size:14px}.radio label{display:flex;gap:6px;align-items:center;margin:0;color:var(--text)}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--text);margin-top:10px}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+button.run{margin-top:16px;width:100%;padding:10px;border:0;border-radius:8px;background:var(--accent);color:var(--bg);font:600 15px system-ui;cursor:pointer}
+button.run:disabled{opacity:.6;cursor:wait}
+.msg{margin-top:12px;font-size:13px;padding:8px 10px;border-radius:8px;display:none;white-space:pre-wrap}
+.msg.err{display:block;background:var(--bad-bg);color:var(--bad)}.msg.info{display:block;background:var(--accent-bg);color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--bg);border-radius:8px;padding:10px 12px}.stat .l{font-size:12px;color:var(--muted)}.stat .v{font-size:20px;font-weight:600}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:1000px){.row2{grid-template-columns:minmax(0,1fr)}}
+canvas{width:100%;height:auto;border-radius:10px;background:var(--canvas);border:1px solid var(--border);touch-action:none;display:block}
+img{width:100%;border-radius:10px;border:1px solid var(--border);background:#fff}
+ul.warn{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--warn)}
+pre{font:12px/1.45 ui-monospace,Consolas,monospace;background:var(--bg);border-radius:8px;padding:12px;max-height:360px;overflow:auto;margin:0}
+.empty{color:var(--muted);font-size:14px;padding:30px 10px;text-align:center}
+.cap{font-size:12px;color:var(--muted);margin:6px 0 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Henna preview prototype</h1>
+<div class="pills">
+<span class="pill p-bad">motion_ready = false</span>
+<span class="pill p-info">Camera frame, mm. Not machine coordinates</span>
+<span class="pill p-warn">Preview only. No camera, controller or G-code</span>
+</div>
+
+<div class="tabs">
+<button class="tab" disabled title="Needs a colour + depth recording (.bag)">1 Load recording</button>
+<button class="tab" disabled title="Needs colour images and MediaPipe (not installed)">2 Hand detection</button>
+<button class="tab" disabled title="Comes after hand detection">3 Reviewed region</button>
+<button class="tab on">4 Measured surface</button>
+<button class="tab" disabled title="Not built yet">5 Place design</button>
+<button class="tab" disabled title="Not built yet">6 Project and check</button>
+<button class="tab" disabled title="Not built yet">7 Report</button>
+</div>
+
+<div class="grid">
+<section class="card">
+<h2>Inputs</h2>
+<label for="file">Depth file (approved folders only)</label>
+<select id="file"><option>Loading…</option></select>
+<div class="hint" id="fileinfo"></div>
+
+<label>Depth units stored in the file</label>
+<div class="radio">
+<label><input type="radio" name="units" value="mm" checked> millimetres</label>
+<label><input type="radio" name="units" value="raw"> raw sensor units</label>
+</div>
+<div class="check"><input type="checkbox" id="confirmed"><span>I have confirmed these units from how the file was made</span></div>
+
+<label for="mvf">Unstable if measured in fewer than this fraction of frames</label>
+<input type="number" id="mvf" min="0" max="1" step="0.05" value="0.6">
+<label for="mad">Noisy if frame-to-frame spread exceeds (mm)</label>
+<input type="number" id="mad" min="0.1" max="100" step="0.1" value="1.0">
+<div class="hint">Defaults were borrowed from your earlier pipeline. Review them.</div>
+
+<button class="run" id="run">Run</button>
+<div class="msg" id="msg"></div>
+</section>
+
+<section class="card" id="results">
+<h2>Results</h2>
+<div class="empty" id="empty">Choose a file and press Run. The original file is only read, never changed.</div>
+<div id="out" hidden>
+<div class="stats" id="stats"></div>
+<div class="row2">
+<div><img id="img" alt="Depth and pixel status"><p class="cap">Left: accepted depth, magenta means missing or rejected (not filled). Right: status of every pixel.</p></div>
+<div><canvas id="cv3" width="720" height="540"></canvas><p class="cap" id="cap3">Measured points only. Drag to rotate, scroll to zoom.</p></div>
+</div>
+<ul class="warn" id="warn"></ul>
+<h2 style="margin-top:16px">Report</h2>
+<pre id="rep"></pre>
+<p class="cap" id="where"></p>
+</div>
+</section>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let files=[];
+function fmtSize(n){return n>1e6?(n/1e6).toFixed(1)+' MB':(n/1e3).toFixed(0)+' kB'}
+async function loadFiles(){
+ try{const r=await fetch('/api/files');const j=await r.json();files=j.files;
+  const sel=$('file');sel.innerHTML='';
+  if(!files.length){sel.innerHTML='<option>No .npz files in approved folders</option>';return}
+  files.forEach((f,i)=>{const o=document.createElement('option');o.value=i;o.textContent=f.name+(f.compatible?'':'  (not usable: '+f.reason+')');o.disabled=!f.compatible;sel.appendChild(o)});
+  const first=files.findIndex(f=>f.name==='ptg_scan_raw.npz'&&f.compatible);sel.value=first>=0?first:files.findIndex(f=>f.compatible);showInfo();
+ }catch(e){msg('err','Could not reach the local server. Is webui_server.py running?')}
+}
+function showInfo(){const f=files[$('file').value];$('fileinfo').textContent=f?`${f.folder} · ${fmtSize(f.size)} · modified ${f.modified.replace('T',' ')}`:''}
+$('file').onchange=showInfo;
+function msg(kind,t){const m=$('msg');m.className='msg '+(kind||'');m.textContent=t||''}
+
+$('run').onclick=async()=>{
+ const f=files[$('file').value];if(!f||!f.compatible){msg('err','Choose a usable file first.');return}
+ const body={path:f.path,depth_units:document.querySelector('input[name=units]:checked').value,units_confirmed:$('confirmed').checked,
+  min_valid_frac:parseFloat($('mvf').value),max_mad_mm:parseFloat($('mad').value)};
+ if(!(body.min_valid_frac>=0&&body.min_valid_frac<=1)){msg('err','The frame fraction must be between 0 and 1.');return}
+ if(!(body.max_mad_mm>0)){msg('err','The spread limit must be more than 0 mm.');return}
+ $('run').disabled=true;msg('info','Running…');
+ try{const r=await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json();if(!r.ok)throw new Error(j.error||r.statusText);show(j);msg('info',`Done in ${j.wall_time_s.toFixed(2)} s (includes starting Python).`)}
+ catch(e){msg('err',e.message)}finally{$('run').disabled=false}
+};
+
+function stat(l,v){return`<div class="stat"><div class="l">${l}</div><div class="v">${v}</div></div>`}
+function show(j){
+ const r=j.report,c=r.pixel_status_counts,tot=Object.values(c).reduce((a,b)=>a+b,0),pct=n=>(100*n/tot).toFixed(1)+'%';
+ $('empty').hidden=true;$('out').hidden=false;
+ $('stats').innerHTML=stat('Accepted points',c.valid.toLocaleString())+stat('Missing',pct(c.missing))+stat('Unstable',pct(c.unstable))+stat('Noisy',pct(c.noisy))
+  +stat('Units',r.depth_units_chosen+(r.depth_units_confirmed?'':' (unconfirmed)'))+stat('Processing',(r.timings_s.load_s+r.timings_s.process_s).toFixed(3)+' s');
+ $('img').src=j.images.depth_status+'?t='+Date.now();
+ $('warn').innerHTML=r.warnings.map(w=>`<li>${w.replace(/</g,'&lt;')}</li>`).join('');
+ $('rep').textContent=JSON.stringify(r,null,2);
+ $('where').textContent='Saved in '+j.output_folder;
+ setPoints(j.points);
+}
+
+/* 3D view: orthographic, drag to rotate, wheel to zoom. Camera looks along +z, so "up" on screen is toward the camera. */
+const cv=$('cv3'),ctx=cv.getContext('2d');let P=null,yaw=-0.6,pitch=0.9,zoom=1,drag=null;
+const VIR=[[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];
+function vir(t){t=Math.max(0,Math.min(.999,t))*(VIR.length-1);const k=Math.floor(t),u=t-k;return VIR[k].map((v,i)=>Math.round(v+(VIR[k+1][i]-v)*u))}
+function setPoints(p){const a=p.xyz_mm,n=a.length/3;let mx=0,my=0,mz=0,zmin=1e9,zmax=-1e9;
+ for(let i=0;i<n;i++){mx+=a[3*i];my+=a[3*i+1];mz+=a[3*i+2];zmin=Math.min(zmin,a[3*i+2]);zmax=Math.max(zmax,a[3*i+2])}
+ mx/=n;my/=n;mz/=n;let ext=1;for(let i=0;i<n;i++)ext=Math.max(ext,Math.abs(a[3*i]-mx),Math.abs(a[3*i+1]-my));
+ const col=new Array(n);for(let i=0;i<n;i++)col[i]=`rgb(${vir((zmax-a[3*i+2])/Math.max(1,zmax-zmin)).join(',')})`;
+ P={a,n,mx,my,mz,ext,col,zmin,zmax};$('cap3').textContent=`${n.toLocaleString()} of ${p.total.toLocaleString()} measured points shown (every ${p.every_nth}). Camera z ${zmin.toFixed(0)}–${zmax.toFixed(0)} mm. Drag to rotate, scroll to zoom.`;draw3()}
+function draw3(){if(!P)return;const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);
+ const s=zoom*0.42*Math.min(W,H)/P.ext,ca=Math.cos(yaw),sa=Math.sin(yaw),cb=Math.cos(pitch),sb=Math.sin(pitch),a=P.a,idx=new Array(P.n),sx=new Float32Array(P.n),sy=new Float32Array(P.n),dp=new Float32Array(P.n);
+ for(let i=0;i<P.n;i++){const x=a[3*i]-P.mx,y=a[3*i+1]-P.my,up=P.mz-a[3*i+2];const xr=x*ca-y*sa,yr=x*sa+y*ca;
+  sx[i]=W/2+xr*s;sy[i]=H/2-(up*cb-yr*sb)*s;dp[i]=yr*cb+up*sb;idx[i]=i}
+ idx.sort((p,q)=>dp[q]-dp[p]);for(const i of idx){ctx.fillStyle=P.col[i];ctx.fillRect(sx[i],sy[i],2,2)}
+ ctx.fillStyle=getComputedStyle(document.body).color;ctx.font='13px system-ui';ctx.fillText('camera frame · mm · up = toward camera',12,H-12)}
+cv.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId)});
+cv.addEventListener('pointermove',e=>{if(!drag)return;yaw+=(e.clientX-drag[0])*0.01;pitch=Math.max(-1.5,Math.min(1.5,pitch+(e.clientY-drag[1])*0.01));drag=[e.clientX,e.clientY];draw3()});
+cv.addEventListener('pointerup',()=>drag=null);
+cv.addEventListener('wheel',e=>{if(!P)return;e.preventDefault();zoom=Math.max(0.3,Math.min(6,zoom*(e.deltaY<0?1.1:0.9)));draw3()},{passive:false});
+loadFiles();
+</script>
+</body>
+</html>

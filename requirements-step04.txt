@@ -1,0 +1,3 @@
+# Approved 2026-10-01 for step 4 (reading .bag/.db3 recordings). Installed into .venv only.
+-r requirements-hand.txt
+pyrealsense2==2.58.4.10922

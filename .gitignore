@@ -1,0 +1,14 @@
+# Environment and caches
+.venv/
+__pycache__/
+*.pyc
+
+# Generated results (re-creatable; can contain large images/arrays)
+outputs/
+
+# Model binary (source + SHA-256 are in models/MODEL_INFO.txt)
+models/*.task
+
+# Recordings never live in this repo
+*.bag
+*.db3

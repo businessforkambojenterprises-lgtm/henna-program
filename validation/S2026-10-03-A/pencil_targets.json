@@ -1,0 +1,21 @@
+{
+  "schema": "pencil_targets/1",
+  "session_id": "S2026-10-03-A",
+  "tool": "pencil (NOT nozzle)",
+  "axes": "X/Y only; Z excluded by user decision",
+  "units": "mm, GRBL machine coordinates (MPos)",
+  "source": "pencil hovered over each dot; values copied from ? status lines reported by the user",
+  "note": "paper taped down after the bed was moved; earlier K0 (95.699, 136.199) is from before the move and is NOT used; V2 first reading duplicated V1 and was redone",
+  "head_pose_at_capture": {"recording": "20261003_121952.db3", "x": 145.800, "y": 42.599, "z": -40.000},
+  "targets": {
+    "K0": [92.600, 97.300],
+    "K1": [96.399, 173.299],
+    "K2": [169.699, 100.499],
+    "K3": [92.600, 25.499],
+    "K4": [21.499, 100.499],
+    "V1": [150.800, 152.800],
+    "V2": [145.800, 42.599],
+    "V3": [40.499, 49.699],
+    "V4": [44.598, 153.801]
+  }
+}
