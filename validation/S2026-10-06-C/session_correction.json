@@ -1,0 +1,77 @@
+{
+  "schema": "session_correction/1",
+  "session": "S2026-10-06-C",
+  "created": "2026-10-06",
+  "tool": "nozzle (dispenser disconnected)",
+  "type": "single-point offset correction (R and depth scale kept)",
+  "base_xy_calibration": "validation/S2026-10-05-A/results/nozzle_xy_calibration_20261005-114607.json",
+  "base_z_k_mm": 141.1,
+  "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json",
+  "capture": {
+    "recording": "C:/Users/DELL/Documents/20261006_120328.db3",
+    "head": {
+      "x": 110.0,
+      "y": 16.0,
+      "z": -20.0
+    },
+    "homing": "$HZ then $H before capture (user log)"
+  },
+  "reference": {
+    "cross_pixel": [
+      255,
+      163
+    ],
+    "touch_mpos": [
+      88.441,
+      111.811,
+      -61.4
+    ],
+    "camera_pred_old_xy": [
+      87.54,
+      117.915
+    ]
+  },
+  "R": [
+    [
+      0.001498,
+      -0.999999
+    ],
+    [
+      -0.999999,
+      -0.001498
+    ]
+  ],
+  "t_mm": [
+    -51.139,
+    25.016
+  ],
+  "t_shift_mm": [
+    0.901,
+    -6.104
+  ],
+  "k_mm": 139.245,
+  "limits": "exact at the reference point; rotation/scale errors not corrected; verify at a second point before use",
+  "verification": {
+    "point": "K2",
+    "predicted_xy": [
+      162.55,
+      106.73
+    ],
+    "nozzle_centred_mpos": [
+      162.548,
+      110.03,
+      -95.4
+    ],
+    "error_mm": [
+      -0.002,
+      -3.3
+    ],
+    "result": "FAIL - 3.3 mm at 75 mm from the reference; offset-only correction is not enough (rotation/scale changed)",
+    "old_calibration_error_at_K2_mm": [
+      -0.9,
+      2.8
+    ]
+  },
+  "motion_ready": false,
+  "status": "REJECTED - do not use"
+}
