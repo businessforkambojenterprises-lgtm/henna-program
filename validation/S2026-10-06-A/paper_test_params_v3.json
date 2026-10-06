@@ -1,0 +1,39 @@
+{
+  "decided_by": "user, 2026-10-06 (option A hover + film; height 2 mm; floor 1 mm; 300/1000; travel -5)",
+  "purpose": "PAPER TEST on the 38 mm block - no hand - no dispensing - nozzle hovers, user films from above",
+  "recording": "C:/Users/DELL/Documents/20261006_095058.db3",
+  "head": {
+    "x": 50.0,
+    "y": 50.001,
+    "z": -50.0
+  },
+  "cross_pixel_uv": [
+    394,
+    316
+  ],
+  "cross_machine_xy_camera_estimate": [
+    -27.38,
+    90.45
+  ],
+  "cross_machine_xy_nozzle_jogged": null,
+  "design": {
+    "shape": "circle",
+    "diameter_mm": 20.0,
+    "centre_machine_xy": [
+      -27.38,
+      90.45
+    ],
+    "rotation_deg": 0.0,
+    "jump_mm": 3.0
+  },
+  "surface_band_mm": 3.0,
+  "standoff_mm": 2.0,
+  "floor_above_surface_mm": 1.0,
+  "draw_feed_mm_min": 300.0,
+  "travel_feed_mm_min": 1000.0,
+  "travel_z": -5.0,
+  "xy_calibration": "validation/S2026-10-05-A/results/nozzle_xy_calibration_20261005-114607.json",
+  "z_calibration": "validation/S2026-10-05-A/results/nozzle_z_calibration_20261005-121427.json",
+  "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json",
+  "revision": "v3: matte paper, new recording at head X50 Y50 Z-50 (user); block position as seen in this recording"
+}
