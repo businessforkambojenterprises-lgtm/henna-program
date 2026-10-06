@@ -11,3 +11,9 @@ Copies of the accepted results (originals stay in `outputs/`, which is not track
 
 Not used: 20261005-114242-calib (mislabelled clicks, 32.8 mm), 20261005-114833-calib (fit on pose 2 only).
 Open: Z scale check 0.978 (Z axis vs camera depth not separated). motion_ready=false.
+
+## INVALIDATED 2026-10-06
+The camera was found shifted on 2026-10-06 (camera height estimate 4.66 mm off at a nozzle touch;
+X/Y about 2 mm off) and the camera mount was then re-tightened. These X/Y and Z calibrations no longer
+describe the camera position. Do not use them for any run until a new calibration (or a verified
+per-session correction) exists. The user chose to skip a full re-calibration.
