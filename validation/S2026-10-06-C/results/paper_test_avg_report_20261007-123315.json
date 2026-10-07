@@ -1,0 +1,118 @@
+{
+  "schema": "paper_test_avg/1",
+  "created": "20261007-123315",
+  "program_file": "PAPER_TEST_NO_HAND_AVG_20261007-123315.gcode",
+  "params": {
+    "decided_by": "user, 2026-10-06 (option A hover + film; height 2 mm; floor 1 mm; 300/1000; travel -5); median-depth paper test approved 2026-10-07",
+    "purpose": "PAPER TEST on the 38 mm block - no hand - no dispensing - nozzle hovers, user films from above - 15-frame median depth (step 18)",
+    "recording": "C:/Users/DELL/Documents/20261007_123144.db3",
+    "head": {
+      "x": 145.8,
+      "y": 42.599,
+      "z": -40.0
+    },
+    "cross_pixel_uv": [
+      334,
+      246
+    ],
+    "cross_machine_xy_camera_estimate": [
+      90.08,
+      105.72
+    ],
+    "design": {
+      "shape": "circle",
+      "diameter_mm": 20.0,
+      "centre_machine_xy": [
+        90.08,
+        105.72
+      ],
+      "rotation_deg": 0.0,
+      "jump_mm": 3.0
+    },
+    "surface_band_mm": 3.0,
+    "standoff_mm": 2.0,
+    "floor_above_surface_mm": 1.0,
+    "draw_feed_mm_min": 300.0,
+    "travel_feed_mm_min": 1000.0,
+    "travel_z": -5.0,
+    "xy_calibration": "validation/S2026-10-06-C/results/nozzle_xy_calibration_20261007-085810_blockshift.json",
+    "z_calibration": "validation/S2026-10-06-C/results/nozzle_z_calibration_20261007-110656.json",
+    "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json"
+  },
+  "depth": {
+    "frames": 15,
+    "min_valid_frac": 0.8,
+    "max_mad_mm": 1.0,
+    "pixel_status": {
+      "valid": 328977,
+      "missing": 25762,
+      "unstable": 14558,
+      "noisy": 37743
+    },
+    "mad_mm_median_of_usable": 0.5,
+    "start_pair": 331,
+    "middle_pair": 338
+  },
+  "single_frame": {
+    "paper_z_at_cross": -61.609,
+    "paper_z_range_under_path": [
+      -62.835,
+      -60.486,
+      2.349
+    ],
+    "nozzle_z_range": [
+      -60.747,
+      -58.603,
+      2.145
+    ],
+    "corners": {
+      "direction_change_deg_median": 5.71,
+      "direction_change_deg_max": 5.71,
+      "nozzle_z_step_mm_max": 0.525
+    },
+    "path_stats": {
+      "planned_points": 126,
+      "on_measured_skin": 126,
+      "rejected_outside_region": 0,
+      "rejected_missing_depth": 0,
+      "depth_jump_breaks": 0,
+      "strokes": 1,
+      "output_points": 64,
+      "smoothing_window_mm": 3.0,
+      "max_raise_above_standoff_due_to_floor_mm": 0.263
+    }
+  },
+  "median": {
+    "paper_z_at_cross": -61.507,
+    "paper_z_range_under_path": [
+      -62.018,
+      -60.792,
+      1.226
+    ],
+    "nozzle_z_range": [
+      -59.887,
+      -58.909,
+      0.977
+    ],
+    "corners": {
+      "direction_change_deg_median": 5.71,
+      "direction_change_deg_max": 5.71,
+      "nozzle_z_step_mm_max": 0.233
+    },
+    "path_stats": {
+      "planned_points": 126,
+      "on_measured_skin": 126,
+      "rejected_outside_region": 0,
+      "rejected_missing_depth": 0,
+      "depth_jump_breaks": 0,
+      "strokes": 1,
+      "output_points": 64,
+      "smoothing_window_mm": 3.0,
+      "max_raise_above_standoff_due_to_floor_mm": 0.131
+    }
+  },
+  "global_floor_in_program": -61.018,
+  "lines": 73,
+  "checks": "per-point floor (paper + 1) on re-read text; allowed commands only; rapids only at travel Z",
+  "note": "ranges are [min, max, max-min]; the block top is flat (touches -61.9/-61.8/-61.8)"
+}
