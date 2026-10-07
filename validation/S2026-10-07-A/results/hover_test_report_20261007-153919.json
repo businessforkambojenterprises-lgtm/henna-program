@@ -1,0 +1,93 @@
+{
+  "schema": "hand_hover_test/1",
+  "created": "20261007-153919",
+  "motion_ready_for_person": false,
+  "program_file": "HOVER_TEST_PROSTHETIC_HAND_20261007-153919.gcode",
+  "config": {
+    "session_id": "S2026-10-07-A",
+    "purpose": "HOVER TEST over the PROSTHETIC hand - no person - no dispensing - nozzle hovers 3 mm above measured skin, user films",
+    "decided_by": "user, 2026-10-05 (a 3, b skin+1, c 300/1000, d -20) for the nozzle hand path; hover test over the prosthetic hand approved 2026-10-07 (option 2)",
+    "hand_capture": {
+      "recording": "20261007_152628.db3",
+      "head": {
+        "x": 145.8,
+        "y": 42.599,
+        "z": -40.0
+      },
+      "source": "? status line reported by the user (Idle line after the jog)"
+    },
+    "hand_run_dir": "outputs/webui/20261007-152847-hand",
+    "region_dir": "outputs/webui/20261007-153004-region",
+    "design": {
+      "shape": "circle",
+      "diameter_mm": 20.0,
+      "centre_machine_xy": [
+        84.21,
+        71.18
+      ],
+      "rotation_deg": 0.0,
+      "jump_mm": 3.0,
+      "centre_source": "middle of the accepted region (step 19 preview 20261007-153057)"
+    },
+    "frames": 15,
+    "min_valid_frac": 0.8,
+    "max_mad_mm": 1.0,
+    "standoff_mm": 3.0,
+    "floor_above_skin_mm": 1.0,
+    "draw_feed_mm_min": 300.0,
+    "travel_feed_mm_min": 1000.0,
+    "travel_z": -20.0,
+    "firmware_z_floor": -97.0,
+    "xy_calibration": "validation/S2026-10-06-C/results/nozzle_xy_calibration_20261007-085810_blockshift.json",
+    "z_calibration": "validation/S2026-10-06-C/results/nozzle_z_calibration_20261007-110656.json",
+    "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json",
+    "subject": "prosthetic hand (no person)"
+  },
+  "depth": {
+    "frames": 15,
+    "min_valid_frac": 0.8,
+    "max_mad_mm": 1.0,
+    "pixel_status": {
+      "valid": 325705,
+      "missing": 26793,
+      "unstable": 29577,
+      "noisy": 24965
+    },
+    "mad_mm_median_of_usable": 0.5,
+    "start_pair": 448,
+    "middle_pair": 455
+  },
+  "hand_top": {
+    "min_depth_mm": 159.1,
+    "hand_top_contact_z": -57.63,
+    "pixels": 41543,
+    "note": "0.5th percentile of usable depth inside grown landmark hull"
+  },
+  "path_stats": {
+    "planned_points": 126,
+    "on_measured_skin": 92,
+    "rejected_outside_region": 0,
+    "rejected_missing_depth": 34,
+    "depth_jump_breaks": 0,
+    "strokes": 4,
+    "output_points": 49,
+    "smoothing_window_mm": 3.0,
+    "max_raise_above_standoff_due_to_floor_mm": 0.214
+  },
+  "corners": {
+    "direction_change_deg_median": 5.71,
+    "direction_change_deg_max": 5.71,
+    "nozzle_z_step_mm_max": 0.35
+  },
+  "nozzle_z_range": [
+    -63.792,
+    -58.609
+  ],
+  "skin_z_range": [
+    -66.818,
+    -61.558
+  ],
+  "global_floor_in_program": -65.818,
+  "lines": 64,
+  "checks": "per-point floor (skin + margin) on re-read text; allowed commands only; rapids only at travel Z; travel Z clears hand top + standoff"
+}

@@ -1,0 +1,40 @@
+{
+  "session_id": "S2026-10-07-A",
+  "purpose": "HOVER TEST over the PROSTHETIC hand - no person - no dispensing - nozzle hovers 3 mm above measured skin, user films",
+  "decided_by": "user, 2026-10-05 (a 3, b skin+1, c 300/1000, d -20) for the nozzle hand path; hover test over the prosthetic hand approved 2026-10-07 (option 2)",
+  "hand_capture": {
+    "recording": "20261007_152628.db3",
+    "head": {
+      "x": 145.8,
+      "y": 42.599,
+      "z": -40.0
+    },
+    "source": "? status line reported by the user (Idle line after the jog)"
+  },
+  "hand_run_dir": "outputs/webui/20261007-152847-hand",
+  "region_dir": "outputs/webui/20261007-153004-region",
+  "design": {
+    "shape": "circle",
+    "diameter_mm": 20.0,
+    "centre_machine_xy": [
+      84.21,
+      71.18
+    ],
+    "rotation_deg": 0.0,
+    "jump_mm": 3.0,
+    "centre_source": "middle of the accepted region (step 19 preview 20261007-153057)"
+  },
+  "frames": 15,
+  "min_valid_frac": 0.8,
+  "max_mad_mm": 1.0,
+  "standoff_mm": 3.0,
+  "floor_above_skin_mm": 1.0,
+  "draw_feed_mm_min": 300.0,
+  "travel_feed_mm_min": 1000.0,
+  "travel_z": -20.0,
+  "firmware_z_floor": -97.0,
+  "xy_calibration": "validation/S2026-10-06-C/results/nozzle_xy_calibration_20261007-085810_blockshift.json",
+  "z_calibration": "validation/S2026-10-06-C/results/nozzle_z_calibration_20261007-110656.json",
+  "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json",
+  "subject": "prosthetic hand (no person)"
+}
