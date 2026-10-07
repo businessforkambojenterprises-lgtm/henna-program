@@ -1,0 +1,14 @@
+{
+  "session_id": "S2026-10-06-C",
+  "tool": "nozzle (dispenser disconnected)",
+  "block_height_mm": 38.0,
+  "xy_calibration": "validation/S2026-10-06-C/results/nozzle_xy_calibration_20261007-085810.json",
+  "xy_verification": "validation/S2026-10-06-C/results/nozzle_xy_verification_20261007-090209.json (prediction RMS 1.15 mm at bed level; 5.2 mm off at block height - see log)",
+  "recording_a": {"path": "C:/Users/DELL/Documents/20261007_091333.db3", "frame": 30, "head": {"x": 145.800, "y": 42.599, "z": -40.000}},
+  "touches": [
+    {"label": "T1", "x": 90.100, "y": 105.901, "z_contact": -61.900},
+    {"label": "T2", "x": 85.100, "y": 100.899, "z_contact": -61.800},
+    {"label": "T3", "x": 95.100, "y": 110.901, "z_contact": -61.800}
+  ],
+  "source": "machine homed with $HZ then $H on 2026-10-07; head pose and touches from ? status lines reported by the user; block not moved between recording and touches"
+}

@@ -1,0 +1,443 @@
+{
+  "schema": "camera_tool_xy_calibration/1",
+  "created": "2026-10-07T11:18:59",
+  "motion_ready": false,
+  "gcode": null,
+  "tool": "nozzle (dispenser disconnected)",
+  "session_id": "S2026-10-06-C",
+  "axes": "X/Y only (Z excluded)",
+  "valid_only_for": "this tool, head Z -40.0 at capture, this camera mount and bed; re-measure after any change; offset checked by nozzle touches at block height (38 mm above bed) only",
+  "model": "tool_XY = head_XY_at_capture + R @ camera_xy_mm + t",
+  "inputs": {
+    "recording": "C:\\Users\\DELL\\Documents\\20261006_155854.db3",
+    "recording_sha256": "8f566b95c6e2e4570b475e8ca26ebf96d9319ea163793c3dc5ba1c7c46b262ee",
+    "frame_index": 30,
+    "frame": {
+      "depth_frame_number": 145,
+      "colour_frame_number": 131,
+      "depth_timestamp_ms": 1791282535645.995,
+      "colour_timestamp_ms": 1791282535646.299,
+      "timestamp_domain": "global_time"
+    },
+    "targets_file": "C:\\Users\\DELL\\Desktop\\Ai+d405\\validation\\S2026-10-06-C\\nozzle_targets_pose1.json",
+    "head_pose_at_capture": {
+      "recording": "20261006_155854.db3",
+      "x": 145.8,
+      "y": 42.599,
+      "z": -40.0
+    },
+    "clicks_px": {
+      "K2": [
+        346.1,
+        84.9
+      ],
+      "K3": [
+        506.3,
+        244.8
+      ],
+      "K4": [
+        349.3,
+        397.1
+      ],
+      "V1": [
+        234.9,
+        130.6
+      ],
+      "V2": [
+        463.8,
+        132.8
+      ],
+      "V3": [
+        457.2,
+        354.7
+      ],
+      "V4": [
+        237.1,
+        347.1
+      ]
+    }
+  },
+  "camera_intrinsics_colour": {
+    "width": 848,
+    "height": 480,
+    "fx": 435.4101257324219,
+    "fy": 434.7133483886719,
+    "ppx": 424.37677001953125,
+    "ppy": 233.95225524902344,
+    "model": "inverse_brown_conrady",
+    "coeffs": [
+      -0.05318453907966614,
+      0.0563274547457695,
+      0.0002754419401753694,
+      0.0005459064850583673,
+      -0.018623869866132736
+    ]
+  },
+  "result": {
+    "dots": [
+      {
+        "label": "K2",
+        "pixel_uv": [
+          346.1,
+          84.9
+        ],
+        "machine_xy": [
+          162.548,
+          110.03
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          -36.51,
+          -69.6,
+          201.5
+        ],
+        "status": "used",
+        "residual_mm": [
+          1.47,
+          -0.76
+        ],
+        "residual_len_mm": 1.66
+      },
+      {
+        "label": "K3",
+        "pixel_uv": [
+          506.3,
+          244.8
+        ],
+        "machine_xy": [
+          84.799,
+          38.199
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          37.57,
+          4.98,
+          199.4
+        ],
+        "status": "used",
+        "residual_mm": [
+          -0.6,
+          0.36
+        ],
+        "residual_len_mm": 0.7
+      },
+      {
+        "label": "K4",
+        "pixel_uv": [
+          349.3,
+          397.1
+        ],
+        "machine_xy": [
+          14.501,
+          111.2
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          -35.41,
+          77.02,
+          203.7
+        ],
+        "status": "used",
+        "residual_mm": [
+          0.04,
+          -0.69
+        ],
+        "residual_len_mm": 0.7
+      },
+      {
+        "label": "V1",
+        "pixel_uv": [
+          234.9,
+          130.6
+        ],
+        "machine_xy": [
+          141.6,
+          164.001
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          -88.8,
+          -48.51,
+          201.8
+        ],
+        "status": "used",
+        "residual_mm": [
+          0.82,
+          0.61
+        ],
+        "residual_len_mm": 1.02
+      },
+      {
+        "label": "V2",
+        "pixel_uv": [
+          463.8,
+          132.8
+        ],
+        "machine_xy": [
+          137.4,
+          57.001
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          18.1,
+          -46.55,
+          199.4
+        ],
+        "status": "used",
+        "residual_mm": [
+          0.19,
+          0.46
+        ],
+        "residual_len_mm": 0.5
+      },
+      {
+        "label": "V3",
+        "pixel_uv": [
+          457.2,
+          354.7
+        ],
+        "machine_xy": [
+          33.899,
+          61.299
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          15.22,
+          56.12,
+          201.3
+        ],
+        "status": "used",
+        "residual_mm": [
+          -0.7,
+          0.34
+        ],
+        "residual_len_mm": 0.78
+      },
+      {
+        "label": "V4",
+        "pixel_uv": [
+          237.1,
+          347.1
+        ],
+        "machine_xy": [
+          37.701,
+          164.001
+        ],
+        "depth_pixels_used": 25,
+        "camera_mm": [
+          -88.19,
+          53.34,
+          202.8
+        ],
+        "status": "used",
+        "residual_mm": [
+          -1.23,
+          -0.31
+        ],
+        "residual_len_mm": 1.27
+      }
+    ],
+    "R": [
+      [
+        -0.014996,
+        -0.999888
+      ],
+      [
+        -0.999888,
+        0.014996
+      ]
+    ],
+    "t_mm": [
+      -51.702,
+      29.111
+    ],
+    "rotation_deg": -90.86,
+    "mirrored": true,
+    "rms_mm": 1.02,
+    "max_residual_mm": 1.66,
+    "scale_check": 1.0056,
+    "dots_used": 7,
+    "target_depth_mm_range": [
+      199.4,
+      203.7
+    ],
+    "t_mm_before_block_shift": [
+      -54.86,
+      32.73
+    ]
+  },
+  "how_to_read": {
+    "t_mm": "X/Y offset (mm) added to the head position; with R it maps a camera point to the tool X/Y over it",
+    "rotation_deg": "camera X/Y axes rotated relative to machine X/Y",
+    "mirrored": "true if camera axes are flipped relative to machine axes",
+    "rms_mm / max_residual_mm": "how far the fitted model misses your hovered points; includes hover aim and click error",
+    "scale_check": "should be close to 1.0; far from 1 means camera mm and machine mm disagree"
+  },
+  "warnings": [
+    "Offset corrected from block-top touches; checked at 38 mm above the bed only. Not machine-ready.",
+    "Second-height check (thinner flat object) needed before hand work.",
+    "Camera tilt is not modelled."
+  ],
+  "derived_from": "validation/S2026-10-06-C/results/nozzle_xy_calibration_20261007-085810.json",
+  "block_shift": {
+    "approved_by": "user, 2026-10-07",
+    "shift_added_to_t_mm": [
+      3.158,
+      -3.619
+    ],
+    "why": "nozzle-tip touches on the 38 mm block (no viewing-angle error) all differ from the bed-dot calibration by the same offset; most likely viewing-angle error when centring the nozzle about 3 mm above the bed dots (nozzle cannot reach the bed)",
+    "recording": "C:/Users/DELL/Documents/20261007_111017.db3",
+    "frame_index": 30,
+    "head": {
+      "x": 145.8,
+      "y": 42.599,
+      "z": -40.0
+    },
+    "points": [
+      {
+        "label": "0 cross",
+        "pixel_uv": [
+          333,
+          246
+        ],
+        "camera_mm": [
+          -34.28,
+          4.52,
+          162.9
+        ],
+        "touch_xy": [
+          90.1,
+          105.901
+        ],
+        "predicted_xy_before": [
+          86.931,
+          109.669
+        ],
+        "used_for_shift": true,
+        "error_before_len_mm": 4.92,
+        "error_after_mm": [
+          0.01,
+          -0.15
+        ],
+        "error_after_len_mm": 0.15,
+        "leave_one_out_error_len_mm": 0.2
+      },
+      {
+        "label": "1",
+        "pixel_uv": [
+          290,
+          282
+        ],
+        "camera_mm": [
+          -50.74,
+          18.16,
+          163.5
+        ],
+        "touch_xy": [
+          76.801,
+          122.099
+        ],
+        "predicted_xy_before": [
+          73.538,
+          126.34
+        ],
+        "used_for_shift": true,
+        "error_before_len_mm": 5.35,
+        "error_after_mm": [
+          0.1,
+          -0.62
+        ],
+        "error_after_len_mm": 0.63,
+        "leave_one_out_error_len_mm": 0.84
+      },
+      {
+        "label": "2",
+        "pixel_uv": [
+          296,
+          198
+        ],
+        "camera_mm": [
+          -48.36,
+          -13.57,
+          163.2
+        ],
+        "touch_xy": [
+          108.397,
+          120.3
+        ],
+        "predicted_xy_before": [
+          105.232,
+          123.484
+        ],
+        "used_for_shift": true,
+        "error_before_len_mm": 4.49,
+        "error_after_mm": [
+          0.01,
+          0.43
+        ],
+        "error_after_len_mm": 0.43,
+        "leave_one_out_error_len_mm": 0.58
+      },
+      {
+        "label": "3 (glare)",
+        "pixel_uv": [
+          370,
+          202
+        ],
+        "camera_mm": [
+          -20.35,
+          -11.97,
+          162.7
+        ],
+        "touch_xy": [
+          106.797,
+          90.704
+        ],
+        "predicted_xy_before": [
+          103.219,
+          95.494
+        ],
+        "used_for_shift": false,
+        "error_before_len_mm": 5.98,
+        "error_after_mm": [
+          0.42,
+          -1.17
+        ],
+        "error_after_len_mm": 1.24
+      },
+      {
+        "label": "4",
+        "pixel_uv": [
+          369,
+          288
+        ],
+        "camera_mm": [
+          -20.76,
+          20.29,
+          162.9
+        ],
+        "touch_xy": [
+          74.003,
+          93.104
+        ],
+        "predicted_xy_before": [
+          70.967,
+          96.387
+        ],
+        "used_for_shift": true,
+        "error_before_len_mm": 4.47,
+        "error_after_mm": [
+          -0.12,
+          0.34
+        ],
+        "error_after_len_mm": 0.36,
+        "leave_one_out_error_len_mm": 0.48
+      }
+    ],
+    "rms_after_used_points_mm": 0.43,
+    "held_out_point_error_mm": 1.24,
+    "angle_and_scale": "unchanged from the bed-dot fit (R kept)",
+    "touch_z_note": "dot touches read -63.000 (user: touching, nozzle straight) vs -61.8/-61.9 this morning; Z to be re-checked after re-homing",
+    "not_yet_checked": "whether the shift is the same at other heights (second-height check pending); bed-level predictions now differ from the hover readings by this shift"
+  }
+}
