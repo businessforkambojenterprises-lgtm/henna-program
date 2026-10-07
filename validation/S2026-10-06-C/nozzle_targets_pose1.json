@@ -1,0 +1,48 @@
+{
+  "schema": "pencil_targets/1",
+  "session_id": "S2026-10-06-C",
+  "tool": "nozzle (dispenser disconnected)",
+  "axes": "X/Y only; Z excluded",
+  "units": "mm, GRBL machine coordinates (MPos)",
+  "source": "re-calibration after camera mount tightened; machine homed with $HZ then $H; nozzle tip hovered over each dot; values from ? status lines reported by the user; K1 unreachable (Y travel) and omitted",
+  "head_pose_at_capture": {
+    "recording": "20261006_155854.db3",
+    "x": 145.8,
+    "y": 42.599,
+    "z": -40.0
+  },
+  "targets": {
+    "K0": [
+      86.298,
+      111.2
+    ],
+    "K2": [
+      162.548,
+      110.03
+    ],
+    "K3": [
+      84.799,
+      38.199
+    ],
+    "K4": [
+      14.501,
+      111.2
+    ],
+    "V1": [
+      141.6,
+      164.001
+    ],
+    "V2": [
+      137.4,
+      57.001
+    ],
+    "V3": [
+      33.899,
+      61.299
+    ],
+    "V4": [
+      37.701,
+      164.001
+    ]
+  }
+}

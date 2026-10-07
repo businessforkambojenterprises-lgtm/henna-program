@@ -1,0 +1,270 @@
+{
+  "schema": "camera_tool_xy_verification/1",
+  "created": "2026-10-07T09:02:16",
+  "motion_ready": false,
+  "gcode": null,
+  "tool": "nozzle (dispenser disconnected)",
+  "axes": "X/Y only (Z excluded)",
+  "calibration_file": "C:\\Users\\DELL\\Desktop\\Ai+d405\\outputs\\webui\\20261007-085810-calib\\calibration.json",
+  "calibration_head_pose": {
+    "recording": "20261006_155854.db3",
+    "x": 145.8,
+    "y": 42.599,
+    "z": -40.0
+  },
+  "verification_head_pose": {
+    "recording": "20261006_160158.db3",
+    "x": 165.8,
+    "y": 112.599,
+    "z": -40.0
+  },
+  "inputs": {
+    "recording": "C:\\Users\\DELL\\Documents\\20261006_160158.db3",
+    "recording_sha256": "2cbbf7f31dab76677e0c6260ce51384d9c465d6f105afe4e787761f324b2a311",
+    "frame_index": 30,
+    "frame": {
+      "depth_frame_number": 5669,
+      "colour_frame_number": 5655,
+      "depth_timestamp_ms": 1791282719820.954,
+      "colour_timestamp_ms": 1791282719821.258,
+      "timestamp_domain": "global_time"
+    },
+    "targets_file": "C:\\Users\\DELL\\Desktop\\Ai+d405\\validation\\S2026-10-06-C\\nozzle_targets_pose2.json",
+    "clicks_px": {
+      "K2": [
+        498.7,
+        126.3
+      ],
+      "K3": [
+        655.6,
+        286.2
+      ],
+      "K4": [
+        498.7,
+        434.1
+      ],
+      "V1": [
+        386.4,
+        170.9
+      ],
+      "V2": [
+        614.2,
+        175.2
+      ],
+      "V3": [
+        606.6,
+        393.9
+      ],
+      "V4": [
+        387.5,
+        387.3
+      ]
+    }
+  },
+  "result": {
+    "dots": [
+      {
+        "label": "K2",
+        "pixel_uv": [
+          498.7,
+          126.3
+        ],
+        "machine_xy": [
+          162.548,
+          110.03
+        ],
+        "depth_pixels_used": 25,
+        "status": "used",
+        "camera_mm": [
+          34.79,
+          -50.5,
+          203.0
+        ],
+        "predicted_xy": [
+          160.91,
+          109.78
+        ],
+        "error_xy_mm": [
+          -1.64,
+          -0.25
+        ],
+        "error_mm": 1.66
+      },
+      {
+        "label": "K3",
+        "pixel_uv": [
+          655.6,
+          286.2
+        ],
+        "machine_xy": [
+          84.799,
+          38.199
+        ],
+        "depth_pixels_used": 25,
+        "status": "used",
+        "camera_mm": [
+          108.68,
+          24.59,
+          202.5
+        ],
+        "predicted_xy": [
+          84.73,
+          37.03
+        ],
+        "error_xy_mm": [
+          -0.07,
+          -1.17
+        ],
+        "error_mm": 1.17
+      },
+      {
+        "label": "K4",
+        "pixel_uv": [
+          498.7,
+          434.1
+        ],
+        "machine_xy": [
+          14.501,
+          111.2
+        ],
+        "depth_pixels_used": 25,
+        "status": "used",
+        "camera_mm": [
+          35.37,
+          95.46,
+          205.4
+        ],
+        "predicted_xy": [
+          14.96,
+          111.39
+        ],
+        "error_xy_mm": [
+          0.46,
+          0.19
+        ],
+        "error_mm": 0.5
+      },
+      {
+        "label": "V1",
+        "pixel_uv": [
+          386.4,
+          170.9
+        ],
+        "machine_xy": [
+          141.6,
+          164.001
+        ],
+        "depth_pixels_used": 25,
+        "status": "used",
+        "camera_mm": [
+          -17.78,
+          -29.57,
+          203.5
+        ],
+        "predicted_xy": [
+          140.77,
+          162.67
+        ],
+        "error_xy_mm": [
+          -0.83,
+          -1.34
+        ],
+        "error_mm": 1.57
+      },
+      {
+        "label": "V2",
+        "pixel_uv": [
+          614.2,
+          175.2
+        ],
+        "machine_xy": [
+          137.4,
+          57.001
+        ],
+        "depth_pixels_used": 25,
+        "status": "used",
+        "camera_mm": [
+          88.8,
+          -27.55,
+          202.0
+        ],
+        "predicted_xy": [
+          137.15,
+          56.13
+        ],
+        "error_xy_mm": [
+          -0.25,
+          -0.87
+        ],
+        "error_mm": 0.91
+      },
+      {
+        "label": "V3",
+        "pixel_uv": [
+          606.6,
+          393.9
+        ],
+        "machine_xy": [
+          33.899,
+          61.299
+        ],
+        "depth_pixels_used": 25,
+        "status": "used",
+        "camera_mm": [
+          86.3,
+          75.89,
+          204.0
+        ],
+        "predicted_xy": [
+          33.77,
+          60.17
+        ],
+        "error_xy_mm": [
+          -0.13,
+          -1.13
+        ],
+        "error_mm": 1.13
+      },
+      {
+        "label": "V4",
+        "pixel_uv": [
+          387.5,
+          387.3
+        ],
+        "machine_xy": [
+          37.701,
+          164.001
+        ],
+        "depth_pixels_used": 25,
+        "status": "used",
+        "camera_mm": [
+          -17.52,
+          72.89,
+          205.4
+        ],
+        "predicted_xy": [
+          38.32,
+          163.94
+        ],
+        "error_xy_mm": [
+          0.62,
+          -0.06
+        ],
+        "error_mm": 0.63
+      }
+    ],
+    "dots_used": 7,
+    "rms_mm": 1.15,
+    "max_error_mm": 1.66,
+    "mean_error_xy_mm": [
+      -0.26,
+      -0.66
+    ],
+    "calibration_fit_rms_mm": 1.02
+  },
+  "how_to_read": "error = position predicted from the saved calibration minus the hovered tool position; compare rms_mm with the calibration's own fit RMS. Not re-fitted.",
+  "warnings": [
+    "PENCIL practice run. Not the nozzle. Not machine-ready.",
+    "Verified at the same head height (Z) only; camera tilt is not modelled."
+  ]
+}
