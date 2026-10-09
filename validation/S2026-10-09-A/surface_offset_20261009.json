@@ -1,0 +1,15 @@
+{
+  "schema": "surface_offset/1",
+  "subject": "prosthetic hand (no person)",
+  "recording": "20261009_083508.db3",
+  "surface": "textured silicone palm (pen marks), lamp on",
+  "measured_with_program": "DESIGN_HOVER_TEST_PROSTHETIC_20261009-084025.gcode",
+  "method": "nozzle lowered to the program Z at each point, then 0.1 mm steps until the tip just touched; ? reported by the user",
+  "decided_by": "user, 2026-10-09: add offset (smallest per-touch offset, raise only)",
+  "max_spread_mm": 0.5,
+  "touches": [
+    {"name": "H1 highest skin", "x": 96.313, "y": 59.305, "program_z": -57.209, "camera_skin_z": -60.078, "touch_z": -58.681},
+    {"name": "H2 lowest skin", "x": 101.410, "y": 81.540, "program_z": -66.269, "camera_skin_z": -69.473, "touch_z": -67.770},
+    {"name": "H3 spread", "x": 74.643, "y": 76.239, "program_z": -62.942, "camera_skin_z": -66.001, "touch_z": -64.342}
+  ]
+}

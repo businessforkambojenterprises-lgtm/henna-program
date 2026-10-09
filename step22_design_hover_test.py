@@ -6,6 +6,8 @@ nothing). The program is written ONLY with --write-gcode, and only when the sett
 prosthetic hand as the subject. Program text: G21, G90, G53 G0 Z (travel), G53 G0 X Y (at travel
 Z), G53 G1 X Y Z F - every stroke starts with a slow descent from travel Z and ends with a lift.
 Re-read independently with per-point floors. Three gap-check points are listed in the report.
+Optional "surface_offset_file": a touch-measured offset on the same recording raises the surface
+(henna_preview.surface_offset; prosthetic only, can only raise the nozzle).
 Not validated for a person: motion_ready = false.
 """
 import argparse
@@ -25,6 +27,7 @@ from henna_preview.nozzle_toolpath import NozzlePathError, check_params, gcode_l
 from henna_preview.recording_multi import read_frames_median
 from henna_preview.region import polygon_mask, require_accepted
 from henna_preview.smooth_path import corner_stats
+from henna_preview.surface_offset import load_offset, shifted_depth_fn
 from step12_nozzle_sim import ROOT, _j
 from step19_hand_path_avg import hand_top_from_raw
 from step21_design_preview import plan_design, run_time_s
@@ -63,6 +66,11 @@ def main():
         raise NozzlePathError("X/Y and Z calibrations must both be NOZZLE calibrations")
     k, g, d_ref = float(zc["result"]["k_mm"]), float(ds["g"]), float(ds["d_ref_mm"])
     depth_fn = lambda d, g=g, d_ref=d_ref: correct_depth(d, g, d_ref)  # noqa: E731
+    offset = None
+    if cfg.get("surface_offset_file"):  # optional: measured by nozzle touches on this recording (prosthetic only)
+        offset = load_offset(os.path.join(ROOT, cfg["surface_offset_file"]), cfg["hand_capture"]["recording"],
+                             p["standoff_mm"])
+        depth_fn = shifted_depth_fn(depth_fn, offset["applied_mm"])
 
     fi, nf = int(hand_rep["input"]["frame_index"]), int(cfg["frames"])
     if fi - nf // 2 < 0:
@@ -95,6 +103,8 @@ def main():
               f"fit {d['fit_mm']:g} mm at X{centre[0]} Y{centre[1]}",
               f"nozzle {p['standoff_mm']:g} mm above measured skin - floor skin + {p['floor_above_skin_mm']:g} mm - "
               f"travel Z {p['travel_z']:g} - {len(paths)} strokes - about {tt / 60:.1f} min",
+              (f"surface raised by touch-measured offset {offset['applied_mm']:.3f} mm" if offset
+               else "no surface offset"),
               "Run with UGS - home first - hand not moved since the recording - stand at the emergency stop"]
     lines = program([np.column_stack([s[:, 0], s[:, 1], s[:, 3]]) for s in paths], q, header)
     program_check(lines, q)
@@ -137,6 +147,7 @@ def main():
            "design": {"svg": d["svg"], "fit_mm": d["fit_mm"], "mm_per_svg_unit": round(scale, 5),
                       "centre_machine_xy": centre, "rotation_deg": d.get("rotation_deg", 0.0), "strokes": len(paths),
                       "line_length_mm": round(sum(s["length_mm"] for s in placed), 1)},
+           "surface_offset": offset or {"applied_mm": 0.0, "note": "none"},
            "per_stroke": per, "hand_top": top, "gap_check_points": gaps,
            "skin_z_range": [round(float(alls.min()), 3), round(float(alls.max()), 3)],
            "nozzle_z_range": [round(float(allz.min()), 3), round(float(allz.max()), 3)],
@@ -146,7 +157,8 @@ def main():
            "checks": "per-point floor (skin + margin) on re-read text; allowed commands only; rapids only at travel Z; "
                      "travel Z clears hand top + standoff; design all-or-nothing on usable skin inside the region"}
     json.dump(rep, open(os.path.join(out, "report.json"), "w", encoding="utf-8"), indent=2)
-    print(json.dumps({k2: rep[k2] for k2 in ("program_file", "design", "hand_top", "skin_z_range", "nozzle_z_range",
+    print(json.dumps({k2: rep[k2] for k2 in ("program_file", "surface_offset", "design", "hand_top", "skin_z_range",
+                                             "nozzle_z_range",
                                              "corners", "estimated_run_time_s", "global_floor_in_program", "lines",
                                              "gap_check_points")}, indent=2))
     print("Wrote:", out)
