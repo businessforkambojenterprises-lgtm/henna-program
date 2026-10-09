@@ -1,0 +1,427 @@
+{
+  "schema": "design_hover_test/1",
+  "created": "20261009-104112",
+  "motion_ready_for_person": false,
+  "program_file": null,
+  "config": {
+    "session_id": "S2026-10-09-A",
+    "purpose": "DESIGN HOVER TEST over the TEXTURED PROSTHETIC hand - no person - no dispensing - nozzle hovers 3 mm above measured skin, user films from the side at palm level",
+    "decided_by": "user, 2026-10-05 (a 3, b skin+1, c 300/1000, d -20) for the nozzle hand path; step 21 approved 2026-10-07 (test design, fit 30 mm); step 22 design hover test approved 2026-10-09 (motif unchanged, travel -20); fresh capture after the hand moved; paper-feeler offset before the run approved 2026-10-09",
+    "hand_capture": {
+      "recording": "20261009_103239.db3",
+      "head": {
+        "x": 145.8,
+        "y": 42.599,
+        "z": -40.0
+      },
+      "source": "? status line reported by the user"
+    },
+    "hand_run_dir": "outputs/webui/20261009-103828-hand",
+    "region_dir": "outputs/webui/20261009-104028-region",
+    "design": {
+      "svg": "designs/test_henna_motif.svg",
+      "fit_mm": 30.0,
+      "centre_machine_xy": "region_centroid",
+      "rotation_deg": 0.0,
+      "jump_mm": 3.0
+    },
+    "frames": 15,
+    "min_valid_frac": 0.8,
+    "max_mad_mm": 1.0,
+    "standoff_mm": 3.0,
+    "floor_above_skin_mm": 1.0,
+    "draw_feed_mm_min": 300.0,
+    "travel_feed_mm_min": 1000.0,
+    "travel_z": -20.0,
+    "firmware_z_floor": -97.0,
+    "xy_calibration": "validation/S2026-10-06-C/results/nozzle_xy_calibration_20261007-085810_blockshift.json",
+    "z_calibration": "validation/S2026-10-06-C/results/nozzle_z_calibration_20261007-110656.json",
+    "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json",
+    "subject": "prosthetic hand (no person)",
+    "revision": "v3: hand fixed in place, new capture 20261009_103239; no offset yet (used for the paper-feeler points only)"
+  },
+  "design": {
+    "svg": "designs/test_henna_motif.svg",
+    "fit_mm": 30.0,
+    "mm_per_svg_unit": 0.34343,
+    "centre_machine_xy": [
+      82.63,
+      66.06
+    ],
+    "rotation_deg": 0.0,
+    "strokes": 18,
+    "line_length_mm": 278.3
+  },
+  "surface_offset": {
+    "applied_mm": 0.0,
+    "note": "none"
+  },
+  "per_stroke": [
+    {
+      "stroke": 1,
+      "source": "circle#centre",
+      "points": 22,
+      "ok_points": 22,
+      "length_mm": 10.79,
+      "closed": true,
+      "skin_z": [
+        -63.448,
+        -62.324
+      ],
+      "nozzle_z": [
+        -60.316,
+        -59.529
+      ],
+      "max_raise_above_standoff_mm": 0.204
+    },
+    {
+      "stroke": 2,
+      "source": "path#petal1",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.41,
+      "closed": true,
+      "skin_z": [
+        -65.797,
+        -63.448
+      ],
+      "nozzle_z": [
+        -62.417,
+        -60.594
+      ],
+      "max_raise_above_standoff_mm": 0.438
+    },
+    {
+      "stroke": 3,
+      "source": "path#petal2",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.4,
+      "closed": true,
+      "skin_z": [
+        -65.184,
+        -63.346
+      ],
+      "nozzle_z": [
+        -62.038,
+        -60.418
+      ],
+      "max_raise_above_standoff_mm": 0.19
+    },
+    {
+      "stroke": 4,
+      "source": "path#petal3",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.41,
+      "closed": true,
+      "skin_z": [
+        -63.652,
+        -62.835
+      ],
+      "nozzle_z": [
+        -60.594,
+        -59.879
+      ],
+      "max_raise_above_standoff_mm": 0.248
+    },
+    {
+      "stroke": 5,
+      "source": "path#petal4",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.4,
+      "closed": true,
+      "skin_z": [
+        -62.631,
+        -61.201
+      ],
+      "nozzle_z": [
+        -59.47,
+        -58.245
+      ],
+      "max_raise_above_standoff_mm": 0.175
+    },
+    {
+      "stroke": 6,
+      "source": "path#petal5",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.41,
+      "closed": true,
+      "skin_z": [
+        -62.222,
+        -60.895
+      ],
+      "nozzle_z": [
+        -59.105,
+        -57.967
+      ],
+      "max_raise_above_standoff_mm": 0.233
+    },
+    {
+      "stroke": 7,
+      "source": "path#petal6",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.4,
+      "closed": true,
+      "skin_z": [
+        -62.835,
+        -60.69
+      ],
+      "nozzle_z": [
+        -59.485,
+        -57.749
+      ],
+      "max_raise_above_standoff_mm": 0.394
+    },
+    {
+      "stroke": 8,
+      "source": "path#petal7",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.41,
+      "closed": true,
+      "skin_z": [
+        -64.163,
+        -62.324
+      ],
+      "nozzle_z": [
+        -60.914,
+        -59.499
+      ],
+      "max_raise_above_standoff_mm": 0.321
+    },
+    {
+      "stroke": 9,
+      "source": "path#petal8",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.4,
+      "closed": true,
+      "skin_z": [
+        -65.797,
+        -63.652
+      ],
+      "nozzle_z": [
+        -62.49,
+        -60.842
+      ],
+      "max_raise_above_standoff_mm": 0.35
+    },
+    {
+      "stroke": 10,
+      "source": "circle#dot1",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -65.899,
+        -65.797
+      ],
+      "nozzle_z": [
+        -62.869,
+        -62.869
+      ],
+      "max_raise_above_standoff_mm": 0.029
+    },
+    {
+      "stroke": 11,
+      "source": "circle#dot2",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -64.775,
+        -64.571
+      ],
+      "nozzle_z": [
+        -61.659,
+        -61.659
+      ],
+      "max_raise_above_standoff_mm": 0.117
+    },
+    {
+      "stroke": 12,
+      "source": "circle#dot3",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -61.507,
+        -61.303
+      ],
+      "nozzle_z": [
+        -58.463,
+        -58.463
+      ],
+      "max_raise_above_standoff_mm": 0.146
+    },
+    {
+      "stroke": 13,
+      "source": "circle#dot4",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -60.384,
+        -60.282
+      ],
+      "nozzle_z": [
+        -57.355,
+        -57.355
+      ],
+      "max_raise_above_standoff_mm": 0.029
+    },
+    {
+      "stroke": 14,
+      "source": "circle#dot5",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -60.078,
+        -59.873
+      ],
+      "nozzle_z": [
+        -56.961,
+        -56.961
+      ],
+      "max_raise_above_standoff_mm": 0.117
+    },
+    {
+      "stroke": 15,
+      "source": "circle#dot6",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -61.201,
+        -60.895
+      ],
+      "nozzle_z": [
+        -58.07,
+        -58.07
+      ],
+      "max_raise_above_standoff_mm": 0.131
+    },
+    {
+      "stroke": 16,
+      "source": "circle#dot7",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -65.694,
+        -64.98
+      ],
+      "nozzle_z": [
+        -62.3,
+        -62.3
+      ],
+      "max_raise_above_standoff_mm": 0.394
+    },
+    {
+      "stroke": 17,
+      "source": "circle#dot8",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -66.92,
+        -66.614
+      ],
+      "nozzle_z": [
+        -63.759,
+        -63.759
+      ],
+      "max_raise_above_standoff_mm": 0.16
+    },
+    {
+      "stroke": 18,
+      "source": "path#scallop",
+      "points": 217,
+      "ok_points": 217,
+      "length_mm": 108.66,
+      "closed": true,
+      "skin_z": [
+        -68.656,
+        -58.443
+      ],
+      "nozzle_z": [
+        -65.437,
+        -55.75
+      ],
+      "max_raise_above_standoff_mm": 0.394
+    }
+  ],
+  "hand_top": {
+    "min_depth_mm": 158.9,
+    "hand_top_contact_z": -57.42,
+    "pixels": 51778,
+    "note": "0.5th percentile of usable depth inside grown landmark hull"
+  },
+  "gap_check_points": [
+    {
+      "name": "H1 highest skin",
+      "x": 90.613,
+      "y": 53.133,
+      "program_z": -55.75,
+      "camera_skin_z": -58.443
+    },
+    {
+      "name": "H2 lowest skin",
+      "x": 91.788,
+      "y": 78.077,
+      "program_z": -65.437,
+      "camera_skin_z": -68.656
+    },
+    {
+      "name": "H3 spread",
+      "x": 68.043,
+      "y": 66.967,
+      "program_z": -60.681,
+      "camera_skin_z": -63.652
+    }
+  ],
+  "skin_z_range": [
+    -68.656,
+    -58.443
+  ],
+  "nozzle_z_range": [
+    -65.437,
+    -55.75
+  ],
+  "corners": {
+    "direction_change_deg_median": 19.65,
+    "direction_change_deg_max": 113.99,
+    "nozzle_z_step_mm_max": 0.817
+  },
+  "estimated_run_time_s": 218.8,
+  "global_floor_in_program": -67.656,
+  "lines": 350,
+  "depth": {
+    "frames": 15,
+    "min_valid_frac": 0.8,
+    "max_mad_mm": 1.0,
+    "pixel_status": {
+      "valid": 332151,
+      "missing": 28192,
+      "unstable": 23040,
+      "noisy": 23657
+    },
+    "mad_mm_median_of_usable": 0.5,
+    "start_pair": 301,
+    "middle_pair": 308
+  },
+  "checks": "per-point floor (skin + margin) on re-read text; allowed commands only; rapids only at travel Z; travel Z clears hand top + standoff; design all-or-nothing on usable skin inside the region"
+}
