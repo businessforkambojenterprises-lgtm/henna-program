@@ -1,0 +1,16 @@
+{
+  "schema": "surface_offset/1",
+  "subject": "prosthetic hand (no person)",
+  "recording": "20261009_111229.db3",
+  "surface": "freshly textured silicone palm (dense pen marks), lamp on, cuff taped",
+  "measured_with_plan": "step22 plan 20261009-111448 (no program written)",
+  "method": "paper feeler: nozzle lowered to the program Z, then 0.1 mm steps until a 0.10 mm paper strip under the tip dragged; ? reported by the user; touch_z = reading - 0.10",
+  "feeler_mm": 0.10,
+  "decided_by": "user, 2026-10-09: fresh texture, paper-feeler offset before the run",
+  "max_spread_mm": 0.5,
+  "touches": [
+    {"name": "Q1 highest skin", "x": 92.072, "y": 57.313, "program_z": -55.283, "camera_skin_z": -58.137, "paper_reading_z": -56.783, "touch_z": -56.883},
+    {"name": "Q2 lowest skin", "x": 97.199, "y": 77.627, "program_z": -65.291, "camera_skin_z": -68.554, "paper_reading_z": -66.791, "touch_z": -66.891},
+    {"name": "Q3 spread", "x": 69.435, "y": 74.018, "program_z": -61.192, "camera_skin_z": -64.265, "paper_reading_z": -62.692, "touch_z": -62.792}
+  ]
+}

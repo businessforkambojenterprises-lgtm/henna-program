@@ -1,0 +1,38 @@
+{
+  "session_id": "S2026-10-09-A",
+  "purpose": "DESIGN HOVER TEST over the TEXTURED PROSTHETIC hand - no person - no dispensing - nozzle hovers 3 mm above measured skin, user films from the side at palm level",
+  "decided_by": "user, 2026-10-05 (a 3, b skin+1, c 300/1000, d -20) for the nozzle hand path; step 21 approved 2026-10-07 (test design, fit 30 mm); step 22 design hover test approved 2026-10-09 (motif unchanged, travel -20); fresh capture after the hand moved; paper-feeler offset before the run approved 2026-10-09; fresh texture + paper-feeler offset (spread 0.41 mm, allowed) 2026-10-09",
+  "hand_capture": {
+    "recording": "20261009_111229.db3",
+    "head": {
+      "x": 145.8,
+      "y": 42.599,
+      "z": -40.0
+    },
+    "source": "? status line reported by the user"
+  },
+  "hand_run_dir": "outputs/webui/20261009-111331-hand",
+  "region_dir": "outputs/webui/20261009-111412-region",
+  "design": {
+    "svg": "designs/test_henna_motif.svg",
+    "fit_mm": 30.0,
+    "centre_machine_xy": "region_centroid",
+    "rotation_deg": 0.0,
+    "jump_mm": 3.0
+  },
+  "frames": 15,
+  "min_valid_frac": 0.8,
+  "max_mad_mm": 1.0,
+  "standoff_mm": 3.0,
+  "floor_above_skin_mm": 1.0,
+  "draw_feed_mm_min": 300.0,
+  "travel_feed_mm_min": 1000.0,
+  "travel_z": -20.0,
+  "firmware_z_floor": -97.0,
+  "xy_calibration": "validation/S2026-10-06-C/results/nozzle_xy_calibration_20261007-085810_blockshift.json",
+  "z_calibration": "validation/S2026-10-06-C/results/nozzle_z_calibration_20261007-110656.json",
+  "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json",
+  "subject": "prosthetic hand (no person)",
+  "revision": "v6: v5 + paper-feeler surface offset (standoff 3 mm)",
+  "surface_offset_file": "validation/S2026-10-09-A/surface_offset_20261009b.json"
+}

@@ -1,0 +1,436 @@
+{
+  "schema": "design_hover_test/1",
+  "created": "20261009-113027",
+  "motion_ready_for_person": false,
+  "program_file": "DESIGN_HOVER_TEST_PROSTHETIC_20261009-113027.gcode",
+  "config": {
+    "session_id": "S2026-10-09-A",
+    "purpose": "DESIGN HOVER TEST over the TEXTURED PROSTHETIC hand - no person - no dispensing - nozzle hovers 3 mm above measured skin, user films from the side at palm level",
+    "decided_by": "user, 2026-10-05 (a 3, b skin+1, c 300/1000, d -20) for the nozzle hand path; step 21 approved 2026-10-07 (test design, fit 30 mm); step 22 design hover test approved 2026-10-09 (motif unchanged, travel -20); fresh capture after the hand moved; paper-feeler offset before the run approved 2026-10-09; fresh texture + paper-feeler offset (spread 0.41 mm, allowed) 2026-10-09",
+    "hand_capture": {
+      "recording": "20261009_111229.db3",
+      "head": {
+        "x": 145.8,
+        "y": 42.599,
+        "z": -40.0
+      },
+      "source": "? status line reported by the user"
+    },
+    "hand_run_dir": "outputs/webui/20261009-111331-hand",
+    "region_dir": "outputs/webui/20261009-111412-region",
+    "design": {
+      "svg": "designs/test_henna_motif.svg",
+      "fit_mm": 30.0,
+      "centre_machine_xy": "region_centroid",
+      "rotation_deg": 0.0,
+      "jump_mm": 3.0
+    },
+    "frames": 15,
+    "min_valid_frac": 0.8,
+    "max_mad_mm": 1.0,
+    "standoff_mm": 3.0,
+    "floor_above_skin_mm": 1.0,
+    "draw_feed_mm_min": 300.0,
+    "travel_feed_mm_min": 1000.0,
+    "travel_z": -20.0,
+    "firmware_z_floor": -97.0,
+    "xy_calibration": "validation/S2026-10-06-C/results/nozzle_xy_calibration_20261007-085810_blockshift.json",
+    "z_calibration": "validation/S2026-10-06-C/results/nozzle_z_calibration_20261007-110656.json",
+    "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json",
+    "subject": "prosthetic hand (no person)",
+    "revision": "v6: v5 + paper-feeler surface offset (standoff 3 mm)",
+    "surface_offset_file": "validation/S2026-10-09-A/surface_offset_20261009b.json"
+  },
+  "design": {
+    "svg": "designs/test_henna_motif.svg",
+    "fit_mm": 30.0,
+    "mm_per_svg_unit": 0.34343,
+    "centre_machine_xy": [
+      84.09,
+      70.24
+    ],
+    "rotation_deg": 0.0,
+    "strokes": 18,
+    "line_length_mm": 278.3
+  },
+  "surface_offset": {
+    "file": "C:\\Users\\DELL\\Desktop\\Ai+d405\\validation/S2026-10-09-A/surface_offset_20261009b.json",
+    "per_touch_mm": [
+      1.254,
+      1.663,
+      1.473
+    ],
+    "spread_mm": 0.409,
+    "mean_mm": 1.463,
+    "applied_mm": 1.254,
+    "rule": "smallest per-touch offset, never below 0"
+  },
+  "per_stroke": [
+    {
+      "stroke": 1,
+      "source": "circle#centre",
+      "points": 22,
+      "ok_points": 22,
+      "length_mm": 10.79,
+      "closed": true,
+      "skin_z": [
+        -61.377,
+        -60.355
+      ],
+      "nozzle_z": [
+        -58.347,
+        -57.443
+      ],
+      "max_raise_above_standoff_mm": 0.277
+    },
+    {
+      "stroke": 2,
+      "source": "path#petal1",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.41,
+      "closed": true,
+      "skin_z": [
+        -64.236,
+        -61.479
+      ],
+      "nozzle_z": [
+        -60.959,
+        -58.785
+      ],
+      "max_raise_above_standoff_mm": 0.277
+    },
+    {
+      "stroke": 3,
+      "source": "path#petal2",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.4,
+      "closed": true,
+      "skin_z": [
+        -63.419,
+        -61.377
+      ],
+      "nozzle_z": [
+        -60.375,
+        -58.523
+      ],
+      "max_raise_above_standoff_mm": 0.175
+    },
+    {
+      "stroke": 4,
+      "source": "path#petal3",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.41,
+      "closed": true,
+      "skin_z": [
+        -61.377,
+        -60.662
+      ],
+      "nozzle_z": [
+        -58.347,
+        -57.676
+      ],
+      "max_raise_above_standoff_mm": 0.146
+    },
+    {
+      "stroke": 5,
+      "source": "path#petal4",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.4,
+      "closed": true,
+      "skin_z": [
+        -60.458,
+        -59.538
+      ],
+      "nozzle_z": [
+        -57.428,
+        -56.538
+      ],
+      "max_raise_above_standoff_mm": 0.117
+    },
+    {
+      "stroke": 6,
+      "source": "path#petal5",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.41,
+      "closed": true,
+      "skin_z": [
+        -60.253,
+        -59.028
+      ],
+      "nozzle_z": [
+        -57.122,
+        -56.013
+      ],
+      "max_raise_above_standoff_mm": 0.131
+    },
+    {
+      "stroke": 7,
+      "source": "path#petal6",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.4,
+      "closed": true,
+      "skin_z": [
+        -60.253,
+        -59.13
+      ],
+      "nozzle_z": [
+        -57.239,
+        -56.232
+      ],
+      "max_raise_above_standoff_mm": 0.175
+    },
+    {
+      "stroke": 8,
+      "source": "path#petal7",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.41,
+      "closed": true,
+      "skin_z": [
+        -62.704,
+        -60.56
+      ],
+      "nozzle_z": [
+        -59.66,
+        -57.72
+      ],
+      "max_raise_above_standoff_mm": 0.131
+    },
+    {
+      "stroke": 9,
+      "source": "path#petal8",
+      "points": 33,
+      "ok_points": 33,
+      "length_mm": 16.4,
+      "closed": true,
+      "skin_z": [
+        -64.645,
+        -62.194
+      ],
+      "nozzle_z": [
+        -61.382,
+        -59.325
+      ],
+      "max_raise_above_standoff_mm": 0.277
+    },
+    {
+      "stroke": 10,
+      "source": "circle#dot1",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -64.134,
+        -63.93
+      ],
+      "nozzle_z": [
+        -61.061,
+        -61.061
+      ],
+      "max_raise_above_standoff_mm": 0.175
+    },
+    {
+      "stroke": 11,
+      "source": "circle#dot2",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -62.806,
+        -62.5
+      ],
+      "nozzle_z": [
+        -59.66,
+        -59.66
+      ],
+      "max_raise_above_standoff_mm": 0.146
+    },
+    {
+      "stroke": 12,
+      "source": "circle#dot3",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -60.151,
+        -59.947
+      ],
+      "nozzle_z": [
+        -57.064,
+        -57.064
+      ],
+      "max_raise_above_standoff_mm": 0.088
+    },
+    {
+      "stroke": 13,
+      "source": "circle#dot4",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -58.517,
+        -58.313
+      ],
+      "nozzle_z": [
+        -55.43,
+        -55.43
+      ],
+      "max_raise_above_standoff_mm": 0.088
+    },
+    {
+      "stroke": 14,
+      "source": "circle#dot5",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -58.619,
+        -58.415
+      ],
+      "nozzle_z": [
+        -55.517,
+        -55.517
+      ],
+      "max_raise_above_standoff_mm": 0.204
+    },
+    {
+      "stroke": 15,
+      "source": "circle#dot6",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -60.151,
+        -59.743
+      ],
+      "nozzle_z": [
+        -56.947,
+        -56.947
+      ],
+      "max_raise_above_standoff_mm": 0.204
+    },
+    {
+      "stroke": 16,
+      "source": "circle#dot7",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -65.257,
+        -64.44
+      ],
+      "nozzle_z": [
+        -61.776,
+        -61.776
+      ],
+      "max_raise_above_standoff_mm": 0.481
+    },
+    {
+      "stroke": 17,
+      "source": "circle#dot8",
+      "points": 7,
+      "ok_points": 7,
+      "length_mm": 3.45,
+      "closed": true,
+      "skin_z": [
+        -65.87,
+        -65.155
+      ],
+      "nozzle_z": [
+        -62.418,
+        -62.418
+      ],
+      "max_raise_above_standoff_mm": 0.452
+    },
+    {
+      "stroke": 18,
+      "source": "path#scallop",
+      "points": 217,
+      "ok_points": 217,
+      "length_mm": 108.66,
+      "closed": true,
+      "skin_z": [
+        -67.3,
+        -56.883
+      ],
+      "nozzle_z": [
+        -64.256,
+        -53.956
+      ],
+      "max_raise_above_standoff_mm": 0.263
+    }
+  ],
+  "hand_top": {
+    "min_depth_mm": 156.9,
+    "hand_top_contact_z": -55.45,
+    "pixels": 53762,
+    "note": "0.5th percentile of usable depth inside grown landmark hull"
+  },
+  "gap_check_points": [
+    {
+      "name": "H1 highest skin",
+      "x": 92.073,
+      "y": 57.313,
+      "program_z": -54.029,
+      "camera_skin_z": -56.883
+    },
+    {
+      "name": "H2 lowest skin",
+      "x": 97.199,
+      "y": 77.626,
+      "program_z": -64.037,
+      "camera_skin_z": -67.3
+    },
+    {
+      "name": "H3 spread",
+      "x": 69.434,
+      "y": 74.019,
+      "program_z": -59.938,
+      "camera_skin_z": -63.011
+    }
+  ],
+  "skin_z_range": [
+    -67.3,
+    -56.883
+  ],
+  "nozzle_z_range": [
+    -64.256,
+    -53.956
+  ],
+  "corners": {
+    "direction_change_deg_median": 19.65,
+    "direction_change_deg_max": 113.99,
+    "nozzle_z_step_mm_max": 0.686
+  },
+  "estimated_run_time_s": 212.4,
+  "global_floor_in_program": -66.3,
+  "lines": 350,
+  "depth": {
+    "frames": 15,
+    "min_valid_frac": 0.8,
+    "max_mad_mm": 1.0,
+    "pixel_status": {
+      "valid": 330066,
+      "missing": 28300,
+      "unstable": 23434,
+      "noisy": 25240
+    },
+    "mad_mm_median_of_usable": 0.5,
+    "start_pair": 290,
+    "middle_pair": 297
+  },
+  "checks": "per-point floor (skin + margin) on re-read text; allowed commands only; rapids only at travel Z; travel Z clears hand top + standoff; design all-or-nothing on usable skin inside the region"
+}
