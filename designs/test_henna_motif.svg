@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100mm" height="100mm">
+  <title>Test henna motif (line art) - drawn for the henna preview prototype</title>
+  <desc>Single-line strokes only (no fills): centre ring, 8 petals, 8 dots, scalloped outer ring. Design units; the preview scales it.</desc>
+  <g fill="none" stroke="#7a3b10" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle id="centre" cx="50.0" cy="50.0" r="5"/>
+    <path id="petal1" d="M 50.00 42.00 C 57.00 35.40 53.50 27.70 50.00 20.00 C 46.50 27.70 43.00 35.40 50.00 42.00 Z"/>
+    <path id="petal2" d="M 44.34 44.34 C 44.63 34.73 36.71 31.76 28.79 28.79 C 31.76 36.71 34.73 44.63 44.34 44.34 Z"/>
+    <path id="petal3" d="M 42.00 50.00 C 35.40 43.00 27.70 46.50 20.00 50.00 C 27.70 53.50 35.40 57.00 42.00 50.00 Z"/>
+    <path id="petal4" d="M 44.34 55.66 C 34.73 55.37 31.76 63.29 28.79 71.21 C 36.71 68.24 44.63 65.27 44.34 55.66 Z"/>
+    <path id="petal5" d="M 50.00 58.00 C 43.00 64.60 46.50 72.30 50.00 80.00 C 53.50 72.30 57.00 64.60 50.00 58.00 Z"/>
+    <path id="petal6" d="M 55.66 55.66 C 55.37 65.27 63.29 68.24 71.21 71.21 C 68.24 63.29 65.27 55.37 55.66 55.66 Z"/>
+    <path id="petal7" d="M 58.00 50.00 C 64.60 57.00 72.30 53.50 80.00 50.00 C 72.30 46.50 64.60 43.00 58.00 50.00 Z"/>
+    <path id="petal8" d="M 55.66 44.34 C 65.27 44.63 68.24 36.71 71.21 28.79 C 63.29 31.76 55.37 34.73 55.66 44.34 Z"/>
+    <circle id="dot1" cx="36.99" cy="18.59" r="1.6"/>
+    <circle id="dot2" cx="18.59" cy="36.99" r="1.6"/>
+    <circle id="dot3" cx="18.59" cy="63.01" r="1.6"/>
+    <circle id="dot4" cx="36.99" cy="81.41" r="1.6"/>
+    <circle id="dot5" cx="63.01" cy="81.41" r="1.6"/>
+    <circle id="dot6" cx="81.41" cy="63.01" r="1.6"/>
+    <circle id="dot7" cx="81.41" cy="36.99" r="1.6"/>
+    <circle id="dot8" cx="63.01" cy="18.59" r="1.6"/>
+    <path id="scallop" d="M 90.00 50.00 A 8.5 8.5 0 0 0 86.96 34.69 A 8.5 8.5 0 0 0 78.28 21.72 A 8.5 8.5 0 0 0 65.31 13.04 A 8.5 8.5 0 0 0 50.00 10.00 A 8.5 8.5 0 0 0 34.69 13.04 A 8.5 8.5 0 0 0 21.72 21.72 A 8.5 8.5 0 0 0 13.04 34.69 A 8.5 8.5 0 0 0 10.00 50.00 A 8.5 8.5 0 0 0 13.04 65.31 A 8.5 8.5 0 0 0 21.72 78.28 A 8.5 8.5 0 0 0 34.69 86.96 A 8.5 8.5 0 0 0 50.00 90.00 A 8.5 8.5 0 0 0 65.31 86.96 A 8.5 8.5 0 0 0 78.28 78.28 A 8.5 8.5 0 0 0 86.96 65.31 A 8.5 8.5 0 0 0 90.00 50.00 Z"/>
+  </g>
+</svg>
