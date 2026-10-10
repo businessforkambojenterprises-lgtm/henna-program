@@ -30,6 +30,16 @@
       "port": 8766,
       "autoPort": false,
       "url": "http://127.0.0.1:8766"
+    },
+    {
+      "name": "henna-studio-v14-sim",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        ".claude/studio_v14_sim.py"
+      ],
+      "port": 8767,
+      "autoPort": false,
+      "url": "http://127.0.0.1:8767"
     }
   ]
 }

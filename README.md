@@ -1,9 +1,21 @@
 # Ai+d405 – henna preview prototype
 
-`motion_ready = false` everywhere. Studio v13 can read machine position, home Z
-then all axes, and move to one fixed scan position after the travel area is cleared.
-Hover programs remain **prosthetic-only** (no person, no paste); programs and other
-manual moves are run in UGS. Real-hand jobs support camera preview only.
+`motion_ready = false` everywhere. **Studio v14** (source) homes the machine, moves to the
+fixed scan position and **runs the checked hover program itself** - no UGS steps. Hover
+programs remain **prosthetic-only** (no person, no paste) at 4 mm or more above measured
+skin. Real-hand jobs support camera preview only. See [STUDIO_V14.md](STUDIO_V14.md).
+
+## Run Studio v14 from source
+
+```bat
+cd /d "%USERPROFILE%\Desktop\Ai+d405"
+.venv\Scripts\python.exe webui_server_v14.py
+```
+
+Open http://127.0.0.1:8765. Close UGS and RealSense Viewer first. Steps: Scan, Hand & region,
+Design, Program, Run (Start / Pause / STOP). v14 has been tested with a simulated controller;
+its first real run should be an air run with no hand under the machine.
+The packaged Windows app below still runs v13 until it is rebuilt.
 
 Moving to a new laptop: see `NEW_LAPTOP_SETUP.md`. The v13 changes and validation
 limits are documented in [SCAN_POSITION_V13.md](SCAN_POSITION_V13.md).

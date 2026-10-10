@@ -4,8 +4,8 @@ Read this first. It replaces the long chat history (an export of it is in the tr
 Detailed history: `validation_log_S2026-10-05-A.csv` (every machine reading, decision and result) and `git log`.
 
 ## What this is
-A RealSense **D405** camera is mounted on the head of a GRBL CNC (**MKS DLC32**, ESP32, CH340 USB serial,
-run by hand in **UGS**). Goal: dispense henna designs on a hand. Today: the nozzle *hovers* a design over a
+A RealSense **D405** camera is mounted on the head of a GRBL CNC (**MKS DLC32**, ESP32, CH340 USB serial).
+Since 2026-10-10 it is driven from **Henna Studio v14** (no UGS steps; UGS stays installed). Goal: dispense henna designs on a hand. Today: the nozzle *hovers* a design over a
 **prosthetic** hand; the dispenser is **not connected** yet (no valve control, no paste).
 
 ## Non-negotiable safety rules
@@ -15,35 +15,42 @@ run by hand in **UGS**). Goal: dispense henna designs on a hand. Today: the nozz
 - Home with **`$HZ` then `$H`** at the start of every session (Z must go first - lost-position root cause).
 - Capture pose 1 = **G53 Z-40, then X145.8 Y42.6**. Calibration is valid only there.
 - Programs: G53 only; travel Z -20; nozzle >= measured skin + 1 mm (floor); feeds 300 draw / 1000 travel;
-  standoff 3 mm + accepted offset, or 4 mm without. Every program is re-read by an independent checker.
+  every program is re-read by an independent checker. Studio v14: nozzle **4 mm or more** above measured skin,
+  never an offset - the paper-feeler steps were removed (user decision 2026-10-10).
 - No dispensing commands (M/S/T, $ lines) in any program until a dispensing plan is approved.
-- The web page may **read position and home** only (user decision 2026-10-09). Running programs and other
-  moves from the page were **not approved** - they stay in UGS until the user explicitly approves a plan.
+- Page-driven motion (user decisions 2026-10-10): Studio may **home**, move to the **fixed scan position**
+  (v13), **run the job's own checked prosthetic program** (v14: Start / Pause / Resume / STOP; the file must
+  be unchanged since it was written, re-read again, four confirmations) and **jog** in 0.1/1/10 mm steps
+  only at or above travel Z -20 (v14). Any other move from the page needs a new explicit approval. v14 has been tested only with a simulated controller - first real run pending.
 - New code goes into **new files/revisions**; validated scripts stay unchanged. Ask before installing packages.
 
 ## How the user likes to work
-- When they ask "what to do?": short numbered steps, one point at a time, each UGS command in its own code
-  block, expected result and a hard stop limit.
+- When they ask "what to do?": short numbered steps, one point at a time, each Studio action (or command)
+  on its own, expected result and a hard stop limit. They do not want UGS steps any more.
 - Ask for a clear yes before commits, machine runs, and any safety-rule change. Log every machine reading.
 - Real-world checks beat assumptions: verify with paper-feeler readings and side-view videos.
 
-## Main workflow: Henna Studio (web UI v12)
+## Main workflow: Henna Studio (web UI v14)
 Start in a Command Prompt (keep the window open; the Claude terminal tool tends to interrupt the slow start):
 ```
 cd /d "%USERPROFILE%\Desktop\Ai+d405"
-.venv\Scripts\python.exe webui_server_v12.py
+.venv\Scripts\python.exe webui_server_v14.py
 ```
-Open http://127.0.0.1:8765 (older tabbed page: /classic). Close RealSense Viewer first (one camera user).
-Disconnect UGS before pressing Connect in the page (one program per COM port).
-Steps: 1 Scan (live view, record 5 s, file fixed + verified) - 2 Hand & region (MediaPipe, editable outline)
-- 3 Design (gallery / SVG upload, size, rotate, drag; "Check on measured skin" = step 22 plan, all or
-nothing) - 4 Surface check (3 paper-feeler readings -> offset) - 5 Program (step 22 + independent re-read)
-- 6 Run in UGS + paper gap check. Jobs: `outputs/webui/<time>-job/job.json`.
+Open http://127.0.0.1:8765 (older tabbed page: /classic). Close RealSense Viewer and UGS first (one user per device).
+Steps: 1 Scan (Connect, Home, Move to scan position, record 5 s, file fixed + verified) - 2 Hand & region
+(MediaPipe, editable outline) - 3 Design (gallery / SVG upload, size, rotate, drag; nozzle 4-6 mm; "Check on
+measured skin" = step 22 plan, all or nothing) - 4 Program (step 22 + independent re-read + SHA-256) - 5 Run
+(Studio streams it; Pause = feed hold, STOP = hold + reset, home again). Jobs: `outputs/webui/<time>-job/job.json`.
+The packaged desktop app (`Desktop\HennaStudio-Windows-x64`, built by Codex) still runs **v13** until rebuilt;
+it has its own `app\` data folder (jobs, log). Simulator for checking the page: `.claude/studio_v14_sim.py`.
 
 ## Key files
 | File | Purpose |
 |---|---|
 | `current_calibration.json` | approved calibration paths + fixed path rules (single source for the web UI) |
+| `webui_server_v14.py`, `webui/studio_v14.html` | studio v14: Studio runs the checked prosthetic program |
+| `henna_preview/grbl_program_link.py` | v14 link: v13 homing + scan position, plus line-by-line program run |
+| `webui_server_v13.py`, `henna_preview/grbl_scan_link.py` | v13: homing + fixed scan position (Codex) |
 | `webui_server_v12.py`, `webui/studio.html` | studio + machine link (v11 = same without link, v10 = tabbed) |
 | `henna_preview/web_recorder.py` | live camera + recording; fixes late repeated option messages, verifies files |
 | `henna_preview/grbl_link.py` | USB link: only `?`, `$HZ`, `$H`, feed hold + reset |
@@ -67,7 +74,8 @@ nothing) - 4 Surface check (3 paper-feeler readings -> offset) - 5 Program (step
 
 ## Open items / next steps
 - Dispenser: not connected. A dispensing plan needs its own approval (start on paper, not a hand).
-- "Move to set points" from the page (capture pose, paper-reading moves) was offered, not yet approved.
+- First real run of v14: an air run with NO hand first (watch the path, try Pause / Resume / STOP), then the
+  prosthetic. Rebuilding the desktop app for v14 needs PyInstaller (ask before installing).
 - Real hand: camera-only accuracy test (paper dots) and a 30 s hand-movement test were planned.
 - Lower lift between strokes (Z -20 -> about -45) to shorten runs: user decision pending.
 - Rigid textured hand cast for exact camera measurements.
