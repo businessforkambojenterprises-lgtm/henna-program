@@ -89,3 +89,7 @@ under the crossing** instead of rising to Z -20. `step23_design_hop_program.py` 
 Real data (lotus 33 mm, scan 20261010_140248, offline): 11 of 11 hops low at Z -34.6..-28.0 (5.00 mm above the skin,
 independent check agrees); estimated run 69.5 s instead of 96 s at 300 mm/min. First real run: air run.
 Tests: 13 more (278 in total). Desktop package 0.17.0.1 (step 23 added to the allowed worker scripts).
+
+### v17.1: clearer end of a run
+After every line is sent, the Run step shows "Finishing last moves" (pulsing bar, top bar "Finishing...") until the
+machine stops at the program end; only then "Finished". Found in the first real hop air run. Package 0.17.1.1.
