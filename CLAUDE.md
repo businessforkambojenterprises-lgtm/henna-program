@@ -16,7 +16,8 @@ Since 2026-10-10 it is driven from **Henna Studio v14** (no UGS steps; UGS stays
 - Capture pose 1 = **G53 Z-40, then X145.8 Y42.6**. Calibration is valid only there.
 - Programs: G53 only; travel Z -20; nozzle >= measured skin + 1 mm (floor); feeds 300 draw / 1000 travel;
   every program is re-read by an independent checker. Studio v14: nozzle **4 mm or more** above measured skin,
-  never an offset - the paper-feeler steps were removed (user decision 2026-10-10).
+  never an offset - the paper-feeler steps were removed (user decision 2026-10-10). Studio v16: drawing speed
+  chosen per program, 100-600 mm/min, default 300 (user decision 2026-10-10); drops to the hand stay <= 300.
 - No dispensing commands (M/S/T, $ lines) in any program until a dispensing plan is approved.
 - Page-driven motion (user decisions 2026-10-10): Studio may **home**, move to the **fixed scan position**
   (v13), **run the job's own checked prosthetic program** (v14: Start / Pause / Resume / STOP; the file must
@@ -30,11 +31,11 @@ Since 2026-10-10 it is driven from **Henna Studio v14** (no UGS steps; UGS stays
 - Ask for a clear yes before commits, machine runs, and any safety-rule change. Log every machine reading.
 - Real-world checks beat assumptions: verify with paper-feeler readings and side-view videos.
 
-## Main workflow: Henna Studio (web UI v15 = v14 + two run fixes)
+## Main workflow: Henna Studio (web UI v16 = v15 + drawing speed per program)
 Start in a Command Prompt (keep the window open; the Claude terminal tool tends to interrupt the slow start):
 ```
 cd /d "%USERPROFILE%\Desktop\Ai+d405"
-.venv\Scripts\python.exe webui_server_v15.py
+.venv\Scripts\python.exe webui_server_v16.py
 ```
 Open http://127.0.0.1:8765 (older tabbed page: /classic). Close RealSense Viewer and UGS first (one user per device).
 Steps: 1 Scan (Connect, Home, Move to scan position, record 5 s, file fixed + verified) - 2 Hand & region
@@ -48,6 +49,7 @@ The packaged desktop app (`Desktop\HennaStudio-Windows-x64`) runs **v15** since 
 | File | Purpose |
 |---|---|
 | `current_calibration.json` | approved calibration paths + fixed path rules (single source for the web UI) |
+| `webui_server_v16.py`, `webui/studio_v16.html` | v16: v15 + drawing speed per program (drops capped at 300) |
 | `webui_server_v15.py`, `henna_preview/grbl_program_link_v15.py` | v15: v14 + fresh position during runs + verified Pause |
 | `webui_server_v14.py`, `webui/studio_v14.html` | studio v14: Studio runs the checked prosthetic program (page used by v15) |
 | `henna_preview/grbl_program_link.py` | v14 link: v13 homing + scan position, plus line-by-line program run |

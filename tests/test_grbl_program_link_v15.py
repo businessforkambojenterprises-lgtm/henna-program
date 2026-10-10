@@ -43,22 +43,31 @@ class V15Run(unittest.TestCase):
         link.start_program("T.gcode", send, end, on_done=lambda e: (result.update(error=e), done.set()))
         return send, result, done
 
-    def polls_during_run(self, cls):
-        # Big planner: every line is acknowledged at once, as during smooth drawing on the real controller.
-        link, fake = self.make(cls, capacity=1000, move_s=0.08)
-        before = fake.sent.count(b"?")
-        _, result, done = self.start(link)
-        self.assertTrue(done.wait(5))
-        self.assertIsNone(result["error"])
-        return fake.sent.count(b"?") - before
+    LONG = "\n".join(["(DESIGN HOVER TEST - PROSTHETIC HAND ONLY - NO PERSON - NO DISPENSING)", "G21", "G90",
+                      "G53 G0 Z-20.000", "G53 G0 X50.000 Y50.000"]
+                     + [f"G53 G1 X{50 + 0.5 * i:.3f} Y50.000 Z-56.000 F300" for i in range(60)]
+                     + ["G53 G0 Z-20.000", ""])
 
-    def test_status_is_polled_through_the_whole_run(self):
-        # 10 moves x 0.08 s = 0.8 s of motion, polled every 0.05 s.
-        self.assertGreaterEqual(self.polls_during_run(mod.GrblProgramLinkV15), 12)
+    def polls_while_sending(self, cls):
+        """Small planner, each ack just under the poll interval - like smooth drawing on the real controller."""
+        link, fake = self.make(cls, capacity=2, move_s=0.04)
+        send, end = v14.program_lines(self.LONG, -20.0, -64.7, 300.0, -97.0)
+        before = len(fake.sent)
+        done, result = threading.Event(), {}
+        link.start_program("L.gcode", send, end, on_done=lambda e: (result.update(error=e), done.set()))
+        self.assertTrue(done.wait(10))
+        self.assertIsNone(result["error"])
+        sent = fake.sent[before:]
+        last_line = max(i for i, d in enumerate(sent) if d.endswith(b"\n"))
+        return sent[:last_line].count(b"?")
+
+    def test_status_is_polled_while_lines_are_sent(self):
+        # About 60 x 0.04 s = 2.4 s of sending, polled every 0.05 s.
+        self.assertGreaterEqual(self.polls_while_sending(mod.GrblProgramLinkV15), 20)
 
     def test_v14_did_not_poll_while_acks_were_fast(self):
         # Documents the defect seen on the real machine; v14 itself stays unchanged.
-        self.assertLess(self.polls_during_run(v14.GrblProgramLink), self.polls_during_run(mod.GrblProgramLinkV15))
+        self.assertLessEqual(self.polls_while_sending(v14.GrblProgramLink), 3)
 
     def test_position_stays_fresh_while_drawing(self):
         link, fake = self.make(capacity=1000, move_s=0.08)

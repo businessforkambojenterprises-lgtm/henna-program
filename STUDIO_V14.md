@@ -54,3 +54,13 @@ only while one acknowledgment was slow. `webui_server_v15.py` / `grbl_program_li
 Tests: 6 more fake-controller tests (252 in total); simulator with a large planner: position age <= 0.3 s.
 Desktop app: v15 (0.15.0.1, commit d9b0328) installed the same way; smoke test 8/8, self-test ok; v14 files in
 `backup-before-v15`.
+
+## v16: drawing speed per program
+User decision on 10 October 2026: choose the drawing speed in step 4 - 100, 150, 200, 250, **300 (default,
+approved)**, 400, 500 or 600 mm/min. `webui_server_v16.py` + `webui/studio_v16.html` (earlier files unchanged):
+- step 22 writes the program with the chosen speed; the drop from Z -20 to the first point of each stroke is
+  set to 300 mm/min or slower (the nozzle approaches the hand there); a comment line records the speeds;
+- the independent re-read uses the chosen speed as its limit, and a second check refuses any drop above 300
+  or any drawing line that is not at the program speed - when written and again at every Start;
+- v14 programs (300) still run; changing the speed after writing needs Write program again.
+Tests: 12 server tests (264 in total); page checked in the simulator. First run at a new speed: air run.
