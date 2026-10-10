@@ -1,4 +1,4 @@
-HENNA STUDIO - WINDOWS x64 - v13
+HENNA STUDIO - WINDOWS x64 - v14
 
 1. Extract the entire ZIP to a writable folder, such as your Desktop.
 2. Open that folder and double-click HennaStudio.exe.
@@ -18,22 +18,20 @@ Back up the app folder and your recordings. Keep your old source project too.
 Extract future versions into a new folder; do not overwrite an app folder with jobs.
 
 WORKFLOW
-Studio can read position, home Z then all axes, and move to the fixed scan pose.
-1. Disconnect UGS, then Connect in Studio.
-2. Clear all hands and objects from the travel area, then Home and confirm.
-3. In Scan, choose Move to scan position and confirm the travel area is clear.
-4. Wait for Position ready. Place the hand, start the camera and Record scan.
-5. A verified scan advances to Hand & region and starts detection.
-The app reads machine position automatically; there is no Capture status to paste.
-The fixed route is Z -20, XY 145.8 / 42.6, then Z -40, all in machine coordinates.
-After Stop, alarm, reset, disconnect or stale position, follow the recovery prompt.
-The first live use of the new positioning button is a machine validation test.
+Studio does everything - no UGS. Close UGS and RealSense Viewer before starting.
+1. Connect. Clear all hands and objects from the travel area, then Home and confirm.
+2. Scan: Move to scan position, wait for Position ready, place the hand, Record scan.
+3. Hand & region: check and accept the outline.
+4. Design: choose, size, rotate and drag; nozzle 4 mm or more; Check on measured skin.
+5. Program: written, then re-read by a separate checker.
+6. Run: Start (four confirmations), Pause / Resume, STOP. Prosthetic hand only.
+Jog (top bar): 0.1 / 1 / 10 mm steps after Home, always at Z -20 or higher.
+STOP = feed hold + reset: home again afterwards. Any controller error stops the run.
+The first real run is a machine validation test: run it once in the air, with NO hand.
 
-motion_ready=false. Real-hand jobs support camera preview only; no hover programs.
-Prosthetic-only program checks and calibration rules remain in force.
-Programs and other manual movements still run in UGS. Disconnect Studio first.
-Close RealSense Viewer before starting the camera.
-Camera/controller USB drivers and UGS are external to this package.
+motion_ready=false. Real-hand jobs support camera preview only; no programs or runs.
+No dispensing. Calibration rules are unchanged (travel Z -20, feeds 300 / 1000).
+Camera/controller USB drivers are external to this package.
 
 This is a fresh app workspace. Previous jobs and recordings are not copied into it.
 The Classic page is available at /classic; old pencil-practice calibration history

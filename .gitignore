@@ -12,3 +12,4 @@ models/*.task
 # Recordings never live in this repo
 *.bag
 *.db3
+desktop_build/build_tools/
