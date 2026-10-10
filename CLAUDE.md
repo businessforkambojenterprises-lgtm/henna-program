@@ -30,11 +30,11 @@ Since 2026-10-10 it is driven from **Henna Studio v14** (no UGS steps; UGS stays
 - Ask for a clear yes before commits, machine runs, and any safety-rule change. Log every machine reading.
 - Real-world checks beat assumptions: verify with paper-feeler readings and side-view videos.
 
-## Main workflow: Henna Studio (web UI v14)
+## Main workflow: Henna Studio (web UI v15 = v14 + two run fixes)
 Start in a Command Prompt (keep the window open; the Claude terminal tool tends to interrupt the slow start):
 ```
 cd /d "%USERPROFILE%\Desktop\Ai+d405"
-.venv\Scripts\python.exe webui_server_v14.py
+.venv\Scripts\python.exe webui_server_v15.py
 ```
 Open http://127.0.0.1:8765 (older tabbed page: /classic). Close RealSense Viewer and UGS first (one user per device).
 Steps: 1 Scan (Connect, Home, Move to scan position, record 5 s, file fixed + verified) - 2 Hand & region
@@ -48,7 +48,8 @@ in `backup-before-v14`); it has its own `app\` data folder (jobs, log). Simulato
 | File | Purpose |
 |---|---|
 | `current_calibration.json` | approved calibration paths + fixed path rules (single source for the web UI) |
-| `webui_server_v14.py`, `webui/studio_v14.html` | studio v14: Studio runs the checked prosthetic program |
+| `webui_server_v15.py`, `henna_preview/grbl_program_link_v15.py` | v15: v14 + fresh position during runs + verified Pause |
+| `webui_server_v14.py`, `webui/studio_v14.html` | studio v14: Studio runs the checked prosthetic program (page used by v15) |
 | `henna_preview/grbl_program_link.py` | v14 link: v13 homing + scan position, plus line-by-line program run |
 | `webui_server_v13.py`, `henna_preview/grbl_scan_link.py` | v13: homing + fixed scan position (Codex) |
 | `webui_server_v12.py`, `webui/studio.html` | studio + machine link (v11 = same without link, v10 = tabbed) |

@@ -1,4 +1,4 @@
-HENNA STUDIO - WINDOWS x64 - v14
+HENNA STUDIO - WINDOWS x64 - v15
 
 1. Extract the entire ZIP to a writable folder, such as your Desktop.
 2. Open that folder and double-click HennaStudio.exe.
@@ -26,7 +26,8 @@ Studio does everything - no UGS. Close UGS and RealSense Viewer before starting.
 5. Program: written, then re-read by a separate checker.
 6. Run: Start (four confirmations), Pause / Resume, STOP. Prosthetic hand only.
 Jog (top bar): 0.1 / 1 / 10 mm steps after Home, always at Z -20 or higher.
-STOP = feed hold + reset: home again afterwards. Any controller error stops the run.
+Pause = hold (checked: if the machine keeps moving, Studio stops it). STOP = hold + reset: home again.
+Any controller error stops the run.
 The first real run is a machine validation test: run it once in the air, with NO hand.
 
 motion_ready=false. Real-hand jobs support camera preview only; no programs or runs.

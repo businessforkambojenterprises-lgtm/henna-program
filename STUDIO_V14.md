@@ -43,3 +43,12 @@ program lowers the nozzle below Z -20.
 
 Desktop app: rebuilt as 0.14.0.1 from commit a0d7515 and installed in `Desktop\HennaStudio-Windows-x64` (offline smoke
 test 8/8, self-test ok, jobs and app log kept; replaced v13 files in `backup-before-v14`).
+
+## v15 (same day): two fixes from the first real run
+The first real session (scan, 4 mm program over the prosthetic, STOP, full 345-line run with 4 Pause/Resume)
+worked. Its log showed that positions reported during a run could be about 1 s old: v14 asked for the status
+only while one acknowledgment was slow. `webui_server_v15.py` / `grbl_program_link_v15.py` (v14 unchanged):
+- the status is polled on a fixed schedule for the whole run (about every 0.25 s);
+- Pause is verified: if a fresh report still says Run/Jog, the hold is sent again; if the machine is still
+  moving 1.5 s after Pause, the run is stopped (hold + reset).
+Tests: 6 more fake-controller tests (252 in total); simulator with a large planner: position age <= 0.3 s.

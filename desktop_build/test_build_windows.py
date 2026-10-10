@@ -13,7 +13,8 @@ class BuildInputs(unittest.TestCase):
         self.project = Path(self.temp)
         for relative in ('webui_server_v13.py', 'webui/studio_v13.html',
                          'henna_preview/grbl_scan_link.py', 'webui_server_v14.py', 'webui/studio_v14.html',
-                         'henna_preview/grbl_program_link.py', 'models/hand_landmarker.task'):
+                         'henna_preview/grbl_program_link.py', 'webui_server_v15.py',
+                         'henna_preview/grbl_program_link_v15.py', 'models/hand_landmarker.task'):
             path = self.project / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b'fixture')
@@ -37,6 +38,11 @@ class BuildInputs(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'SHA-256'):
             build.prepare_app(self.project, target)
         self.assertFalse(target.exists())
+
+    def test_missing_v15_entry_refused(self):
+        (self.project / 'webui_server_v15.py').unlink()
+        with self.assertRaisesRegex(ValueError, 'missing.*v15'):
+            build.verify_build_inputs(self.project)
 
     def test_missing_v14_entry_refused(self):
         (self.project / 'webui_server_v14.py').unlink()

@@ -65,6 +65,7 @@ class FakeGrbl:
         self.alarm_at_line = None
         self.banner_at_line = None
         self.lines_seen = 0
+        self.ignore_hold = False    # a controller that does not hold on '!'
         threading.Thread(target=self._motion, daemon=True).start()
 
     def emit(self, text):
@@ -81,7 +82,8 @@ class FakeGrbl:
             if data == b"?":
                 self.emit(self.status_text())
             elif data == b"!":
-                self.held, self.state = True, "Hold"
+                if not self.ignore_hold:
+                    self.held, self.state = True, "Hold"
             elif data == b"~":
                 if self.held:
                     self.held = False

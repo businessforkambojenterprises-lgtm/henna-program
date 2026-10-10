@@ -25,7 +25,8 @@ def verify_build_inputs(project):
     for relative in ('models/hand_landmarker.task', 'models/MODEL_INFO.txt',
                      'webui_server_v13.py', 'webui/studio_v13.html',
                      'henna_preview/grbl_scan_link.py', 'webui_server_v14.py',
-                     'webui/studio_v14.html', 'henna_preview/grbl_program_link.py'):
+                     'webui/studio_v14.html', 'henna_preview/grbl_program_link.py',
+                     'webui_server_v15.py', 'henna_preview/grbl_program_link_v15.py'):
         if not (project / relative).is_file():
             raise ValueError('Required build input missing: ' + relative +
                              '. See models/MODEL_INFO.txt for the approved hand model.')
@@ -80,7 +81,7 @@ def main():
     app = work / 'source_snapshot'
     prepare_app(project, app)
     manifest = {
-        'application': 'Henna Studio', 'studio_version': 14, 'package_version': '0.14.0.1',
+        'application': 'Henna Studio', 'studio_version': 15, 'package_version': '0.15.0.1',
         'platform': 'Windows x64', 'python': sys.version, 'motion_ready': False,
         'source_commit': subprocess.check_output(['git', '-C', str(project), 'rev-parse', 'HEAD'], text=True).strip(),
         'source_git_status': subprocess.check_output(['git', '-C', str(project), 'status', '--porcelain'], text=True),
