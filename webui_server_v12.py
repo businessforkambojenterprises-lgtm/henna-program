@@ -8,12 +8,14 @@ Adds, on top of v11 (unchanged):
 The page still cannot send any other G-code: programs and moves are run by the user in UGS.
 Decided by the user 2026-10-09: USB COM7; allowed = read position automatically + homing.
 """
+import os
+
 import webui_server as base
 import webui_server_v10 as v10
 import webui_server_v11 as v11
 from henna_preview.grbl_link import GrblLink, MachineError
 
-FALLBACK_PORT = "COM7"
+FALLBACK_PORT = "COM7" if os.name == "nt" else "/dev/ttyUSB0"   # Raspberry Pi / Linux: CH340 is /dev/ttyUSB0
 machine = GrblLink()
 
 

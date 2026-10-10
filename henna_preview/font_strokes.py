@@ -19,7 +19,8 @@ SPUR_PX = 18
 MAX_STROKES = 60
 MAX_CHARS = 16
 ALLOWED = re.compile(r"^[A-Za-z0-9 '&.\-]+$")
-RECOMMENDED = ("Segoe Script", "Segoe Print", "Ink Free", "French Script MT")
+# Handwriting fonts: Windows ones, and on a Raspberry Pi the ones its setup installs (fonts-urw-base35, fonts-comic-neue).
+RECOMMENDED = ("Segoe Script", "Segoe Print", "Ink Free", "French Script MT", "Z003 Medium Italic", "Comic Neue")
 _N4 = ((-1, 0), (1, 0), (0, -1), (0, 1))
 _ND = ((-1, -1), (-1, 1), (1, -1), (1, 1))
 _cache = {}
@@ -30,11 +31,23 @@ class FontStrokeError(ValueError):
 
 
 def font_dirs():
-    dirs = [os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")]
-    local = os.environ.get("LOCALAPPDATA")
-    if local:
-        dirs.append(os.path.join(local, "Microsoft", "Windows", "Fonts"))
+    if os.name == "nt":
+        dirs = [os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")]
+        local = os.environ.get("LOCALAPPDATA")
+        if local:
+            dirs.append(os.path.join(local, "Microsoft", "Windows", "Fonts"))
+    else:                                    # Raspberry Pi / Linux (fonts sit in sub-folders)
+        home = os.path.expanduser("~")
+        dirs = ["/usr/share/fonts", "/usr/local/share/fonts", os.path.join(home, ".local", "share", "fonts"),
+                os.path.join(home, ".fonts")]
     return [d for d in dirs if os.path.isdir(d)]
+
+
+def _font_files(d):
+    if os.name == "nt":
+        return sorted(glob.glob(os.path.join(d, "*.ttf")) + glob.glob(os.path.join(d, "*.otf")))
+    return sorted(glob.glob(os.path.join(d, "**", "*.ttf"), recursive=True)
+                  + glob.glob(os.path.join(d, "**", "*.otf"), recursive=True))
 
 
 def list_fonts():
@@ -43,7 +56,7 @@ def list_fonts():
         return _cache["fonts"]
     seen, out = set(), []
     for d in font_dirs():
-        for path in sorted(glob.glob(os.path.join(d, "*.ttf")) + glob.glob(os.path.join(d, "*.otf"))):
+        for path in _font_files(d):
             try:
                 family, style = ImageFont.truetype(path, 20).getname()
             except Exception:
@@ -53,7 +66,7 @@ def list_fonts():
                 continue
             seen.add(name)
             fid = re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-").lower()
-            out.append({"id": fid, "name": name, "path": path, "recommended": family in RECOMMENDED and name == family})
+            out.append({"id": fid, "name": name, "path": path, "recommended": name in RECOMMENDED})
     out.sort(key=lambda f: (not f["recommended"], f["name"].lower()))
     _cache["fonts"] = out
     return out

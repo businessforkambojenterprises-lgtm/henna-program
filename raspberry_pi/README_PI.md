@@ -5,8 +5,8 @@ being made in stages; each must work before the next. The laptop version is not 
 
 | Stage | What | Status |
 |---|---|---|
-| 1 | Camera: build Intel RealSense v2.58.4 (same as the laptop) on the Pi, check the D405 streams and records | PASS with 2.55.1 (27.2 fps, USB 3.2, units 0.0001); rebuild with 2.58.4 running |
-| 2 | Pi version of Studio: `/dev/ttyUSB0`, Linux fonts, full-screen browser window, setup script, desktop icon | after stage 1 |
+| 1 | Camera: build Intel RealSense v2.58.4 (same as the laptop) on the Pi, check the D405 streams and records | **PASS** with 2.58.4: USB 3.2, 27.2 fps, 0.0001 m; Studio's repair + check on a Pi recording PASS |
+| 2 | Pi version of Studio: `/dev/ttyUSB0`, Linux fonts, own browser window, setup script, desktop icon | scripts ready |
 | 3 | Same tests as the laptop: unit tests, simulator, Home, scan position, hover run on the prosthetic | after stage 2 |
 
 ## Stage 1 (camera only - the CNC is not used)
@@ -18,3 +18,12 @@ the D405 on a **blue USB 3 port**.
 4. Send back the lines after `=== STAGE 1 RESULT`.
 
 Note: the Raspberry Pi Connect remote shell adds `^[[200~` / `~` when pasting - type commands, or delete the extra characters.
+
+## Stage 2 (Studio on the Pi - setup does not touch the CNC or camera)
+1. `cd ~/henna-program && git pull`
+2. `bash ~/henna-program/raspberry_pi/stage2_setup_studio.sh`  (10-15 min): the laptop's exact package versions
+   (`requirements-pi.txt`), fonts (URW Z003 script, Comic Neue), the approved hand model (SHA-256 checked),
+   USB permission (group dialout - log out and in once), tests, and a **Henna Studio** desktop icon.
+3. Start from the icon (or `bash ~/henna-program/raspberry_pi/henna_studio.sh`): Studio v19 opens in its own browser
+   window; closing the window stops Studio safely (a moving machine is stopped, the CNC disconnected).
+The CNC appears as `/dev/ttyUSB0` (found automatically). Recordings go to `~/Documents`, logs to `~/henna_studio.log`.
