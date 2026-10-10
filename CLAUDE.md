@@ -18,6 +18,8 @@ Since 2026-10-10 it is driven from **Henna Studio v14** (no UGS steps; UGS stays
   every program is re-read by an independent checker. Studio v14: nozzle **4 mm or more** above measured skin,
   never an offset - the paper-feeler steps were removed (user decision 2026-10-10). Studio v16: drawing speed
   chosen per program, 300-1200 mm/min, default 600 (user decision 2026-10-10); drops to the hand stay <= 300.
+  Studio v17 (step 23): between strokes only a low hop = highest measured skin under the crossing (+-1.5 mm band)
+  + 5 mm (user decision 2026-10-10); unmeasured crossings keep travel Z -20; start/end at travel Z.
 - No dispensing commands (M/S/T, $ lines) in any program until a dispensing plan is approved.
 - Page-driven motion (user decisions 2026-10-10): Studio may **home**, move to the **fixed scan position**
   (v13), **run the job's own checked prosthetic program** (v14: Start / Pause / Resume / STOP; the file must
@@ -31,11 +33,11 @@ Since 2026-10-10 it is driven from **Henna Studio v14** (no UGS steps; UGS stays
 - Ask for a clear yes before commits, machine runs, and any safety-rule change. Log every machine reading.
 - Real-world checks beat assumptions: verify with paper-feeler readings and side-view videos.
 
-## Main workflow: Henna Studio (web UI v16 = v15 + drawing speed per program)
+## Main workflow: Henna Studio (web UI v17 = v16 + low hops between strokes)
 Start in a Command Prompt (keep the window open; the Claude terminal tool tends to interrupt the slow start):
 ```
 cd /d "%USERPROFILE%\Desktop\Ai+d405"
-.venv\Scripts\python.exe webui_server_v16.py
+.venv\Scripts\python.exe webui_server_v17.py
 ```
 Open http://127.0.0.1:8765 (older tabbed page: /classic). Close RealSense Viewer and UGS first (one user per device).
 Steps: 1 Scan (Connect, Home, Move to scan position, record 5 s, file fixed + verified) - 2 Hand & region
@@ -50,6 +52,8 @@ Desktop shortcut 'Henna Studio'); closing the window stops Studio safely. Simula
 | File | Purpose |
 |---|---|
 | `current_calibration.json` | approved calibration paths + fixed path rules (single source for the web UI) |
+| `webui_server_v17.py`, `webui/studio_v17.html`, `step23_design_hop_program.py` | v17: low hops between strokes |
+| `henna_preview/hop_path.py`, `henna_preview/program_reread_v2.py` | hop planning + check; re-read allowing hops |
 | `webui_server_v16.py`, `webui/studio_v16.html` | v16: v15 + drawing speed per program (drops capped at 300) |
 | `webui_server_v15.py`, `henna_preview/grbl_program_link_v15.py` | v15: v14 + fresh position during runs + verified Pause |
 | `webui_server_v14.py`, `webui/studio_v14.html` | studio v14: Studio runs the checked prosthetic program (page used by v15) |
@@ -81,5 +85,5 @@ Desktop shortcut 'Henna Studio'); closing the window stops Studio safely. Simula
 - First real run of v14: an air run with NO hand first (watch the path, try Pause / Resume / STOP), then the
   prosthetic. Rebuild recipe: `desktop_build/BUILDING.txt` (PyInstaller is in the ignored `desktop_build/build_tools`).
 - Real hand: camera-only accuracy test (paper dots) and a 30 s hand-movement test were planned.
-- Lower lift between strokes (Z -20 -> about -45) to shorten runs: user decision pending.
+- Low hops between strokes: done in v17 (5 mm above the skin); first real run pending (air run first).
 - Rigid textured hand cast for exact camera measurements.

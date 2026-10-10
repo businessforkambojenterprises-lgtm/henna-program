@@ -76,3 +76,16 @@ User request: open like any other program, not in a browser. The desktop launche
 hides its own console (messages in app/outputs/studio_console.log) and shuts Studio down safely when the
 window is closed (asks first while the machine is busy; a running program is stopped). Started from a Command
 Prompt the console stays visible. If no window can be made it falls back to the browser. Desktop shortcut added.
+
+## v17: low hops between strokes ("Z like a laser")
+User decision on 10 October 2026: between strokes the nozzle hops only **5 mm above the highest measured skin
+under the crossing** instead of rising to Z -20. `step23_design_hop_program.py` (step 22 + hops; step 22 unchanged):
+- each crossing is sampled every 0.5 mm on the straight line and on parallel lines up to 1.5 mm to each side and in
+  a square around both ends; hop = highest skin + 5 mm, never below either end's nozzle + 0.5 mm, rounded up;
+- any unmeasured or out-of-region sample, or a hop within 1 mm of travel Z, keeps travel Z -20 for that crossing;
+- the hop moves are read back from the program text and the skin under them is sampled again (hop_path.verify_hops);
+- program_reread_v2 allows only: rise (G0 Z up to a hop or travel Z), straight crossing right after it, drop/draw;
+  the first crossing and the end are at travel Z. Used when writing and at every Start.
+Real data (lotus 33 mm, scan 20261010_140248, offline): 11 of 11 hops low at Z -34.6..-28.0 (5.00 mm above the skin,
+independent check agrees); estimated run 69.5 s instead of 96 s at 300 mm/min. First real run: air run.
+Tests: 13 more (278 in total). Desktop package 0.17.0.1 (step 23 added to the allowed worker scripts).

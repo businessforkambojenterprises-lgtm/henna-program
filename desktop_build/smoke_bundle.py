@@ -1,4 +1,4 @@
-"""Offline integration smoke checks for the portable Henna Studio v16 bundle.
+"""Offline integration smoke checks for the portable Henna Studio v17 bundle.
 
 All writable application data goes into a fresh copy at WORK/test_app. Never
 opens a browser or calls a camera, serial, homing, program, or movement API.
@@ -30,7 +30,7 @@ READ_PATHS = frozenset({
 WRITE_PATHS = frozenset({"/api/studio/job_new"})
 WORKERS = (
     "step02_inspect_depth.py", "step04_hand_detect.py",
-    "step21_design_preview.py", "step22_design_hover_test.py",
+    "step21_design_preview.py", "step22_design_hover_test.py", "step23_design_hop_program.py",
 )
 
 
@@ -197,7 +197,8 @@ class Harness:
             for name in ("webui/studio_v14.html", "webui/index_v10.html", "webui_server_v14.py",
                          "webui_server_v13.py", "henna_preview/grbl_program_link.py",
                          "webui_server_v15.py", "henna_preview/grbl_program_link_v15.py",
-                         "webui_server_v16.py", "webui/studio_v16.html",
+                         "webui_server_v16.py", "webui/studio_v16.html", "webui_server_v17.py",
+                         "webui/studio_v17.html", "henna_preview/hop_path.py", "henna_preview/program_reread_v2.py",
                          "models/hand_landmarker.task", *WORKERS):
                 require((self.app / name).is_file(), f"Required app asset missing: {name}")
             self.report["checks"]["assets_and_fixed_rules"] = "passed"
