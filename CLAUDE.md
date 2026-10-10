@@ -41,8 +41,8 @@ Steps: 1 Scan (Connect, Home, Move to scan position, record 5 s, file fixed + ve
 (MediaPipe, editable outline) - 3 Design (gallery / SVG upload, size, rotate, drag; nozzle 4-6 mm; "Check on
 measured skin" = step 22 plan, all or nothing) - 4 Program (step 22 + independent re-read + SHA-256) - 5 Run
 (Studio streams it; Pause = feed hold, STOP = hold + reset, home again). Jobs: `outputs/webui/<time>-job/job.json`.
-The packaged desktop app (`Desktop\HennaStudio-Windows-x64`, built by Codex) still runs **v13** until rebuilt;
-it has its own `app\` data folder (jobs, log). Simulator for checking the page: `.claude/studio_v14_sim.py`.
+The packaged desktop app (`Desktop\HennaStudio-Windows-x64`) runs **v14** since 2026-10-10 (backup of the v13 files
+in `backup-before-v14`); it has its own `app\` data folder (jobs, log). Simulator for checking the page: `.claude/studio_v14_sim.py`.
 
 ## Key files
 | File | Purpose |
@@ -75,7 +75,7 @@ it has its own `app\` data folder (jobs, log). Simulator for checking the page: 
 ## Open items / next steps
 - Dispenser: not connected. A dispensing plan needs its own approval (start on paper, not a hand).
 - First real run of v14: an air run with NO hand first (watch the path, try Pause / Resume / STOP), then the
-  prosthetic. Rebuilding the desktop app for v14 needs PyInstaller (ask before installing).
+  prosthetic. Rebuild recipe: `desktop_build/BUILDING.txt` (PyInstaller is in the ignored `desktop_build/build_tools`).
 - Real hand: camera-only accuracy test (paper dots) and a 30 s hand-movement test were planned.
 - Lower lift between strokes (Z -20 -> about -45) to shorten runs: user decision pending.
 - Rigid textured hand cast for exact camera measurements.

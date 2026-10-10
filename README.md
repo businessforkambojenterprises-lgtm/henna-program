@@ -15,7 +15,7 @@ cd /d "%USERPROFILE%\Desktop\Ai+d405"
 Open http://127.0.0.1:8765. Close UGS and RealSense Viewer first. Steps: Scan, Hand & region,
 Design, Program, Run (Start / Pause / STOP). v14 has been tested with a simulated controller;
 its first real run should be an air run with no hand under the machine.
-The packaged Windows app below still runs v13 until it is rebuilt.
+The packaged Windows app below (`Desktop\HennaStudio-Windows-x64\HennaStudio.exe`) runs v14 too.
 
 Moving to a new laptop: see `NEW_LAPTOP_SETUP.md`. The v13 changes and validation
 limits are documented in [SCAN_POSITION_V13.md](SCAN_POSITION_V13.md).

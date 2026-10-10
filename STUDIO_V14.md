@@ -41,4 +41,5 @@ program lowers the nozzle below Z -20.
 - **Not yet run on the real machine.** First real run: an air run with NO hand under the machine (watch the
   path, try Pause / Resume / STOP), then the textured prosthetic, filmed from the side.
 
-The packaged desktop app still runs v13 until it is rebuilt with `desktop_build` (needs PyInstaller).
+Desktop app: rebuilt as 0.14.0.1 from commit a0d7515 and installed in `Desktop\HennaStudio-Windows-x64` (offline smoke
+test 8/8, self-test ok, jobs and app log kept; replaced v13 files in `backup-before-v14`).
