@@ -65,9 +65,11 @@ class V14Base(unittest.TestCase):
 
 
 class Rules(V14Base):
-    def test_calibration_shown_with_4_mm_minimum_and_file_unchanged(self):
-        self.assertEqual(server.calibration()["standoff_mm_allowed"], [4.0, 6.0])
+    def test_4_mm_minimum_while_calibration_file_and_api_stay_unchanged(self):
+        self.assertEqual(server.v14_rules()["standoff_mm_allowed"], [4.0, 6.0])
         self.assertEqual(server.v10.cal()["standoff_mm_allowed"], [3.0, 6.0])
+        self.assertNotIn("/api/studio/calibration", {k for k, v in server.Handler.GET_API.items() if v is server.v14_rules})
+        self.assertEqual(server.Handler.GET_API["/api/studio/calibration"](None), server.v10.cal())
 
     def test_design_check_refuses_below_4_mm(self):
         with patch.object(server.v11, "check_design") as check:

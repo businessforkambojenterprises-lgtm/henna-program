@@ -37,10 +37,14 @@ def machine_status(_=None):
     return dict(machine.status(), default_port=v13.v12.default_port())
 
 
-def calibration(_=None):
-    c = dict(v10.cal())
-    c["standoff_mm_allowed"] = [max(MIN_STANDOFF_MM, c["standoff_mm_allowed"][0]), c["standoff_mm_allowed"][1]]
-    return c
+def standoff_range():
+    """v14 nozzle-height range: the approved range, raised to at least 4 mm (the calibration file is unchanged)."""
+    lo, hi = v10.cal()["standoff_mm_allowed"]
+    return [max(MIN_STANDOFF_MM, lo), hi]
+
+
+def v14_rules(_=None):
+    return {"min_standoff_mm": MIN_STANDOFF_MM, "standoff_mm_allowed": standoff_range()}
 
 
 # ---------------- jobs ----------------
@@ -92,7 +96,7 @@ def not_used(_):
 # ---------------- 3 design ----------------
 def check_design(params):
     job = v11.job_load(params.get("job"))
-    standoff = v10.number(params, "standoff_mm", *calibration()["standoff_mm_allowed"])
+    standoff = v10.number(params, "standoff_mm", *standoff_range())
     if job["subject"] == "prosthetic" and standoff < MIN_STANDOFF_MM:
         raise ValueError(f"nozzle height must be at least {MIN_STANDOFF_MM:g} mm")
     return v11.check_design(dict(params, standoff_mm=standoff))
@@ -221,7 +225,7 @@ class Handler(v13.Handler):
     server_version = "HennaStudio/0.14"
     GET_API = dict(v13.Handler.GET_API, **{
         "/api/machine/status": machine_status,
-        "/api/studio/calibration": calibration,
+        "/api/studio/v14_rules": v14_rules,
         "/api/studio/jobs": lambda q: {"jobs": jobs_list()},
         "/api/studio/job": lambda q: job_view(v11.job_load(q.get("id", [""])[0])),
     })

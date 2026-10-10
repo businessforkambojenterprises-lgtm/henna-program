@@ -420,7 +420,9 @@ $('btntheme').onclick=()=>{const cur=document.documentElement.dataset.theme||(ma
  const n=cur==='dark'?'light':'dark';document.documentElement.dataset.theme=n;store('studio-theme',n);redrawAll()};
 
 /* ---------- state ---------- */
-let JOB=null,CAL=null,VIEW='welcome';
+let JOB=null,CAL=null,STAND=null,VIEW='welcome';
+/* CAL = the approved calibration file, unchanged; STAND = v14 nozzle-height range (4 mm minimum) */
+async function loadCal(){if(!CAL)CAL=await api('/api/studio/calibration');if(!STAND)STAND=(await api('/api/studio/v14_rules')).standoff_mm_allowed}
 const STEPS=[{k:'scan',t:'Scan',s:'Record the hand at the capture pose'},{k:'region',t:'Hand & region',s:'Detect the hand and outline the area'},
  {k:'design',t:'Design',s:'Choose, size and place the design'},
  {k:'program',t:'Program',s:'Write and re-read the hover program',pros:true},{k:'run',t:'Run',s:'Studio runs it - Start, Pause, STOP',pros:true}];
@@ -567,16 +569,16 @@ function drawDes(){if(!FR)return;const W=dc.width,H=dc.height,pl=FR.polygon_px;d
 function invalidateDes(){$('desres').hidden=true;$('toSurface').disabled=true;msg('msgdes','','')}
 async function showDesign(){msg('msgdes','','');$('toSurface').disabled=!(JOB.steps.plan||(JOB.subject==='person'&&JOB.steps.design));
  $('toSurface').textContent=JOB.subject==='person'?'Finish (camera only) →':'Continue to program →';
- if(!CAL)CAL=await api('/api/studio/calibration');const st=$('dstand');if(!st.options.length){const[a,b]=CAL.standoff_mm_allowed;for(let v=a;v<=b+1e-9;v+=0.5){const o=document.createElement('option');o.value=v;o.textContent=v.toFixed(1)+' mm';st.appendChild(o)}}
+ await loadCal();const st=$('dstand');if(!st.options.length){const[a,b]=STAND;for(let v=a;v<=b+1e-9;v+=0.5){const o=document.createElement('option');o.value=v;o.textContent=v.toFixed(1)+' mm';st.appendChild(o)}}
  $('dsize').min=CAL.fit_mm_allowed[0];$('dsize').max=CAL.fit_mm_allowed[1];
  try{const[d,f]=await Promise.all([api('/api/studio/designs'),api('/api/studio/design_frame?job='+encodeURIComponent(JOB.id))]);DESIGNS=d.designs;FR=f;
   dc.width=f.width;dc.height=f.height;await Promise.all([new Promise(ok=>{dImgC.onload=ok;dImgC.src=f.colour}),new Promise(ok=>{dImgH.onload=ok;dImgH.src=f.holes})]);$('dcph').hidden=true;
   const sd=JOB.steps.design;if(sd){DES=DESIGNS.find(x=>x.svg===sd.svg)||null;$('dsize').value=sd.fit_mm;$('drot').value=sd.rotation_deg;st.value=sd.standoff_mm;centre=sd.centre_machine_xy.slice()}
-  else{DES=DES&&DESIGNS.find(x=>x.svg===DES.svg)||DESIGNS.find(x=>x.usable)||null;centre=f.centre_machine_xy.slice();st.value=CAL.standoff_mm_allowed[0]}
+  else{DES=DES&&DESIGNS.find(x=>x.svg===DES.svg)||DESIGNS.find(x=>x.usable)||null;centre=f.centre_machine_xy.slice();st.value=STAND[0]}
   $('dsize').oninput();$('drot').oninput();renderGallery();if(DES)$('desname').textContent=DES.name+` · ${DES.strokes} strokes`;drawDes();
   if(sd&&sd.verdict)showDesResult({verdict:sd.verdict,preview:sd.preview,problems:[]},true);
-  if(sd&&sd.standoff_mm<CAL.standoff_mm_allowed[0]){st.value=CAL.standoff_mm_allowed[0];
-   if(JOB.subject==='prosthetic'){$('toSurface').disabled=true;msg('msgdes','warn',`This design was checked at ${sd.standoff_mm} mm. Studio now uses ${CAL.standoff_mm_allowed[0]} mm or more - press "Check on measured skin" again.`)}}}
+  if(sd&&sd.standoff_mm<STAND[0]){st.value=STAND[0];
+   if(JOB.subject==='prosthetic'){$('toSurface').disabled=true;msg('msgdes','warn',`This design was checked at ${sd.standoff_mm} mm. Studio now uses ${STAND[0]} mm or more - press "Check on measured skin" again.`)}}}
  catch(e){$('dcph').hidden=false;$('dcph').textContent=e.message;msg('msgdes','err',e.message)}}
 $('dsize').oninput=()=>{$('dsizeout').textContent=`(${$('dsize').value} mm)`;drawDes()};$('drot').oninput=()=>{$('drotout').textContent=`(${$('drot').value}°)`;drawDes()};
 $('dsize').onchange=$('drot').onchange=$('dstand').onchange=invalidateDes;
@@ -764,7 +766,7 @@ $('jogstop').onclick=async()=>{try{await machineCommand('/api/machine/stop',{},'
 machInit();
 
 /* ---------- start ---------- */
-(async()=>{try{CAL=await api('/api/studio/calibration')}catch(e){}
+(async()=>{try{await loadCal()}catch(e){}
  const last=load('studio-job');if(last){try{await openJob(last);return}catch(e){store('studio-job')}}go('welcome')})();
 </script>
 </body>
