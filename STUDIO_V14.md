@@ -52,3 +52,5 @@ only while one acknowledgment was slow. `webui_server_v15.py` / `grbl_program_li
 - Pause is verified: if a fresh report still says Run/Jog, the hold is sent again; if the machine is still
   moving 1.5 s after Pause, the run is stopped (hold + reset).
 Tests: 6 more fake-controller tests (252 in total); simulator with a large planner: position age <= 0.3 s.
+Desktop app: v15 (0.15.0.1, commit d9b0328) installed the same way; smoke test 8/8, self-test ok; v14 files in
+`backup-before-v15`.

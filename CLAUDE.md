@@ -41,8 +41,8 @@ Steps: 1 Scan (Connect, Home, Move to scan position, record 5 s, file fixed + ve
 (MediaPipe, editable outline) - 3 Design (gallery / SVG upload, size, rotate, drag; nozzle 4-6 mm; "Check on
 measured skin" = step 22 plan, all or nothing) - 4 Program (step 22 + independent re-read + SHA-256) - 5 Run
 (Studio streams it; Pause = feed hold, STOP = hold + reset, home again). Jobs: `outputs/webui/<time>-job/job.json`.
-The packaged desktop app (`Desktop\HennaStudio-Windows-x64`) runs **v14** since 2026-10-10 (backup of the v13 files
-in `backup-before-v14`); it has its own `app\` data folder (jobs, log). Simulator for checking the page: `.claude/studio_v14_sim.py`.
+The packaged desktop app (`Desktop\HennaStudio-Windows-x64`) runs **v15** since 2026-10-10 (earlier files in
+`backup-before-v14` and `backup-before-v15`); it has its own `app\` data folder (jobs, log). Simulator for checking the page: `.claude/studio_v14_sim.py`.
 
 ## Key files
 | File | Purpose |
