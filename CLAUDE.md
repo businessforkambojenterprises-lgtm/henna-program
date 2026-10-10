@@ -17,7 +17,7 @@ Since 2026-10-10 it is driven from **Henna Studio v14** (no UGS steps; UGS stays
 - Programs: G53 only; travel Z -20; nozzle >= measured skin + 1 mm (floor); feeds 300 draw / 1000 travel;
   every program is re-read by an independent checker. Studio v14: nozzle **4 mm or more** above measured skin,
   never an offset - the paper-feeler steps were removed (user decision 2026-10-10). Studio v16: drawing speed
-  chosen per program, 100-600 mm/min, default 300 (user decision 2026-10-10); drops to the hand stay <= 300.
+  chosen per program, 300-1200 mm/min, default 600 (user decision 2026-10-10); drops to the hand stay <= 300.
 - No dispensing commands (M/S/T, $ lines) in any program until a dispensing plan is approved.
 - Page-driven motion (user decisions 2026-10-10): Studio may **home**, move to the **fixed scan position**
   (v13), **run the job's own checked prosthetic program** (v14: Start / Pause / Resume / STOP; the file must

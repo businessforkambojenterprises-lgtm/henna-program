@@ -58,18 +58,18 @@ class V16Base(V14Base):
 class SpeedChoice(V16Base):
     def test_rules(self):
         r = server.v16_rules()
-        self.assertEqual(r["default_feed_mm_min"], 300)
-        self.assertEqual(max(r["feeds_mm_min"]), 600)
+        self.assertEqual(r["default_feed_mm_min"], 600)
+        self.assertEqual((min(r["feeds_mm_min"]), max(r["feeds_mm_min"])), (300, 1200))
         self.assertEqual(r["descent_max_mm_min"], 300)
         self.assertEqual(server.v10.cal()["draw_feed_mm_min"], 300.0)        # calibration file unchanged
 
     def test_only_offered_speeds(self):
-        for bad in (350, 700, 0, -300, True, "300", None, 600.5):
+        for bad in (250, 350, 1300, 0, -300, True, "300", None, 600.5):
             with self.subTest(bad=bad):
                 with self.assertRaises(ValueError):
                     server.draw_feed({"draw_feed_mm_min": bad})
-        self.assertEqual(server.draw_feed({}), 300)
-        self.assertEqual(server.draw_feed({"draw_feed_mm_min": 600}), 600)
+        self.assertEqual(server.draw_feed({}), 600)
+        self.assertEqual(server.draw_feed({"draw_feed_mm_min": 1200}), 1200)
 
     def test_600_draws_fast_but_drops_at_300(self):
         r = self.program(draw_feed_mm_min=600)
@@ -89,15 +89,20 @@ class SpeedChoice(V16Base):
         self.assertEqual(cfg["draw_feed_mm_min"], 600.0)
 
     def test_slower_speed_drops_at_that_speed(self):
-        text = self.program_text(self.program(draw_feed_mm_min=150)["job"])
-        self.assertEqual({ln.rsplit(" F", 1)[1] for ln in text.splitlines() if ln.startswith("G53 G1")}, {"150"})
+        text = self.program_text(self.program(draw_feed_mm_min=300)["job"])
+        self.assertEqual({ln.rsplit(" F", 1)[1] for ln in text.splitlines() if ln.startswith("G53 G1")}, {"300"})
 
-    def test_default_is_300(self):
-        self.assertEqual(self.program()["job"]["steps"]["program"]["draw_feed_mm_min"], 300)
+    def test_1200_draws_at_1200_and_drops_at_300(self):
+        text = self.program_text(self.program(draw_feed_mm_min=1200)["job"])
+        g1 = [ln.rsplit(" F", 1)[1] for ln in text.splitlines() if ln.startswith("G53 G1")]
+        self.assertEqual(g1, ["300", "1200", "1200", "300", "1200"])
+
+    def test_default_is_600(self):
+        self.assertEqual(self.program()["job"]["steps"]["program"]["draw_feed_mm_min"], 600)
 
     def test_refusals_before_writing(self):
         with patch.object(server.v10, "run_step22") as write:
-            for params in ({"draw_feed_mm_min": 700}, {"confirm_unmoved": False}):
+            for params in ({"draw_feed_mm_min": 1300}, {"draw_feed_mm_min": 200}, {"confirm_unmoved": False}):
                 with self.subTest(params=params):
                     self.write_plan()
                     with self.assertRaises(ValueError):

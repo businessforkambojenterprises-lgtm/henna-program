@@ -23,7 +23,7 @@ Studio does everything - no UGS. Close UGS and RealSense Viewer before starting.
 2. Scan: Move to scan position, wait for Position ready, place the hand, Record scan.
 3. Hand & region: check and accept the outline.
 4. Design: choose, size, rotate and drag; nozzle 4 mm or more; Check on measured skin.
-5. Program: choose the drawing speed (300 approved; up to 600; drops to the hand stay at 300),
+5. Program: choose the drawing speed (300-1200, default 600; drops to the hand stay at 300),
    then it is written and re-read by a separate checker. First run at a new speed: air run.
 6. Run: Start (four confirmations), Pause / Resume, STOP. Prosthetic hand only.
 Jog (top bar): 0.1 / 1 / 10 mm steps after Home, always at Z -20 or higher.

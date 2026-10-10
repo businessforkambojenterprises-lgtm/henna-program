@@ -65,3 +65,7 @@ approved)**, 400, 500 or 600 mm/min. `webui_server_v16.py` + `webui/studio_v16.h
 - v14 programs (300) still run; changing the speed after writing needs Write program again.
 Tests: 12 server tests (264 in total); page checked in the simulator. First run at a new speed: air run.
 Desktop app: v16 (0.16.0.1, commit 750d3a2) installed the same way; smoke test 8/8, self-test ok.
+
+### v16.1: speed range changed by the user
+"minimum 300, default 600, maximum 1200": 300, 400 ... 1200 mm/min, default 600. Drops to the hand stay at 300.
+1200 mm/min = 20 mm/s: first run at each new speed as an air run. Desktop package 0.16.1.1.

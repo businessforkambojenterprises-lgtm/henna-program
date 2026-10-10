@@ -309,7 +309,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
     <div class="card">
      <h2>Confirm</h2><p class="sub">Programs are for the prosthetic hand only.</p>
      <label class="f" for="pgfeed" style="margin-top:4px">Drawing speed</label><select id="pgfeed"></select>
-     <div class="hint" id="pgfeedhint">300 mm/min is the approved speed. Up to 600 is allowed; the first run at a new speed should be an air run. The drop down to the hand always stays at 300 or slower.</div>
+     <div class="hint" id="pgfeedhint">Default 600 mm/min; 300 to 1200 allowed. The first run at a new speed should be an air run (no hand). The drop down to the hand always stays at 300.</div>
      <label class="check" style="margin-top:14px"><input type="checkbox" id="pgpros"><span>Prosthetic hand only. No person near the machine and no paste in the dispenser.</span></label>
      <label class="check"><input type="checkbox" id="pgstill"><span>The hand has not moved since the scan.</span></label>
      <button class="btn primary block" id="pgrun" type="button" style="margin-top:8px">Write program</button>
@@ -605,7 +605,7 @@ $('toSurface').onclick=()=>go(JOB.subject==='person'?'person':'program');
 /* ---------- 4 program ---------- */
 function progOk(){const p=JOB&&JOB.steps.program;return !!(p&&(p.studio==='v14'||p.studio==='v16'))}
 function progFeed(p){return p&&p.draw_feed_mm_min||300}
-async function loadFeeds(){if(!FEEDS)FEEDS=await api('/api/studio/v16_rules');const sel=$('pgfeed');if(!sel.options.length)FEEDS.feeds_mm_min.forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f+' mm/min'+(f===FEEDS.approved_feed_mm_min?' (approved)':f>FEEDS.approved_feed_mm_min?' - faster':'');sel.appendChild(o)})}
+async function loadFeeds(){if(!FEEDS)FEEDS=await api('/api/studio/v16_rules');const sel=$('pgfeed');if(!sel.options.length)FEEDS.feeds_mm_min.forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f+' mm/min'+(f===FEEDS.default_feed_mm_min?' (default)':f===FEEDS.approved_feed_mm_min?' (slowest)':f>FEEDS.default_feed_mm_min?' - faster':'');sel.appendChild(o)})}
 function feedNote(){const p=JOB.steps.program,f=+$('pgfeed').value,stale=p&&progOk()&&progFeed(p)!==f;$('toRun').disabled=!progOk()||stale;
  if(stale)msg('msgpg','warn',`The written program uses ${progFeed(p)} mm/min. Press Write program to use ${f} mm/min.`);else if($('msgpg').classList.contains('warn'))msg('msgpg','','')}
 $('pgfeed').onchange=feedNote;

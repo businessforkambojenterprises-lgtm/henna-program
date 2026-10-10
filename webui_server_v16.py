@@ -1,6 +1,7 @@
-"""Studio v16: drawing speed chosen per program (user decision 2026-10-10).
+"""Studio v16: drawing speed chosen per program (user decisions 2026-10-10).
 
-- Step 4 Program: drawing speed 100 / 150 / 200 / 250 / 300 (default, approved) / 400 / 500 / 600 mm/min.
+- Step 4 Program: drawing speed 300 to 1200 mm/min in 100 steps, default 600 (user: "minimum 300, default 600,
+  maximum 1200"; the earlier approved speed was 300).
 - The drop from travel Z down to the first point of each stroke stays at 300 mm/min or slower, whatever the
   drawing speed (the nozzle approaches the hand there). Rapids and the calibration file are unchanged.
 - The program is written by step 22 with the chosen speed, then re-read by the independent checker with that
@@ -24,8 +25,8 @@ from henna_preview.grbl_program_link import MachineError, program_lines
 from henna_preview.program_reread import reread
 
 STUDIO_HTML = os.path.join(base.WEB_DIR, "studio_v16.html")
-FEEDS = (100, 150, 200, 250, 300, 400, 500, 600)
-DEFAULT_FEED = 300
+FEEDS = (300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200)
+DEFAULT_FEED = 600
 DESCENT_MAX = 300
 _G0XY = re.compile(r"^G53 G0 X\d+\.\d{3} Y\d+\.\d{3}$")
 _G1 = re.compile(r"^(G53 G1 X\d+\.\d{3} Y\d+\.\d{3} Z(-?\d+\.\d{3})) F(\d+)$")
