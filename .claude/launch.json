@@ -4,10 +4,32 @@
     {
       "name": "henna-webui",
       "runtimeExecutable": ".venv/Scripts/python.exe",
-      "runtimeArgs": ["webui_server_v9.py"],
+      "runtimeArgs": [
+        "webui_server_v9.py"
+      ],
       "port": 8765,
       "autoPort": false,
       "url": "http://127.0.0.1:8765"
+    },
+    {
+      "name": "henna-webui-v10",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "webui_server_v10.py"
+      ],
+      "port": 8765,
+      "autoPort": false,
+      "url": "http://127.0.0.1:8765"
+    },
+    {
+      "name": "henna-studio-test",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        ".claude/studio_test_port.py"
+      ],
+      "port": 8766,
+      "autoPort": false,
+      "url": "http://127.0.0.1:8766"
     }
   ]
 }

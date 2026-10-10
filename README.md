@@ -1,8 +1,44 @@
 # Ai+d405 – henna preview prototype
 
-Offline preview only. `motion_ready = false` everywhere. Nothing here talks to
-the camera, the MKS DLC32 / GRBL controller or any serial port, and nothing
-produces G-code. Original data files are only read.
+`motion_ready = false` everywhere. The studio (v12) talks to the MKS DLC32 / GRBL controller only to
+read its position and to home it; programs and all other moves are opened and run by the user in UGS.
+Hover programs are written only for the PROSTHETIC hand (no person, no paste).
+
+Moving to a new laptop: see `NEW_LAPTOP_SETUP.md`. Project briefing for Claude: `CLAUDE.md`.
+
+## Henna Studio (web UI v12) - the main way to work
+
+In a Command Prompt (keep the window open while you work):
+
+```
+cd /d "%USERPROFILE%\Desktop\Ai+d405"
+.venv\Scripts\python.exe webui_server_v12.py
+```
+
+`webui_server_v12.py` adds a machine link on the CH340 USB port, found automatically (pyserial 3.5): the page reads the
+position (the "Use machine position" buttons fill the ? boxes) and can home ($HZ then $H,
+after two confirmations) with a STOP button. It cannot send any other G-code - programs
+still run in UGS. Disconnect UGS before pressing Connect (one program per port).
+`webui_server_v11.py` is the same studio without the machine link.
+
+Open http://127.0.0.1:8765 (the older tabbed page is at /classic). Close RealSense
+Viewer first: only one program can use the camera.
+
+1. **Scan** - live view; park the head at pose 1 (Z-40, X145.8 Y42.6), paste the `?`
+   line, record 5 s. Each file is fixed (late repeated camera-option messages) and
+   checked: depth units 0.0001 m, camera settings stored, plausible depth.
+2. **Hand & region** - automatic hand detection; edit and accept the outline.
+3. **Design** - gallery or upload a line-art SVG; size, rotate and drag it on the hand;
+   "Check on measured skin" plans every stroke (all or nothing).
+4. **Surface check** - three paper-feeler readings; offset accepted only if even.
+5. **Program** - written by step 22 and re-read by a separate checker.
+6. **Run & verify** - run in UGS, then a paper gap check (PASS / TOO CLOSE).
+
+Every job is saved in `outputs/webui/<time>-job/job.json` and every reading is logged
+in `validation_log_S2026-10-05-A.csv`. A "Real hand" job is camera only: it stops at
+the design preview. Calibration and path rules: `current_calibration.json`.
+
+## Early tools (offline previews)
 
 ## Setup
 
