@@ -5,7 +5,7 @@ being made in stages; each must work before the next. The laptop version is not 
 
 | Stage | What | Status |
 |---|---|---|
-| 1 | Camera: build Intel RealSense v2.58.4 (same as the laptop) on the Pi, check the D405 streams and records | scripts ready |
+| 1 | Camera: build Intel RealSense v2.58.4 (same as the laptop) on the Pi, check the D405 streams and records | PASS with 2.55.1 (27.2 fps, USB 3.2, units 0.0001); rebuild with 2.58.4 running |
 | 2 | Pi version of Studio: `/dev/ttyUSB0`, Linux fonts, full-screen browser window, setup script, desktop icon | after stage 1 |
 | 3 | Same tests as the laptop: unit tests, simulator, Home, scan position, hover run on the prosthetic | after stage 2 |
 
@@ -16,3 +16,5 @@ the D405 on a **blue USB 3 port**.
 2. In a terminal on the Pi, in that folder:  `bash stage1_setup_camera.sh`  (about 1 hour; asks for your password)
 3. Plug in the D405, then:  `~/henna-venv/bin/python stage1_camera_check.py`
 4. Send back the lines after `=== STAGE 1 RESULT`.
+
+Note: the Raspberry Pi Connect remote shell adds `^[[200~` / `~` when pasting - type commands, or delete the extra characters.
