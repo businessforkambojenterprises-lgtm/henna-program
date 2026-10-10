@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 92" width="100mm" height="92mm">
+  <title>Lotus - line art</title>
+  <desc>Single-line strokes only: base, five petals, inner petal and lines, three dots.</desc>
+  <g fill="none" stroke="#7a3b10" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round">
+    <path id="base" d="M 12 77 Q 50 90 88 77"/>
+    <path id="petal_centre" d="M 50 74 C 38 60 40 36 50 16 C 60 36 62 60 50 74 Z"/>
+    <path id="petal_centre_inner" d="M 50 67 C 44 58 45 43 50 29 C 55 43 56 58 50 67 Z"/>
+    <path id="petal_left" d="M 47 74 C 33 72 21 56 23 33 C 34 44 42 57 47 74 Z"/>
+    <path id="petal_right" d="M 53 74 C 67 72 79 56 77 33 C 66 44 58 57 53 74 Z"/>
+    <path id="petal_outer_left" d="M 45 76 C 29 79 14 71 8 57 C 22 57 36 63 45 76 Z"/>
+    <path id="petal_outer_right" d="M 55 76 C 71 79 86 71 92 57 C 78 57 64 63 55 76 Z"/>
+    <path id="line_left" d="M 45 69 Q 34 58 27 41"/>
+    <path id="line_right" d="M 55 69 Q 66 58 73 41"/>
+    <circle id="dot_top" cx="50.00" cy="9.00" r="1.30"/>
+    <circle id="dot_left" cx="19.00" cy="25.00" r="1.10"/>
+    <circle id="dot_right" cx="81.00" cy="25.00" r="1.10"/>
+  </g>
+</svg>
