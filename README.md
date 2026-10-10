@@ -23,9 +23,9 @@ limits are documented in [SCAN_POSITION_V13.md](SCAN_POSITION_V13.md).
 ## Run the Windows app
 
 1. Open the extracted **HennaStudio-Windows-x64** folder on your Desktop.
-2. Double-click **HennaStudio.exe**. Keep its console window open.
-3. Your browser opens [Henna Studio](http://127.0.0.1:8765).
-   If it does not open, enter that address yourself.
+2. Double-click **HennaStudio.exe** (or the **Henna Studio** shortcut on the Desktop).
+3. Henna Studio opens in its own window (like any other program). Close the window to stop it;
+   while the machine is moving it asks first and then stops the machine safely.
 4. Close RealSense Viewer before using Scan. Disconnect UGS before connecting
    Studio to the controller; only one app can use each device at a time.
 5. In Studio, **Connect**, clear all hands and objects from the travel area,

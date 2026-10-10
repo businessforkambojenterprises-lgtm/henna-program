@@ -9,14 +9,15 @@ project_modules.add('henna_preview')
 hidden = sorted(project_modules)
 hidden += ['henna_preview.' + p.stem for p in (source / 'henna_preview').glob('*.py') if p.stem != '__init__']
 datas, binaries = [], []
-for package in ('mediapipe', 'pyrealsense2'):
+for package in ('mediapipe', 'pyrealsense2', 'webview', 'pythonnet', 'clr_loader'):
     package_data, package_bins, package_imports = collect_all(
         package, filter_submodules=lambda name: '.test' not in name)
     datas += package_data
     binaries += package_bins
     hidden += package_imports
-for package in ('mediapipe', 'pyrealsense2', 'pyserial', 'opencv-contrib-python'):
+for package in ('mediapipe', 'pyrealsense2', 'pyserial', 'opencv-contrib-python', 'pywebview', 'pythonnet', 'clr_loader'):
     datas += copy_metadata(package)
+hidden += ['clr', 'webview.platforms.winforms', 'webview.platforms.edgechromium']   # own app window (WebView2)
 
 a = Analysis(
     [str(here / 'henna_desktop.py')], pathex=[str(source)],
@@ -33,6 +34,6 @@ exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True, name='HennaStudio',
     debug=False, bootloader_ignore_signals=False, strip=False, upx=False,
     console=True, disable_windowed_traceback=False,
-    version=str(here / 'version_info.txt'),
+    version=str(here / 'version_info.txt'), icon=str(here / 'henna.ico'),
 )
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='HennaStudio')

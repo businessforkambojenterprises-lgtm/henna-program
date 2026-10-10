@@ -82,13 +82,13 @@ def main():
     app = work / 'source_snapshot'
     prepare_app(project, app)
     manifest = {
-        'application': 'Henna Studio', 'studio_version': 16, 'package_version': '0.16.1.1',
+        'application': 'Henna Studio', 'studio_version': 16, 'package_version': '0.16.2.1',
         'platform': 'Windows x64', 'python': sys.version, 'motion_ready': False,
         'source_commit': subprocess.check_output(['git', '-C', str(project), 'rev-parse', 'HEAD'], text=True).strip(),
         'source_git_status': subprocess.check_output(['git', '-C', str(project), 'status', '--porcelain'], text=True),
         'packages': {name: metadata.version(name) for name in (
             'pyinstaller', 'pyinstaller-hooks-contrib', 'numpy', 'matplotlib', 'pillow',
-            'mediapipe', 'opencv-contrib-python', 'pyrealsense2', 'pyserial')},
+            'mediapipe', 'opencv-contrib-python', 'pyrealsense2', 'pyserial', 'pywebview', 'pythonnet')},
         'app_files': {str(p.relative_to(app)).replace('\\', '/'): hashlib.sha256(p.read_bytes()).hexdigest()
                       for p in sorted(app.rglob('*')) if p.is_file()},
         'excluded_history': 'Old recordings, jobs, reports and generated G-code are not shipped.',
@@ -105,7 +105,8 @@ def main():
     # Respect the portable app's writable paths without copying any old test runs.
     (output / 'BUILD_MANIFEST.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     copy_file(here / 'START_HERE.txt', output / 'START_HERE.txt')
-    for name in ('henna_desktop.py', 'HennaStudio.spec', 'version_info.txt', 'build_windows.py', 'BUILDING.txt', 'START_HERE.txt'):
+    for name in ('henna_desktop.py', 'HennaStudio.spec', 'version_info.txt', 'build_windows.py', 'BUILDING.txt', 'START_HERE.txt',
+                 'henna.ico'):
         copy_file(here / name, output / 'build_source' / name)
     # Include dependency license texts beside the bundle's own runtime metadata.
     for distribution in metadata.distributions():

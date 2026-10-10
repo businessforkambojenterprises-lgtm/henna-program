@@ -1,9 +1,10 @@
 HENNA STUDIO - WINDOWS x64 - v16
 
 1. Extract the entire ZIP to a writable folder, such as your Desktop.
-2. Open that folder and double-click HennaStudio.exe.
-3. Your browser opens http://127.0.0.1:8765. Keep the Studio console window open.
-4. To stop Studio, press Ctrl+C in its console window.
+2. Double-click HennaStudio.exe (or the Henna Studio shortcut on the Desktop).
+3. Henna Studio opens in its own window. Close the window to stop Studio; if the machine is
+   moving it asks first, then stops the machine safely. Messages: app/outputs/studio_console.log.
+4. Started from a Command Prompt, the console stays visible; Ctrl+C there also stops Studio.
 
 Keep HennaStudio.exe, _internal and app together. Python installation is not needed.
 If the address is already in use, stop the earlier Studio instance and try again.

@@ -69,3 +69,10 @@ Desktop app: v16 (0.16.0.1, commit 750d3a2) installed the same way; smoke test 8
 ### v16.1: speed range changed by the user
 "minimum 300, default 600, maximum 1200": 300, 400 ... 1200 mm/min, default 600. Drops to the hand stay at 300.
 1200 mm/min = 20 mm/s: first run at each new speed as an air run. Desktop package 0.16.1.1.
+
+## Own app window (package 0.16.2)
+User request: open like any other program, not in a browser. The desktop launcher now opens a native
+"Henna Studio" window (pywebview 5.3.2 + pythonnet 3.0.5, drawn by Windows WebView2) with the Henna icon,
+hides its own console (messages in app/outputs/studio_console.log) and shuts Studio down safely when the
+window is closed (asks first while the machine is busy; a running program is stopped). Started from a Command
+Prompt the console stays visible. If no window can be made it falls back to the browser. Desktop shortcut added.

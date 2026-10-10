@@ -43,7 +43,8 @@ Steps: 1 Scan (Connect, Home, Move to scan position, record 5 s, file fixed + ve
 measured skin" = step 22 plan, all or nothing) - 4 Program (step 22 + independent re-read + SHA-256) - 5 Run
 (Studio streams it; Pause = feed hold, STOP = hold + reset, home again). Jobs: `outputs/webui/<time>-job/job.json`.
 The packaged desktop app (`Desktop\HennaStudio-Windows-x64`) runs **v16** since 2026-10-10 (earlier files in
-`backup-before-v14`, `-v15` and `-v16`); it has its own `app\` data folder (jobs, log). Simulator for checking the page: `.claude/studio_v14_sim.py`.
+`backup-before-v14`, `-v15` and `-v16`); it has its own `app\` data folder (jobs, log). Since 0.16.2 it opens in its own native window (pywebview/WebView2,
+Desktop shortcut 'Henna Studio'); closing the window stops Studio safely. Simulator for checking the page: `.claude/studio_v14_sim.py`.
 
 ## Key files
 | File | Purpose |

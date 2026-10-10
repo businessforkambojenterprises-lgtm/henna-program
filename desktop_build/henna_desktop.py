@@ -1,4 +1,4 @@
-"""Console launcher for the portable Henna Studio v16 desktop distribution.
+"""Launcher for the portable Henna Studio v16 desktop distribution (own app window).
 
 The persistent ``app`` folder beside the executable contains the original
 project sources and assets. Worker invocations stay in that folder; no device
@@ -104,7 +104,74 @@ def self_test(app_dir):
     return 0 if report["ok"] else 1
 
 
-def serve(no_browser=False, port=None):
+WINDOW_TITLE = "Henna Studio"
+
+
+def console_is_ours():
+    """True when Windows created this console just for Studio (double-click), not a Command Prompt."""
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        ids = (ctypes.c_uint32 * 8)()
+        return ctypes.windll.kernel32.GetConsoleProcessList(ids, 8) == 1
+    except Exception:
+        return False
+
+
+def hide_console(log_path):
+    """Hide our own console and keep its messages in a log file."""
+    import ctypes
+    hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+    if hwnd:
+        ctypes.windll.user32.ShowWindow(hwnd, 0)
+    log = open(log_path, "a", encoding="utf-8", buffering=1)
+    sys.stdout = sys.stderr = log
+    return log
+
+
+def show_error(message):
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(None, message, WINDOW_TITLE, 0x10 | 0x40000)
+    except Exception:
+        pass
+
+
+def ask_close(message):
+    """Windows Yes/No box from any thread; Yes closes."""
+    try:
+        import ctypes
+        return ctypes.windll.user32.MessageBoxW(None, message, WINDOW_TITLE, 0x4 | 0x30 | 0x40000) == 6
+    except Exception:
+        return True
+
+
+def open_window(url, studio, storage):
+    """Native window (WebView2) until the user closes it. Returns False if no window could be made."""
+    try:
+        import webview
+    except Exception as exc:
+        print(f"App window not available ({exc}); using the browser instead.", flush=True)
+        return False
+    Path(storage).mkdir(parents=True, exist_ok=True)
+    window = webview.create_window(WINDOW_TITLE, url, width=1400, height=900, min_size=(900, 640))
+
+    def closing():
+        try:
+            busy = studio.v14.machine.status().get("busy")
+        except Exception:
+            busy = None
+        if busy:
+            return ask_close(f"The machine is busy ({busy}).\n\nClose Henna Studio and STOP the machine?")
+        return True
+
+    window.events.closing += closing
+    webview.start(gui="edgechromium", private_mode=False, storage_path=str(storage))
+    return True
+
+
+def serve(no_browser=False, port=None, window=True):
     base = importlib.import_module("webui_server")
     if port is not None:
         base.PORT = port
@@ -112,6 +179,8 @@ def serve(no_browser=False, port=None):
     studio = importlib.import_module("webui_server_v16")
     original_server = base.http.server.ThreadingHTTPServer
     url = f"http://{base.HOST}:{base.PORT}"
+    use_window = window and not no_browser
+    started, holder = threading.Event(), {}
 
     class DesktopServer(original_server):
         allow_reuse_address = False
@@ -123,30 +192,70 @@ def serve(no_browser=False, port=None):
 
         def serve_forever(self, poll_interval=0.5):
             # Construction has successfully bound and activated OUR listening
-            # socket. No browser thread exists when the address was occupied.
-            if not no_browser:
-                def open_browser():
-                    try:
-                        if not webbrowser.open(url, new=2):
-                            print(f"Open {url} in your browser.", flush=True)
-                    except Exception as exc:
-                        print(f"Could not open the browser ({exc}). Open {url} manually.", flush=True)
-                threading.Thread(target=open_browser, name="henna-browser", daemon=True).start()
+            # socket. No browser or window exists when the address was occupied.
+            holder["server"] = self
+            started.set()
+            if not no_browser and not use_window:
+                open_browser_later(url)
             return super().serve_forever(poll_interval=poll_interval)
+
+    def port_error(exc):
+        if isinstance(exc, OSError) and (exc.errno in {errno.EADDRINUSE, 10048} or getattr(exc, "winerror", None) == 10048):
+            return RuntimeError(
+                f"Port {base.PORT} is already in use. Close the other Henna Studio server "
+                "or choose another port with --port. No existing application was stopped.")
+        return None
 
     base.http.server.ThreadingHTTPServer = DesktopServer
     try:
-        studio.main()
-    except OSError as exc:
-        if exc.errno in {errno.EADDRINUSE, 10048} or getattr(exc, "winerror", None) == 10048:
-            raise RuntimeError(
-                f"Port {base.PORT} is already in use. Close the other Henna Studio server "
-                "or choose another port with --port. No existing application was stopped."
-            ) from exc
-        raise
+        if not use_window:
+            try:
+                studio.main()
+            except OSError as exc:
+                raise (port_error(exc) or exc) from exc
+            return 0
+        errors = []
+
+        def run_server():
+            try:
+                studio.main()
+            except BaseException as exc:          # reported to the main thread
+                errors.append(exc)
+            finally:
+                started.set()
+
+        thread = threading.Thread(target=run_server, name="henna-server")
+        thread.start()
+        started.wait(120)
+        if errors:
+            raise (port_error(errors[0]) or errors[0]) from errors[0]
+        if "server" not in holder:
+            raise RuntimeError("Henna Studio did not start in time")
+        storage = Path(os.getcwd()) / "outputs" / ".app_window"
+        shown = False
+        try:
+            shown = open_window(url, studio, storage)
+            if not shown:
+                open_browser_later(url)
+                thread.join()                       # browser mode: run until Ctrl+C / console closed
+        finally:
+            if shown:
+                # Window closed: the studio's own shutdown stops a moving machine, disconnects, releases the camera.
+                holder["server"].shutdown()
+                thread.join()
+        return 0
     finally:
         base.http.server.ThreadingHTTPServer = original_server
-    return 0
+
+
+def open_browser_later(url):
+    def open_browser():
+        try:
+            if not webbrowser.open(url, new=2):
+                print(f"Open {url} in your browser.", flush=True)
+        except Exception as exc:
+            print(f"Could not open the browser ({exc}). Open {url} manually.", flush=True)
+    threading.Thread(target=open_browser, name="henna-browser", daemon=True).start()
 
 
 def main(argv=None):
@@ -164,6 +273,10 @@ def main(argv=None):
         app = resolve_app_dir(args.app_dir)
         # Capture relative worker paths before changing the working directory.
         worker = worker_path(app, args.worker) if args.worker else None
+        # Relative paths would point inside the app folder after chdir; the window library uses argv[0].
+        sys.path[:] = [str(Path(p).resolve()) if p and not os.path.isabs(p) else p for p in sys.path]
+        if sys.argv and sys.argv[0]:
+            sys.argv[0] = str(Path(sys.argv[0]).resolve())
         sys.path.insert(0, str(app))
         os.chdir(app)
         # Original workers use sys.executable without launcher switches. Their
@@ -172,15 +285,21 @@ def main(argv=None):
     except Exception as exc:
         print(f"Henna Studio could not start: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
         return 1
+    hidden = None
     if worker is not None:
         # Preserve the original worker's stdout, stderr, traceback and exit code.
         return dispatch_worker(app, worker, args.worker_args)
     try:
         if args.self_test:
             return self_test(app)
+        if not args.no_browser and console_is_ours():
+            (app / "outputs").mkdir(parents=True, exist_ok=True)
+            hidden = hide_console(app / "outputs" / "studio_console.log")
         return serve(no_browser=args.no_browser, port=args.port)
     except Exception as exc:
         print(f"Henna Studio could not start: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+        if hidden:
+            show_error(f"Henna Studio could not start:\n\n{exc}")
         return 1
 
 

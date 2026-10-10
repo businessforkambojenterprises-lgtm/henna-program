@@ -111,6 +111,19 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(base.PORT, 0)
         self.assertEqual(base.ALLOWED_HOSTS, {"127.0.0.1:0", "localhost:0"})
 
+    def test_closing_the_window_shuts_the_server_down(self):
+        base, studio = self.fake_modules(0)
+        with mock.patch.object(desktop.importlib, "import_module", side_effect=[base, studio]):
+            with mock.patch.object(desktop, "open_window", return_value=True) as window:
+                with mock.patch.object(desktop.webbrowser, "open") as browser:
+                    self.assertEqual(desktop.serve(port=0), 0)      # returns only after the server stopped
+        window.assert_called_once()
+        browser.assert_not_called()
+
+    def test_console_is_not_hidden_when_started_from_a_command_prompt(self):
+        with mock.patch.object(desktop.os, "name", "posix"):
+            self.assertFalse(desktop.console_is_ours())
+
 
 if __name__ == "__main__":
     unittest.main()
