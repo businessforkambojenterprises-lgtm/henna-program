@@ -1,42 +1,67 @@
 # Ai+d405 – henna preview prototype
 
-`motion_ready = false` everywhere. The studio (v12) talks to the MKS DLC32 / GRBL controller only to
-read its position and to home it; programs and all other moves are opened and run by the user in UGS.
-Hover programs are written only for the PROSTHETIC hand (no person, no paste).
+`motion_ready = false` everywhere. Studio v13 can read machine position, home Z
+then all axes, and move to one fixed scan position after the travel area is cleared.
+Hover programs remain **prosthetic-only** (no person, no paste); programs and other
+manual moves are run in UGS. Real-hand jobs support camera preview only.
 
-Moving to a new laptop: see `NEW_LAPTOP_SETUP.md`. Project briefing for Claude: `CLAUDE.md`.
+Moving to a new laptop: see `NEW_LAPTOP_SETUP.md`. The v13 changes and validation
+limits are documented in [SCAN_POSITION_V13.md](SCAN_POSITION_V13.md).
 
-## Henna Studio (web UI v12) - the main way to work
+## Run the Windows app
 
-In a Command Prompt (keep the window open while you work):
+1. Open the extracted **HennaStudio-Windows-x64** folder on your Desktop.
+2. Double-click **HennaStudio.exe**. Keep its console window open.
+3. Your browser opens [Henna Studio](http://127.0.0.1:8765).
+   If it does not open, enter that address yourself.
+4. Close RealSense Viewer before using Scan. Disconnect UGS before connecting
+   Studio to the controller; only one app can use each device at a time.
+5. In Studio, **Connect**, clear all hands and objects from the travel area,
+   then **Home** and confirm. In Scan, select **Move to scan position** and confirm.
+6. Wait for **Position ready**, place the hand, then choose **Record scan**.
+   A verified scan automatically opens Hand & region and starts detection.
 
-```
+Keep `HennaStudio.exe`, `_internal`, and `app` together. Python is not required
+for the packaged app. Press Ctrl+C in the console to close it after operations
+finish. If port 8765 is already in use, close the previous Studio instance first.
+
+The new scan-position movement has been tested with a simulated controller;
+its first physical machine validation is still pending. Never move over a person.
+
+## Run Studio v13 from source
+
+For a fresh clone, follow `NEW_LAPTOP_SETUP.md` first. The ignored hand model must
+be obtained and its SHA-256 verified using `models/MODEL_INFO.txt` before use.
+
+In a Command Prompt, using the existing project Python environment:
+
+```bat
 cd /d "%USERPROFILE%\Desktop\Ai+d405"
-.venv\Scripts\python.exe webui_server_v12.py
+.venv\Scripts\python.exe webui_server_v13.py
 ```
 
-`webui_server_v12.py` adds a machine link on the CH340 USB port, found automatically (pyserial 3.5): the page reads the
-position (the "Use machine position" buttons fill the ? boxes) and can home ($HZ then $H,
-after two confirmations) with a STOP button. It cannot send any other G-code - programs
-still run in UGS. Disconnect UGS before pressing Connect (one program per port).
-`webui_server_v11.py` is the same studio without the machine link.
+Open http://127.0.0.1:8765 and follow the same workflow above. Keep the terminal
+open while working. This source checkout and a packaged app have separate `app`
+data folders; changing source does not automatically update an extracted package.
+The repeatable Windows build recipe is in [desktop_build/BUILDING.txt](desktop_build/BUILDING.txt).
 
-Open http://127.0.0.1:8765 (the older tabbed page is at /classic). Close RealSense
-Viewer first: only one program can use the camera.
+## Workflow
 
-1. **Scan** - live view; park the head at pose 1 (Z-40, X145.8 Y42.6), paste the `?`
-   line, record 5 s. Each file is fixed (late repeated camera-option messages) and
-   checked: depth units 0.0001 m, camera settings stored, plausible depth.
-2. **Hand & region** - automatic hand detection; edit and accept the outline.
-3. **Design** - gallery or upload a line-art SVG; size, rotate and drag it on the hand;
-   "Check on measured skin" plans every stroke (all or nothing).
-4. **Surface check** - three paper-feeler readings; offset accepted only if even.
-5. **Program** - written by step 22 and re-read by a separate checker.
-6. **Run & verify** - run in UGS, then a paper gap check (PASS / TOO CLOSE).
+1. **Scan** - confirmed fixed machine positioning, automatic position reading,
+   live camera and 5-second recording. Files are fixed and verified before use:
+   depth units 0.0001 m, stored camera settings and plausible depth.
+2. **Hand & region** - automatic detection; edit and accept the outline.
+3. **Design** - gallery or uploaded line-art SVG; size, rotate and drag it onto
+   the hand. "Check on measured skin" plans every stroke, all or nothing.
+4. **Surface check** - prosthetic only; three paper-feeler readings and an offset
+   accepted only if readings agree.
+5. **Program** - prosthetic only; written by step 22 and independently re-read.
+6. **Run & verify** - disconnect Studio, run in UGS, then check the paper gap.
 
-Every job is saved in `outputs/webui/<time>-job/job.json` and every reading is logged
-in `validation_log_S2026-10-05-A.csv`. A "Real hand" job is camera only: it stops at
-the design preview. Calibration and path rules: `current_calibration.json`.
+Jobs are saved in `outputs/webui/<time>-job/job.json`; readings and movement
+stages are logged in `validation_log_S2026-10-05-A.csv`. Real-hand jobs stop at
+design preview. Fixed calibration and path rules are in `current_calibration.json`.
+Older server revisions and the Classic page remain available for reference.
 
 ## Early tools (offline previews)
 

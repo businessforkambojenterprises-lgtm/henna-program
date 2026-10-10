@@ -1,0 +1,44 @@
+HENNA STUDIO - WINDOWS x64 - v13
+
+1. Extract the entire ZIP to a writable folder, such as your Desktop.
+2. Open that folder and double-click HennaStudio.exe.
+3. Your browser opens http://127.0.0.1:8765. Keep the Studio console window open.
+4. To stop Studio, press Ctrl+C in its console window.
+
+Keep HennaStudio.exe, _internal and app together. Python installation is not needed.
+If the address is already in use, stop the earlier Studio instance and try again.
+
+YOUR FILES
+  app/current_calibration.json and app/validation: approved machine calibration.
+  app/designs: design gallery and uploaded SVG files.
+  app/outputs: new jobs, previews, plans and programs.
+  app/validation_log_S2026-10-05-A.csv: new validation log, initially header only.
+  Your Windows Documents folder: camera recordings, as in the existing app.
+Back up the app folder and your recordings. Keep your old source project too.
+Extract future versions into a new folder; do not overwrite an app folder with jobs.
+
+WORKFLOW
+Studio can read position, home Z then all axes, and move to the fixed scan pose.
+1. Disconnect UGS, then Connect in Studio.
+2. Clear all hands and objects from the travel area, then Home and confirm.
+3. In Scan, choose Move to scan position and confirm the travel area is clear.
+4. Wait for Position ready. Place the hand, start the camera and Record scan.
+5. A verified scan advances to Hand & region and starts detection.
+The app reads machine position automatically; there is no Capture status to paste.
+The fixed route is Z -20, XY 145.8 / 42.6, then Z -40, all in machine coordinates.
+After Stop, alarm, reset, disconnect or stale position, follow the recovery prompt.
+The first live use of the new positioning button is a machine validation test.
+
+motion_ready=false. Real-hand jobs support camera preview only; no hover programs.
+Prosthetic-only program checks and calibration rules remain in force.
+Programs and other manual movements still run in UGS. Disconnect Studio first.
+Close RealSense Viewer before starting the camera.
+Camera/controller USB drivers and UGS are external to this package.
+
+This is a fresh app workspace. Previous jobs and recordings are not copied into it.
+The Classic page is available at /classic; old pencil-practice calibration history
+is not included. Current Studio calibration and hand model are included unchanged.
+
+BUILD_MANIFEST.json identifies the source and dependencies. build_source contains
+the launcher and build recipe. If included, VALIDATION.txt describes checks performed
+on this build; building an executable alone does not validate the hardware.

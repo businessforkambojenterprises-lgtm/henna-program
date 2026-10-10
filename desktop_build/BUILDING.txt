@@ -1,0 +1,31 @@
+From the project root, use the existing Python environment:
+  .venv\Scripts\python.exe -m pip install --target desktop_build\build_tools pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8
+
+Command Prompt build example (choose unused output/build directories):
+  set PYTHONPATH=%CD%\desktop_build\build_tools
+  .venv\Scripts\python.exe -B desktop_build\build_windows.py --project . --output outputs\HennaStudio-Windows-x64-v13 --work outputs\build-v13
+
+The model file models/hand_landmarker.task must already be present. Its source and
+checksum are in models/MODEL_INFO.txt. Run these checks on the built package:
+  .venv\Scripts\python.exe -B -m unittest discover -s desktop_build -p "test_*.py"
+  .venv\Scripts\python.exe -B desktop_build\smoke_bundle.py --bundle outputs\HennaStudio-Windows-x64-v13 --work outputs\smoke-v13 --port 8877
+The smoke check uses an isolated app folder and never opens physical hardware.
+
+Build on Windows x64 with the project's Python 3.11 environment and requirements-lock.txt.
+Install build-only tools into a separate folder:
+  python -m pip install --target build_tools pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8
+Set PYTHONPATH to that build_tools folder for the build process.
+Run:
+  python build_windows.py --project PATH_TO_PROJECT --output NEW_RELEASE_FOLDER --work NEW_BUILD_FOLDER
+
+Use a new output and work folder for every build. The script snapshots the source,
+bundles third-party dependencies, and puts original project code/assets in app.
+Project modules are removed from the frozen archive so filesystem paths, calibration
+and saved data continue to refer to app. No original project file is modified.
+The launcher dispatches the four existing worker scripts through the frozen exe.
+It binds the local web server before opening a browser. --no-browser and --port
+are available for testing; --app-dir selects an isolated copy of the app data.
+Run HennaStudio.exe --self-test for a hardware-free dependency/model check.
+
+The sources and dependencies shipped with the app are readable. This package is
+for portability and double-click startup, not source-code protection.
