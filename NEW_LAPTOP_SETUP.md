@@ -11,7 +11,17 @@ Nothing on the old PC is moved or deleted - keep it until the new laptop has pas
 | `claude_memory\` | Claude's saved notes for this project | tiny |
 | `chat_export\` | the full Claude conversation (zip) | about 100 MB |
 
-## Part A - on the OLD PC
+## No USB drive? Use the essentials zip (recommended)
+`Desktop\Ai+d405_essentials.zip` (about 170 MB) holds the project, Claude's notes and the chat export -
+everything except the recordings, which are history only (the new laptop makes new scans).
+1. Old PC: open drive.google.com (or onedrive.live.com) and drag the zip into it.
+2. New laptop: download it from the same account, right-click -> **Extract All** to the Desktop.
+   Move the inner `Ai+d405` folder so it is `Desktop\Ai+d405`.
+3. Continue with **Part B** below (skip the recording copies).
+Recordings later, only if needed: share `Documents` over the home network (right-click -> Give access to)
+or upload single files.
+
+## Part A - on the OLD PC (with a USB drive or external disk)
 1. Stop the studio (Ctrl+C in its Command Prompt), disconnect UGS, close RealSense Viewer.
 2. Plug in a USB drive or external disk with **at least 60 GB free** (NTFS or exFAT).
 3. Open a Command Prompt and type (replace `E:` with your drive's letter):
