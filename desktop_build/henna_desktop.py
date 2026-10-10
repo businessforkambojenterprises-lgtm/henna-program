@@ -1,4 +1,4 @@
-"""Launcher for the portable Henna Studio v18 desktop distribution (own app window).
+"""Launcher for the portable Henna Studio v19 desktop distribution (own app window).
 
 The persistent ``app`` folder beside the executable contains the original
 project sources and assets. Worker invocations stay in that folder; no device
@@ -90,11 +90,13 @@ def self_test(app_dir):
         _asset(app, "webui/studio_v16.html")
         _asset(app, "webui/studio_v17.html")
         _asset(app, "webui/studio_v18.html")
+        _asset(app, "webui/studio_v19.html")
         _asset(app, "webui_server_v14.py")
         _asset(app, "webui_server_v15.py")
         _asset(app, "webui_server_v16.py")
         _asset(app, "webui_server_v17.py")
         _asset(app, "webui_server_v18.py")
+        _asset(app, "webui_server_v19.py")
         report["checks"]["web_assets"] = "present"
         hand = importlib.import_module("henna_preview.hand_detect")
         model = _asset(app, "models/hand_landmarker.task")
@@ -181,7 +183,7 @@ def serve(no_browser=False, port=None, window=True):
     if port is not None:
         base.PORT = port
         base.ALLOWED_HOSTS = {f"127.0.0.1:{port}", f"localhost:{port}"}
-    studio = importlib.import_module("webui_server_v18")
+    studio = importlib.import_module("webui_server_v19")
     original_server = base.http.server.ThreadingHTTPServer
     url = f"http://{base.HOST}:{base.PORT}"
     use_window = window and not no_browser
@@ -264,7 +266,7 @@ def open_browser_later(url):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Henna Studio v18 desktop launcher")
+    parser = argparse.ArgumentParser(description="Henna Studio v19 desktop launcher")
     parser.add_argument("--app-dir", help="Use this persistent project app folder")
     parser.add_argument("--no-browser", action="store_true", help="Start without opening a browser")
     parser.add_argument("--port", type=int, help="Local HTTP port (default: 8765)")

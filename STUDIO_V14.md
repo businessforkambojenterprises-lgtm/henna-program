@@ -100,3 +100,12 @@ capital A-Z, spaces and hyphens as single pen lines (normal fonts are filled out
 goes through the normal upload checks into designs/uploads (`Name_<TEXT>.svg`, reused when typed again) and is then
 placed, checked on skin, programmed (speed, low hops) and run like any design. HARSH = 11 strokes, SANDEEP = 10.
 Tests: 7 (in total 285). Simulator with a copy of the real jobs: HARSH placed at 30 mm inside the outline.
+
+## v19: font choice for names
+User request: write names in different fonts. The 'Write a name' box has a Font list: Studio single-line capitals
+(v18), the handwriting set (Segoe Script, Segoe Print, Ink Free, French Script MT) and every other installed font
+(313 found on this PC). `henna_preview/font_strokes.py` draws the name large in the font, thins the letters to
+their centre lines (OpenCV ximgproc.thinning), traces them into polylines (staircase pixels are not junctions,
+dead-end twigs under 18 px removed), smooths and simplifies them, and refuses more than 60 strokes. Only fonts
+from the server's own list are accepted (no paths from the page). "Harsh": Segoe Script 17 strokes, Segoe Print 13,
+Ink Free 17, French Script 19. Tests: 7 (292 in total). Simulator: Harsh in Segoe Script placed at 32 mm.

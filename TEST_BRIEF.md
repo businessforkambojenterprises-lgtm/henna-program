@@ -11,22 +11,23 @@ Please **test and review** Henna Studio. Report findings; do not change code unl
 
 ## What it is (read first)
 `CLAUDE.md` (rules and findings), `STUDIO_V14.md` (v14-v17 changes), `README.md`.
-Current version: **Studio v18** = scan -> hand & region -> design -> program -> run, all from the app:
+Current version: **Studio v19** = scan -> hand & region -> design -> program -> run, all from the app:
 v14 Studio streams the program itself (Start / Pause / Resume / STOP, jog >= Z -20), v15 fresh position and
 verified Pause, v16 drawing speed 300-1200 mm/min (drops to the hand <= 300), v17 low hops between strokes
 (5 mm above the highest measured skin under each crossing; `step23_design_hop_program.py`), v18 write a name
-(single-stroke capitals, `henna_preview/stroke_font.py`).
+(single-stroke capitals, `henna_preview/stroke_font.py`), v19 names in any installed font
+(`henna_preview/font_strokes.py`).
 
 ## How to test (Windows, project folder, existing `.venv`)
 1. Unit tests (no hardware):
-   `.venv\Scripts\python.exe -m unittest discover -s tests` (expect 285 OK) and
-   `cd desktop_build` then `..\.venv\Scripts\python.exe -m unittest discover -p "test_*.py"` (expect 20 OK).
+   `.venv\Scripts\python.exe -m unittest discover -s tests` (expect 292 OK) and
+   `cd desktop_build` then `..\.venv\Scripts\python.exe -m unittest discover -p "test_*.py"` (expect 21 OK).
 2. Simulator (fake controller, no camera, temp jobs): `.venv\Scripts\python.exe .claude\studio_v17_sim.py`
-   (demo job) or `.claude\studio_v18_sim.py` (temporary copy of the desktop app's real jobs; Design step + names),
+   (demo job) or `.claude\studio_v19_sim.py` (temporary copy of the desktop app's real jobs; Design step + names),
    open http://127.0.0.1:8767. Connect (SIM) -> Home -> open the demo job -> Run -> Start / Pause / Resume / STOP,
    Jog dialog. Ctrl+C to stop.
 3. Packaged app smoke test (isolated app copy, never opens hardware), if a build exists:
-   `.venv\Scripts\python.exe -B desktop_build\smoke_bundle.py --bundle outputs\HennaStudio-Windows-x64-v18 --work outputs\smoke-review --port 8877`
+   `.venv\Scripts\python.exe -B desktop_build\smoke_bundle.py --bundle outputs\HennaStudio-Windows-x64-v19 --work outputs\smoke-review --port 8877`
 4. Offline hop check on real data is described in `STUDIO_V14.md` (step 23 on a copied app folder).
 
 ## Please look especially at
@@ -38,8 +39,9 @@ verified Pause, v16 drawing speed 300-1200 mm/min (drops to the hand <= 300), v1
   or a changed file get through?
 - **Server guards:** confirmations, prosthetic-only, 4 mm minimum, busy-machine 409 guard, jog inputs.
 - **Desktop launcher:** `desktop_build/henna_desktop.py` - window close shuts down safely, console hiding.
-- **Names:** `henna_preview/stroke_font.py`, `webui_server_v18.py` - odd input, file names, reuse.
-- **UI:** `webui/studio_v18.html` in the simulator - confusing states, wrong enable/disable, accessibility.
+- **Names:** `henna_preview/stroke_font.py`, `font_strokes.py`, `webui_server_v18.py`/`v19.py` - odd input,
+  file names, reuse, fonts that trace badly.
+- **UI:** `webui/studio_v19.html` in the simulator - confusing states, wrong enable/disable, accessibility.
 
 ## Report format
 For each finding: file:line, what can go wrong (concrete scenario), severity (safety / bug / UX / style),

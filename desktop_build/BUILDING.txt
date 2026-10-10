@@ -3,12 +3,12 @@ From the project root, use the existing Python environment:
 
 Command Prompt build example (choose unused output/build directories):
   set PYTHONPATH=%CD%\desktop_build\build_tools
-  .venv\Scripts\python.exe -B desktop_build\build_windows.py --project . --output outputs\HennaStudio-Windows-x64-v18 --work outputs\build-v18
+  .venv\Scripts\python.exe -B desktop_build\build_windows.py --project . --output outputs\HennaStudio-Windows-x64-v19 --work outputs\build-v19
 
 The model file models/hand_landmarker.task must already be present. Its source and
 checksum are in models/MODEL_INFO.txt. Run these checks on the built package:
   .venv\Scripts\python.exe -B -m unittest discover -s desktop_build -p "test_*.py"
-  .venv\Scripts\python.exe -B desktop_build\smoke_bundle.py --bundle outputs\HennaStudio-Windows-x64-v18 --work outputs\smoke-v18 --port 8877
+  .venv\Scripts\python.exe -B desktop_build\smoke_bundle.py --bundle outputs\HennaStudio-Windows-x64-v19 --work outputs\smoke-v19 --port 8877
 The smoke check uses an isolated app folder and never opens physical hardware.
 
 Build on Windows x64 with the project's Python 3.11 environment and requirements-lock.txt.
