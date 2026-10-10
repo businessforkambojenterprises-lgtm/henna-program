@@ -33,11 +33,11 @@ Since 2026-10-10 it is driven from **Henna Studio v14** (no UGS steps; UGS stays
 - Ask for a clear yes before commits, machine runs, and any safety-rule change. Log every machine reading.
 - Real-world checks beat assumptions: verify with paper-feeler readings and side-view videos.
 
-## Main workflow: Henna Studio (web UI v17 = v16 + low hops between strokes)
+## Main workflow: Henna Studio (web UI v18 = v17 + names on the hand)
 Start in a Command Prompt (keep the window open; the Claude terminal tool tends to interrupt the slow start):
 ```
 cd /d "%USERPROFILE%\Desktop\Ai+d405"
-.venv\Scripts\python.exe webui_server_v17.py
+.venv\Scripts\python.exe webui_server_v18.py
 ```
 Open http://127.0.0.1:8765 (older tabbed page: /classic). Close RealSense Viewer and UGS first (one user per device).
 Steps: 1 Scan (Connect, Home, Move to scan position, record 5 s, file fixed + verified) - 2 Hand & region
@@ -52,6 +52,7 @@ Desktop shortcut 'Henna Studio'); closing the window stops Studio safely. Simula
 | File | Purpose |
 |---|---|
 | `current_calibration.json` | approved calibration paths + fixed path rules (single source for the web UI) |
+| `webui_server_v18.py`, `webui/studio_v18.html`, `henna_preview/stroke_font.py` | v18: write a name (single-stroke A-Z) |
 | `webui_server_v17.py`, `webui/studio_v17.html`, `step23_design_hop_program.py` | v17: low hops between strokes |
 | `henna_preview/hop_path.py`, `henna_preview/program_reread_v2.py` | hop planning + check; re-read allowing hops |
 | `webui_server_v16.py`, `webui/studio_v16.html` | v16: v15 + drawing speed per program (drops capped at 300) |

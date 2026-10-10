@@ -1,4 +1,4 @@
-HENNA STUDIO - WINDOWS x64 - v17
+HENNA STUDIO - WINDOWS x64 - v18
 
 1. Extract the entire ZIP to a writable folder, such as your Desktop.
 2. Double-click HennaStudio.exe (or the Henna Studio shortcut on the Desktop).
@@ -23,7 +23,8 @@ Studio does everything - no UGS. Close UGS and RealSense Viewer before starting.
 1. Connect. Clear all hands and objects from the travel area, then Home and confirm.
 2. Scan: Move to scan position, wait for Position ready, place the hand, Record scan.
 3. Hand & region: check and accept the outline.
-4. Design: choose, size, rotate and drag; nozzle 4 mm or more; Check on measured skin.
+4. Design: choose a design, or type a name (Write a name: single-line capitals); size, rotate and
+   drag; nozzle 4 mm or more; Check on measured skin.
 5. Program: choose the drawing speed (300-1200, default 600; drops to the hand stay at 300),
    then it is written and re-read by a separate checker. First run at a new speed: air run.
    Between strokes the nozzle only hops 5 mm above the highest skin under the crossing.

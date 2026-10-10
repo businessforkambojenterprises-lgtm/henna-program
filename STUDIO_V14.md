@@ -93,3 +93,10 @@ Tests: 13 more (278 in total). Desktop package 0.17.0.1 (step 23 added to the al
 ### v17.1: clearer end of a run
 After every line is sent, the Run step shows "Finishing last moves" (pulsing bar, top bar "Finishing...") until the
 machine stops at the program end; only then "Finished". Found in the first real hop air run. Package 0.17.1.1.
+
+## v18: write a name on the hand
+User request: type a name (e.g. HARSH, SANDEEP) instead of choosing a picture. `henna_preview/stroke_font.py` draws
+capital A-Z, spaces and hyphens as single pen lines (normal fonts are filled outlines, not usable for henna); the SVG
+goes through the normal upload checks into designs/uploads (`Name_<TEXT>.svg`, reused when typed again) and is then
+placed, checked on skin, programmed (speed, low hops) and run like any design. HARSH = 11 strokes, SANDEEP = 10.
+Tests: 7 (in total 285). Simulator with a copy of the real jobs: HARSH placed at 30 mm inside the outline.
