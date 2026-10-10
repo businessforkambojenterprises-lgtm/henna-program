@@ -45,6 +45,14 @@ if [ ! -d "$SRC/.git" ]; then
   git clone --depth 1 --branch "$LRS_TAG" https://github.com/IntelRealSense/librealsense.git "$SRC"
 fi
 cd "$SRC"
+have=$(git describe --tags --exact-match 2>/dev/null || echo none)
+if [ "$have" != "$LRS_TAG" ]; then
+  # An older librealsense was already here (found on a test Pi: v2.55.1). Switch to the laptop's version.
+  echo "Existing source is $have - switching to $LRS_TAG and building from clean"
+  git fetch --depth 1 origin tag "$LRS_TAG"
+  git checkout -f "$LRS_TAG"
+  rm -rf "$SRC/build"
+fi
 echo "Source version: $(git describe --tags 2>/dev/null || echo unknown)"
 
 echo "--- 5/6 build (about 45-60 min; RSUSB backend = no kernel patches)"
@@ -59,9 +67,18 @@ sudo ldconfig
 echo "--- 6/6 USB permission rules + Python module"
 sudo cp "$SRC/config/99-realsense-libusb.rules" /etc/udev/rules.d/
 sudo udevadm control --reload-rules && sudo udevadm trigger
-if ! "$VENV/bin/python" -c "import pyrealsense2" 2>/dev/null; then
+want="${LRS_TAG#v}"
+got=$("$VENV/bin/python" -c "import pyrealsense2 as rs; print(rs.__version__)" 2>/dev/null || echo none)
+if [ "$got" != "$want" ]; then
+  # remove old copies of the module first, then copy the freshly built one
+  rm -f "$SITE"/pyrealsense2*.so* "$SITE"/pybackend2*.so*
   for f in $(find "$SRC/build" -name 'pyrealsense2*.so*' -o -name 'pybackend2*.so*'); do cp -v "$f" "$SITE/"; done
+  got=$("$VENV/bin/python" -c "import pyrealsense2 as rs; print(rs.__version__)" 2>/dev/null || echo none)
 fi
-"$VENV/bin/python" -c "import pyrealsense2 as rs; print('pyrealsense2 OK, version', rs.__version__)"
+if [ "$got" != "$want" ]; then
+  echo "STOP: pyrealsense2 is $got, expected $want (the laptop's version). Send this log: $LOG"
+  exit 1
+fi
+echo "pyrealsense2 OK, version $got (same as the laptop)"
 echo "=== stage 1 setup finished - now plug the D405 into a BLUE (USB 3) port and run:"
 echo "    $VENV/bin/python stage1_camera_check.py"
