@@ -85,5 +85,6 @@ Desktop shortcut 'Henna Studio'); closing the window stops Studio safely. Simula
 - First real run of v14: an air run with NO hand first (watch the path, try Pause / Resume / STOP), then the
   prosthetic. Rebuild recipe: `desktop_build/BUILDING.txt` (PyInstaller is in the ignored `desktop_build/build_tools`).
 - Real hand: camera-only accuracy test (paper dots) and a 30 s hand-movement test were planned.
-- Low hops between strokes: done in v17 (5 mm above the skin); first real run pending (air run first).
+- Low hops between strokes: done in v17 (5 mm above the skin); air run OK and prosthetic run OK at 600 mm/min
+  (2026-10-10, no touch). Next big step: dispensing (needs the dispenser details and its own approved plan).
 - Rigid textured hand cast for exact camera measurements.
