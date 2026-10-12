@@ -152,3 +152,6 @@ lock, only while that Home's token is valid and before the machine is released (
 Tests (`tests/test_review_fixes_v22.py`, 4 more, 321 in total): the late-callback schedule reproduced on v21 and fixed
 on v22; a failed Home keeps the warning. Simulator (`.claude/studio_v22_sim.py`): Home, run, STOP (8 of 12), Home again.
 Still open (suspected, UX): outline corners can only be edited with a mouse.
+Desktop app: 0.22.0.1 built from the v22 commit, offline smoke test passed, self-test ok; installed in
+`Desktop\HennaStudio-Windows-x64` (2 new and 9 replaced program files, 620 job files and the app log unchanged; v21 files in
+`backup-before-v22`). Pi launcher switched to v22 (`git pull` on the Pi).
