@@ -87,6 +87,10 @@ class TestHelpers(unittest.TestCase):
         w.read(256)
         self.assertEqual(len(w.rx_times), 1, "empty reads are not arrivals")
 
+    def test_proc_cpu_s(self):
+        self.assertIsNone(check.proc_cpu_s(None))
+        self.assertIsNone(check.proc_cpu_s(999999999))
+
     def test_usb_controller(self):
         p = "/sys/devices/platform/axi/1000120000.pcie/1f00300000.usb/xhci-hcd.1/usb3/3-1/3-1:1.0/ttyUSB0"
         self.assertEqual(check.usb_controller(p), "xhci-hcd.1")

@@ -11,8 +11,10 @@ SAFETY: the serial port is wrapped so that ONLY '?' (the GRBL status query) can 
 refused before it reaches the USB port. No homing, no jog, no program, no reset. The machine does not move.
 It may report Alarm (not homed) - that is fine, '?' works in Alarm.
 
-Phases: A link only (8 s) | B record, camera stopped before (x2) | C Studio's current preview 5 s -> record (x2)
-        | D faster preview (web_recorder_fast) 5 s -> record (x2). Recordings are removed at the end.
+Phases: A link only (8 s) | B record, camera stopped before | C Studio's current preview 5 s -> record
+        | D faster preview (web_recorder_fast) 5 s -> record
+        | E the camera in its own process (camera_process, the Pi fix): record from stopped, preview -> record (x2).
+Recordings are removed at the end.
 Close Henna Studio first. CNC USB cable on the Pi, CNC power on, D405 on a blue port. Run:
    ~/henna-venv/bin/python ~/henna-program/raspberry_pi/stage3b_cnc_link_check.py      (about 2 minutes)
 Send back the lines after '=== STAGE 3B RESULT'. Options: --port /dev/ttyUSB0, --keep-files.
@@ -100,6 +102,18 @@ def cause(stats):
     return " -> bytes arrived and Python ran: status lines were not usable"
 
 
+def proc_cpu_s(pid):
+    """CPU seconds used so far by another process (Linux /proc), or None."""
+    if not pid:
+        return None
+    try:
+        with open(f"/proc/{pid}/stat") as f:
+            fields = f.read().rsplit(")", 1)[1].split()
+        return (int(fields[11]) + int(fields[12])) / os.sysconf("SC_CLK_TCK")     # utime + stime
+    except (OSError, ValueError, IndexError, AttributeError):
+        return None
+
+
 def usb_controller(sys_path):
     """/sys/devices/.../xhci-hcd.1/usb3/3-1/... -> 'xhci-hcd.1' (the Pi 5 has two USB controllers)."""
     for part in sys_path.split("/"):
@@ -168,6 +182,7 @@ def main(argv=None):
         print("STOP: no RealSense camera found - plug the D405 into a BLUE (USB 3) port")
         return 1
 
+    from henna_preview.camera_process import ProcessCameraService
     from henna_preview.grbl_program_link_v22 import GrblProgramLinkV22
     from henna_preview.grbl_scan_link import _open_serial
     from henna_preview.web_recorder import CameraService
@@ -223,21 +238,29 @@ def main(argv=None):
                 c.jpeg()
                 stop_page.wait(PAGE_FETCH_S)
 
-        runs = [("B_record_from_stopped", CameraService, False), ("B_record_from_stopped_2", CameraService, False),
-                ("C_studio_preview_then_record", CameraService, True), ("C_studio_preview_then_record_2", CameraService, True),
-                ("D_fast_preview_then_record", FastCameraService, True), ("D_fast_preview_then_record_2", FastCameraService, True)]
+        runs = [("B_record_from_stopped", CameraService, False),
+                ("C_studio_preview_then_record", CameraService, True),
+                ("D_fast_preview_then_record", FastCameraService, True),
+                ("E_process_record_from_stopped", ProcessCameraService, False),
+                ("E_process_preview_then_record", ProcessCameraService, True),
+                ("E_process_preview_then_record_2", ProcessCameraService, True)]
         for name, cls, with_preview in runs:
             print(f"--- {name}")
             cam = cls()
+            if isinstance(cam, ProcessCameraService):
+                cam.status()                 # start the camera process before measuring (as Studio's page does)
+                time.sleep(2.0)
             stop_page = threading.Event()
             res = {}
             t_phase = time.monotonic()
             if with_preview:
                 cam.start_preview()
                 threading.Thread(target=page, args=(stop_page, cam), daemon=True).start()
-                c0, w0 = time.process_time(), time.monotonic()
+                c0, w0, k0 = time.process_time(), time.monotonic(), proc_cpu_s(getattr(cam, "pid", None))
                 time.sleep(5.0)
-                res["preview_cpu_percent"] = round(100 * (time.process_time() - c0) / (time.monotonic() - w0))
+                k1 = proc_cpu_s(getattr(cam, "pid", None))
+                child = (k1 - k0) if k0 is not None and k1 is not None else 0.0
+                res["preview_cpu_percent"] = round(100 * (time.process_time() - c0 + child) / (time.monotonic() - w0))
             t_press = time.monotonic()
             try:
                 info = cam.record(os.path.join(work, f"{name}.db3"), 5.0)
@@ -252,6 +275,8 @@ def main(argv=None):
             res["recording"] = age_stats(samples, t_press, t_done, t_press, rx())
             r["phases"][name] = res
             print("    " + json.dumps(res))
+            if isinstance(cam, ProcessCameraService):
+                cam.close()
             cam = None
             time.sleep(2.0)
         r["status_queries_sent"] = sum(w.sent for w in wrapped)
@@ -263,6 +288,8 @@ def main(argv=None):
         if cam is not None:
             try:
                 cam.stop()
+                if hasattr(cam, "close"):
+                    cam.close()
             except Exception:
                 pass
         try:

@@ -1,5 +1,9 @@
 # Henna Studio on a Raspberry Pi 5 (port in progress)
 
+**Branch `raspberry-pi`** (user decision 2026-10-12): all Pi work lives here, never on `main` (= the PC's Henna
+Studio). PC Studio updates are brought into this branch only when the user decides (`git merge main` here);
+nothing from this branch is merged into `main`. On the Pi: `git checkout raspberry-pi`, then `git pull` as usual.
+
 The Windows `HennaStudio.exe` cannot run on a Pi (Linux on ARM). Henna Studio is Python, so a Pi version is
 being made in stages; each must work before the next. The laptop version is not changed by this work.
 
@@ -8,8 +12,8 @@ being made in stages; each must work before the next. The laptop version is not 
 | 1 | Camera: build Intel RealSense v2.58.4 (same as the laptop) on the Pi, check the D405 streams and records | **PASS** with 2.58.4: USB 3.2, 27.2 fps, 0.0001 m; Studio's repair + check on a Pi recording PASS |
 | 2 | Pi version of Studio: `/dev/ttyUSB0`, Linux fonts, own browser window, setup script, desktop icon | scripts ready |
 | 3a | Speed check (camera only): why a Pi scan was refused ('Position status became stale during recording') - SD card speed, swap, power/temperature, preview cost, recordings to SD and to RAM | **done** 2026-10-12: SD 76 MB/s, zram only, 5 A supply, no throttling; recordings never stalled (worst 0.44 s); preview 48 ms/frame (lookup table 6.2 ms) - the cause is not the Pi alone |
-| 3b | CNC link check (sends only '?', no motion): machine-status age while the camera records, from a stopped camera / after Studio's preview / after the faster preview | script ready |
-| 3c | Faster live preview on the Pi (`henna_studio_fast.sh` = Studio v22 + `web_recorder_fast.py`) | ready to try |
+| 3b | CNC link check (sends only '?', no motion): machine-status age while the camera records | 2026-10-12: refusal reproduced in 5 of 6 runs - Python paused 2.0-2.5 s when the camera starts/stops (camera and CNC on different USB controllers); faster preview CPU 98 -> 13 % |
+| 3c | Pi Studio (`henna_studio_fast.sh` = Studio v22 + camera in its own process `camera_process.py` + faster preview `web_recorder_fast.py`) | phase E of 3b checks it |
 | 3 | Same tests as the laptop: unit tests, simulator, Home, scan position, hover run on the prosthetic | after stage 3b |
 
 ## Stage 1 (camera only - the CNC is not used)
@@ -45,6 +49,7 @@ Uses Studio's own link class, wrapped so that only '?' (GRBL status query) can r
 2. `~/henna-venv/bin/python ~/henna-program/raspberry_pi/stage3b_cnc_link_check.py`  (about 2 minutes)
 3. Send back the lines after `=== STAGE 3B RESULT` (full result: `~/henna_stage3b_check_<time>.json`).
 
-## Stage 3c (faster live preview - try after stage 3b)
-`bash ~/henna-program/raspberry_pi/henna_studio_fast.sh` starts Studio v22 with the faster preview (the recording,
-machine link and checks are unchanged). `henna_studio.sh` and the desktop icon still start the normal v22.
+## Stage 3c (Pi Studio - try after stage 3b phase E passes)
+`bash ~/henna-program/raspberry_pi/henna_studio_fast.sh` starts Studio v22 with the camera in its own process and
+the faster preview (the recording, machine link and checks are unchanged). `henna_studio.sh` and the desktop icon
+still start the normal v22.
