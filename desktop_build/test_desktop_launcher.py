@@ -8,6 +8,7 @@ from pathlib import Path
 import socket
 import sys
 import tempfile
+import types
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -123,6 +124,33 @@ class ServerTests(unittest.TestCase):
     def test_console_is_not_hidden_when_started_from_a_command_prompt(self):
         with mock.patch.object(desktop.os, "name", "posix"):
             self.assertFalse(desktop.console_is_ours())
+
+
+class WindowOnOtherPcs(unittest.TestCase):
+    """Second PC: a copied zip marks every file as downloaded; .NET then refused pythonnet's DLL."""
+
+    @unittest.skipUnless(os.name == "nt", "NTFS download marks are Windows-only")
+    def test_download_mark_removed_from_bundled_window_dlls_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "pythonnet" / "runtime").mkdir(parents=True)
+            (base / "other").mkdir()
+            ours, other = base / "pythonnet" / "runtime" / "Python.Runtime.dll", base / "other" / "x.dll"
+            for f in (ours, other):
+                f.write_bytes(b"MZ")
+                with open(str(f) + ":Zone.Identifier", "w") as z:
+                    z.write("[ZoneTransfer]\nZoneId=3\n")
+            with mock.patch.object(sys, "frozen", True, create=True), mock.patch.object(sys, "_MEIPASS", tmp, create=True):
+                self.assertEqual(desktop.unblock_bundled_dotnet(), 1)
+            self.assertFalse(os.path.exists(str(ours) + ":Zone.Identifier"))
+            self.assertTrue(os.path.exists(str(other) + ":Zone.Identifier"))     # nothing else is touched
+
+    def test_window_failure_falls_back_to_the_browser(self):
+        fake = types.ModuleType("webview")
+        fake.create_window = mock.Mock(return_value=mock.MagicMock())
+        fake.start = mock.Mock(side_effect=RuntimeError("Failed to resolve Python.Runtime.Loader.Initialize"))
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(sys.modules, {"webview": fake}):
+            self.assertFalse(desktop.open_window("http://127.0.0.1:1", SimpleNamespace(), tmp))
 
 
 if __name__ == "__main__":

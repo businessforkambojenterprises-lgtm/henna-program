@@ -156,28 +156,65 @@ def ask_close(message):
         return True
 
 
+def unblock_bundled_dotnet():
+    """Remove Windows' "downloaded from the internet" mark from the app's OWN window DLLs only.
+
+    A copied zip marks every file; .NET then refuses to load pythonnet's Python.Runtime.dll (seen on a second PC).
+    Same effect as PowerShell Unblock-File, limited to _internal/pythonnet, webview and clr_loader."""
+    if os.name != "nt" or not getattr(sys, "frozen", False):
+        return 0
+    base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent / "_internal"))
+    n = 0
+    for sub in ("pythonnet", "webview", "clr_loader"):
+        for dll in (base / sub).rglob("*.dll"):
+            try:
+                os.remove(str(dll) + ":Zone.Identifier")
+                n += 1
+            except OSError:
+                pass
+    if n:
+        print(f"Removed the download mark from {n} bundled window DLL(s).", flush=True)
+    return n
+
+
 def open_window(url, studio, storage):
     """Native window (WebView2) until the user closes it. Returns False if no window could be made."""
     try:
+        unblock_bundled_dotnet()
         import webview
-    except Exception as exc:
-        print(f"App window not available ({exc}); using the browser instead.", flush=True)
-        return False
-    Path(storage).mkdir(parents=True, exist_ok=True)
-    window = webview.create_window(WINDOW_TITLE, url, width=1400, height=900, min_size=(900, 640))
+        Path(storage).mkdir(parents=True, exist_ok=True)
+        window = webview.create_window(WINDOW_TITLE, url, width=1400, height=900, min_size=(900, 640))
 
-    def closing():
+        def closing():
+            try:
+                busy = studio.v14.machine.status().get("busy")
+            except Exception:
+                busy = None
+            if busy:
+                return ask_close(f"The machine is busy ({busy}).\n\nClose Henna Studio and STOP the machine?")
+            return True
+
+        window.events.closing += closing
+        webview.start(gui="edgechromium", private_mode=False, storage_path=str(storage))
+        return True
+    except Exception as exc:              # never refuse to start because of the window: use the browser instead
+        print(f"App window not available ({type(exc).__name__}: {exc}); using the browser instead.", flush=True)
+        return False
+
+
+def wait_in_browser_mode(url, studio):
+    """Browser fallback on Windows: a message box keeps Studio running until the user presses OK."""
+    import ctypes
+    while True:
+        ctypes.windll.user32.MessageBoxW(
+            None, f"Henna Studio is open in your web browser:\n{url}\n\nKeep this message open while you work.\n"
+                  "Press OK to close Henna Studio.", WINDOW_TITLE, 0x40 | 0x10000)
         try:
             busy = studio.v14.machine.status().get("busy")
         except Exception:
             busy = None
-        if busy:
-            return ask_close(f"The machine is busy ({busy}).\n\nClose Henna Studio and STOP the machine?")
-        return True
-
-    window.events.closing += closing
-    webview.start(gui="edgechromium", private_mode=False, storage_path=str(storage))
-    return True
+        if not busy or ask_close(f"The machine is busy ({busy}).\n\nClose Henna Studio and STOP the machine?"):
+            return
 
 
 def serve(no_browser=False, port=None, window=True):
@@ -246,7 +283,11 @@ def serve(no_browser=False, port=None, window=True):
             shown = open_window(url, studio, storage)
             if not shown:
                 open_browser_later(url)
-                thread.join()                       # browser mode: run until Ctrl+C / console closed
+                if os.name == "nt":
+                    wait_in_browser_mode(url, studio)   # OK in the message box = close Studio
+                    shown = True                        # -> the same safe shutdown as closing the window
+                else:
+                    thread.join()                       # run until Ctrl+C
         finally:
             if shown:
                 # Window closed: the studio's own shutdown stops a moving machine, disconnects, releases the camera.

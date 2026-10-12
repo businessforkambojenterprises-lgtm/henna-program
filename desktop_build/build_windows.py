@@ -87,7 +87,7 @@ def main():
     app = work / 'source_snapshot'
     prepare_app(project, app)
     manifest = {
-        'application': 'Henna Studio', 'studio_version': 20, 'package_version': '0.20.0.1',
+        'application': 'Henna Studio', 'studio_version': 20, 'package_version': '0.20.1.1',
         'platform': 'Windows x64', 'python': sys.version, 'motion_ready': False,
         'source_commit': subprocess.check_output(['git', '-C', str(project), 'rev-parse', 'HEAD'], text=True).strip(),
         'source_git_status': subprocess.check_output(['git', '-C', str(project), 'status', '--porcelain'], text=True),
