@@ -54,3 +54,11 @@ Uses Studio's own link class, wrapped so that only '?' (GRBL status query) can r
 The desktop icon / `henna_studio.sh` start `webui_server_pi.py`: Studio v22 with the camera in its own process (a
 camera freeze can no longer pause the CNC link) and the faster preview. The recording, machine link and all checks
 are v22 unchanged.
+
+## Real hand R1 - hand height (camera only: the machine never moves over the hand)
+2026-10-12: a real-hand design check was refused - "travel Z does not clear the hand top + standoff". This measures
+why. In Studio: New job -> **Real hand**; Move to scan position FIRST, then place the hand; Record; Hand & region.
+Then: `~/henna-venv/bin/python ~/henna-program/realhand_height_check.py` (newest real-hand job; `--job <id>`).
+It prints the hand top (the same number as Studio's check), the margin to travel Z -20 with the standoff, the
+highest hand points, and saves a picture under `outputs/realhand_checks/`. Same result as Studio on the prosthetic
+job 20261010-140217-job: hand top -31.79 (margin 7.79 mm).
