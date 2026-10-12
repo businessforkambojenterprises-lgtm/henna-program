@@ -5,7 +5,7 @@ Detailed history: `validation_log_S2026-10-05-A.csv` (every machine reading, dec
 
 ## What this is
 A RealSense **D405** camera is mounted on the head of a GRBL CNC (**MKS DLC32**, ESP32, CH340 USB serial).
-Since 2026-10-10 it is driven from **Henna Studio** (current **v19**; no UGS steps; UGS stays installed). Goal: dispense henna designs on a hand. Today: the nozzle *hovers* a design over a
+Since 2026-10-10 it is driven from **Henna Studio** (current **v20**; no UGS steps; UGS stays installed). Goal: dispense henna designs on a hand. Today: the nozzle *hovers* a design over a
 **prosthetic** hand; the dispenser is **not connected** yet (no valve control, no paste).
 
 ## Non-negotiable safety rules
@@ -34,11 +34,11 @@ Since 2026-10-10 it is driven from **Henna Studio** (current **v19**; no UGS ste
 - Ask for a clear yes before commits, machine runs, and any safety-rule change. Log every machine reading.
 - Real-world checks beat assumptions: verify with paper-feeler readings and side-view videos.
 
-## Main workflow: Henna Studio (web UI v19 = v18 + font choice for names)
+## Main workflow: Henna Studio (web UI v20 = v19 + review fixes)
 Start in a Command Prompt (keep the window open; the Claude terminal tool tends to interrupt the slow start):
 ```
 cd /d "%USERPROFILE%\Desktop\Ai+d405"
-.venv\Scripts\python.exe webui_server_v19.py
+.venv\Scripts\python.exe webui_server_v20.py
 ```
 Open http://127.0.0.1:8765 (older tabbed page: /classic). Close RealSense Viewer and UGS first (one user per device).
 Steps: 1 Scan (Connect, Home, Move to scan position, record 5 s, file fixed + verified) - 2 Hand & region
@@ -48,13 +48,14 @@ measured skin" = step 22 plan, all or nothing) - 4 Program (step 22 + independen
 The packaged desktop app (`Desktop\HennaStudio-Windows-x64`) runs **v19 (0.19.0.1)** (earlier files in
 `backup-before-v14` ... `backup-before-v19`); it has its own `app\` data folder (jobs, log). Since 0.16.2 it opens in its own native window (pywebview/WebView2,
 Desktop shortcut 'Henna Studio'); closing the window stops Studio safely. Simulators: `.claude/studio_v17_sim.py` (demo job), `.claude/studio_v19_sim.py` (copy of the desktop app's real jobs).
-Raspberry Pi 5 port: `raspberry_pi/` (README_PI.md) - stage 1 camera PASS, stage 2 Studio v19 runs on the Pi;
+Raspberry Pi 5 port: `raspberry_pi/` (README_PI.md) - stage 1 camera PASS, stage 2 Studio runs on the Pi;
 open issue: a Pi scan was refused ('Position status became stale during recording', likely slow SD writes).
 
 ## Key files
 | File | Purpose |
 |---|---|
 | `current_calibration.json` | approved calibration paths + fixed path rules (single source for the web UI) |
+| `webui_server_v20.py`, `webui/studio_v20.html`, `henna_preview/grbl_program_link_v20.py` | v20: review fixes (STOP reset, confirmed Pause, run snapshot) |
 | `webui_server_v19.py`, `webui/studio_v19.html`, `henna_preview/font_strokes.py` | v19: names in any installed font (centre lines) |
 | `webui_server_v18.py`, `webui/studio_v18.html`, `henna_preview/stroke_font.py` | v18: write a name (single-stroke A-Z) |
 | `webui_server_v17.py`, `webui/studio_v17.html`, `step23_design_hop_program.py` | v17: low hops between strokes |

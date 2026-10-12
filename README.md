@@ -1,6 +1,6 @@
 # Ai+d405 – henna preview prototype
 
-`motion_ready = false` everywhere. **Studio v19** (= v14 + run fixes + drawing speed + low hops + names in many fonts; source) homes the machine, moves to the
+`motion_ready = false` everywhere. **Studio v20** (= v14 + run fixes + drawing speed + low hops + names in many fonts + review fixes; source) homes the machine, moves to the
 fixed scan position and **runs the checked hover program itself** - no UGS steps. Hover
 programs remain **prosthetic-only** (no person, no paste) at 4 mm or more above measured
 skin. Real-hand jobs support camera preview only. See [STUDIO_V14.md](STUDIO_V14.md).
@@ -9,7 +9,7 @@ skin. Real-hand jobs support camera preview only. See [STUDIO_V14.md](STUDIO_V14
 
 ```bat
 cd /d "%USERPROFILE%\Desktop\Ai+d405"
-.venv\Scripts\python.exe webui_server_v19.py
+.venv\Scripts\python.exe webui_server_v20.py
 ```
 
 Open http://127.0.0.1:8765. Close UGS and RealSense Viewer first. Steps: Scan, Hand & region,

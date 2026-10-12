@@ -66,6 +66,8 @@ class FakeGrbl:
         self.banner_at_line = None
         self.lines_seen = 0
         self.ignore_hold = False    # a controller that does not hold on '!'
+        self.fail_writes = set()    # writes that fail once (e.g. {b'!'})
+        self.silent = False         # stops answering '?'
         threading.Thread(target=self._motion, daemon=True).start()
 
     def emit(self, text):
@@ -78,9 +80,13 @@ class FakeGrbl:
         with self.lock:
             if self.closed:
                 raise OSError("closed")
+            if data in self.fail_writes:
+                self.fail_writes.discard(data)
+                raise OSError("injected write failure")
             self.sent.append(data)
             if data == b"?":
-                self.emit(self.status_text())
+                if not self.silent:
+                    self.emit(self.status_text())
             elif data == b"!":
                 if not self.ignore_hold:
                     self.held, self.state = True, "Hold"

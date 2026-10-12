@@ -109,3 +109,17 @@ their centre lines (OpenCV ximgproc.thinning), traces them into polylines (stair
 dead-end twigs under 18 px removed), smooths and simplifies them, and refuses more than 60 strokes. Only fonts
 from the server's own list are accepted (no paths from the page). "Harsh": Segoe Script 17 strokes, Segoe Print 13,
 Ink Free 17, French Script 19. Tests: 7 (292 in total). Simulator: Harsh in Segoe Script placed at 32 mm.
+
+## v20: review fixes (outside review by Codex, 2026-10-12)
+Codex tested the code with the brief (no hardware) and reported 4 confirmed findings + 1 suspected; each was checked
+in the code and reproduced by a test that fails on v15 and passes on v20 (`tests/test_review_fixes_v20.py`):
+1. STOP skipped the controller reset when writing the feed hold failed -> v20 always tries the reset; any failed
+   write shows "STOP NOT CONFIRMED - use the emergency stop" until the next Connect / Home.
+2. Pause's 1.5 s safety net only ran when a new status report arrived -> v20 needs a fresh Hold/Idle report within
+   1.5 s of Pause (and after any report of motion); silence or stale reports stop the run.
+3. A finished run could be recorded with the next run's status (machine released before recording) -> v20 records
+   from a snapshot taken while the run still owns the machine.
+4. Run panel said "Home again" after a successful Home -> current readiness first, last result as context.
+5. (suspected, not fixed yet) outline corners can only be edited with a mouse - keyboard editing to come.
+`henna_preview/grbl_program_link_v20.py`, `webui_server_v20.py`, `webui/studio_v20.html`; earlier files unchanged.
+Tests: 9 more (301 in total); simulator: STOP -> "Stopped / Home again", Home -> "Ready ... press Start".

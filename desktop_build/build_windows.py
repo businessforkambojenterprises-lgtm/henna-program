@@ -31,7 +31,8 @@ def verify_build_inputs(project):
                      'webui/studio_v17.html', 'step23_design_hop_program.py', 'henna_preview/hop_path.py',
                      'henna_preview/program_reread_v2.py', 'webui_server_v18.py', 'webui/studio_v18.html',
                      'henna_preview/stroke_font.py', 'webui_server_v19.py', 'webui/studio_v19.html',
-                     'henna_preview/font_strokes.py'):
+                     'henna_preview/font_strokes.py', 'webui_server_v20.py', 'webui/studio_v20.html',
+                     'henna_preview/grbl_program_link_v20.py'):
         if not (project / relative).is_file():
             raise ValueError('Required build input missing: ' + relative +
                              '. See models/MODEL_INFO.txt for the approved hand model.')
@@ -86,7 +87,7 @@ def main():
     app = work / 'source_snapshot'
     prepare_app(project, app)
     manifest = {
-        'application': 'Henna Studio', 'studio_version': 19, 'package_version': '0.19.0.1',
+        'application': 'Henna Studio', 'studio_version': 20, 'package_version': '0.20.0.1',
         'platform': 'Windows x64', 'python': sys.version, 'motion_ready': False,
         'source_commit': subprocess.check_output(['git', '-C', str(project), 'rev-parse', 'HEAD'], text=True).strip(),
         'source_git_status': subprocess.check_output(['git', '-C', str(project), 'status', '--porcelain'], text=True),
