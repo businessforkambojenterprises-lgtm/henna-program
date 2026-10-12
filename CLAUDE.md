@@ -5,7 +5,7 @@ Detailed history: `validation_log_S2026-10-05-A.csv` (every machine reading, dec
 
 ## What this is
 A RealSense **D405** camera is mounted on the head of a GRBL CNC (**MKS DLC32**, ESP32, CH340 USB serial).
-Since 2026-10-10 it is driven from **Henna Studio v14** (no UGS steps; UGS stays installed). Goal: dispense henna designs on a hand. Today: the nozzle *hovers* a design over a
+Since 2026-10-10 it is driven from **Henna Studio** (current **v19**; no UGS steps; UGS stays installed). Goal: dispense henna designs on a hand. Today: the nozzle *hovers* a design over a
 **prosthetic** hand; the dispenser is **not connected** yet (no valve control, no paste).
 
 ## Non-negotiable safety rules
@@ -24,7 +24,8 @@ Since 2026-10-10 it is driven from **Henna Studio v14** (no UGS steps; UGS stays
 - Page-driven motion (user decisions 2026-10-10): Studio may **home**, move to the **fixed scan position**
   (v13), **run the job's own checked prosthetic program** (v14: Start / Pause / Resume / STOP; the file must
   be unchanged since it was written, re-read again, four confirmations) and **jog** in 0.1/1/10 mm steps
-  only at or above travel Z -20 (v14). Any other move from the page needs a new explicit approval. v14 has been tested only with a simulated controller - first real run pending.
+  only at or above travel Z -20 (v14). Any other move from the page needs a new explicit approval. Real runs on
+  the prosthetic since 2026-10-10 (v14-v19: designs, names, 300-600 mm/min, low hops; no touch).
 - New code goes into **new files/revisions**; validated scripts stay unchanged. Ask before installing packages.
 
 ## How the user likes to work
@@ -44,9 +45,11 @@ Steps: 1 Scan (Connect, Home, Move to scan position, record 5 s, file fixed + ve
 (MediaPipe, editable outline) - 3 Design (gallery / SVG upload, size, rotate, drag; nozzle 4-6 mm; "Check on
 measured skin" = step 22 plan, all or nothing) - 4 Program (step 22 + independent re-read + SHA-256) - 5 Run
 (Studio streams it; Pause = feed hold, STOP = hold + reset, home again). Jobs: `outputs/webui/<time>-job/job.json`.
-The packaged desktop app (`Desktop\HennaStudio-Windows-x64`) runs **v16** since 2026-10-10 (earlier files in
-`backup-before-v14`, `-v15` and `-v16`); it has its own `app\` data folder (jobs, log). Since 0.16.2 it opens in its own native window (pywebview/WebView2,
-Desktop shortcut 'Henna Studio'); closing the window stops Studio safely. Simulator for checking the page: `.claude/studio_v14_sim.py`.
+The packaged desktop app (`Desktop\HennaStudio-Windows-x64`) runs **v19 (0.19.0.1)** (earlier files in
+`backup-before-v14` ... `backup-before-v19`); it has its own `app\` data folder (jobs, log). Since 0.16.2 it opens in its own native window (pywebview/WebView2,
+Desktop shortcut 'Henna Studio'); closing the window stops Studio safely. Simulators: `.claude/studio_v17_sim.py` (demo job), `.claude/studio_v19_sim.py` (copy of the desktop app's real jobs).
+Raspberry Pi 5 port: `raspberry_pi/` (README_PI.md) - stage 1 camera PASS, stage 2 Studio v19 runs on the Pi;
+open issue: a Pi scan was refused ('Position status became stale during recording', likely slow SD writes).
 
 ## Key files
 | File | Purpose |
@@ -84,8 +87,8 @@ Desktop shortcut 'Henna Studio'); closing the window stops Studio safely. Simula
 
 ## Open items / next steps
 - Dispenser: not connected. A dispensing plan needs its own approval (start on paper, not a hand).
-- First real run of v14: an air run with NO hand first (watch the path, try Pause / Resume / STOP), then the
-  prosthetic. Rebuild recipe: `desktop_build/BUILDING.txt` (PyInstaller is in the ignored `desktop_build/build_tools`).
+- Desktop rebuild recipe: `desktop_build/BUILDING.txt` (PyInstaller is in the ignored `desktop_build/build_tools`).
+- Raspberry Pi: fix the stale-status refusal during recording (stage 3), then the same real tests as the laptop.
 - Real hand: camera-only accuracy test (paper dots) and a 30 s hand-movement test were planned.
 - Low hops between strokes: done in v17 (5 mm above the skin); air run OK and prosthetic run OK at 600 mm/min
   (2026-10-10, no touch). Next big step: dispensing (needs the dispenser details and its own approved plan).
