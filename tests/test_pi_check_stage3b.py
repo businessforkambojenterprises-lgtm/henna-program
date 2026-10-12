@@ -67,6 +67,31 @@ class TestHelpers(unittest.TestCase):
                          (5, 1, 1.75, 0.25, 0.1))
         self.assertIsNone(check.age_stats([], 0, 1, 0)["max_age_s"])
 
+    def test_gaps_and_cause(self):
+        samples = [(t / 20, 0.1) for t in range(0, 41)] + [(4.5, 2.3)]          # Python silent 2.0 -> 4.5 s
+        s = check.age_stats(samples, 0.0, 5.0, 0.0, rx_times=[0.1, 0.5, 1.0, 4.6])
+        self.assertEqual((s["python_max_gap_s"], s["rx_max_gap_s"]), (2.5, 3.6))
+        self.assertIn("Python itself paused", check.cause(s))
+        s = check.age_stats([(t / 20, 0.1) for t in range(0, 61)] + [(3.05, 2.0)], 0.0, 3.1, 0.0, rx_times=[0.2, 2.9])
+        self.assertIn("no bytes from the CNC", check.cause(s))
+        self.assertEqual(check.cause(check.age_stats([(0.1, 0.2)], 0, 1, 0)), "")
+
+    def test_wrapper_timestamps_reads(self):
+        fake = FakeSerial()
+        w = check.StatusQueryOnly(fake)
+        w.write(b"?")
+        deadline = __import__("time").monotonic() + 1
+        while not w.read(256) and __import__("time").monotonic() < deadline:
+            pass
+        self.assertEqual(len(w.rx_times), 1)
+        w.read(256)
+        self.assertEqual(len(w.rx_times), 1, "empty reads are not arrivals")
+
+    def test_usb_controller(self):
+        p = "/sys/devices/platform/axi/1000120000.pcie/1f00300000.usb/xhci-hcd.1/usb3/3-1/3-1:1.0/ttyUSB0"
+        self.assertEqual(check.usb_controller(p), "xhci-hcd.1")
+        self.assertIsNone(check.usb_controller("/sys/devices/virtual/tty/ttyS0"))
+
     def test_grade(self):
         self.assertEqual(check.grade(0.4)[0], "OK ")
         self.assertIn("close", check.grade(1.2)[1])

@@ -37,11 +37,13 @@ STUDIO_URL = "http://127.0.0.1:8765/"
 
 
 class StatusQueryOnly:
-    """Serial port wrapper: write() passes only b'?' - anything else raises before reaching the port."""
+    """Serial port wrapper: write() passes only b'?' - anything else raises before reaching the port.
+    read() is passed through and the arrival time of every non-empty read is kept (rx_times)."""
 
     def __init__(self, ser):
         self._ser = ser
         self.sent = 0
+        self.rx_times = []
 
     def write(self, data):
         if bytes(data) != b"?":
@@ -49,7 +51,13 @@ class StatusQueryOnly:
         self.sent += 1
         return self._ser.write(data)
 
-    def __getattr__(self, name):    # read, close, ... pass through
+    def read(self, count):
+        data = self._ser.read(count)
+        if data:
+            self.rx_times.append(time.monotonic())
+        return data
+
+    def __getattr__(self, name):    # close, ... pass through
         return getattr(self._ser, name)
 
 
@@ -60,16 +68,62 @@ def find_ch340(ports):
     return ch[0] if len(ch) == 1 else None
 
 
-def age_stats(samples, t_start, t_end, t_ref):
+def _max_gap(times, t_start, t_end):
+    """Longest time without an event inside [t_start, t_end] (window edges count as boundaries)."""
+    pts = [t_start] + sorted(t for t in times if t_start <= t <= t_end) + [t_end]
+    return round(max(b - a for a, b in zip(pts, pts[1:])), 3)
+
+
+def age_stats(samples, t_start, t_end, t_ref, rx_times=()):
     """samples [(monotonic t, status age s or None)] -> worst age in [t_start, t_end], when (s after t_ref),
-    time spent over Studio's limit, and samples without any status."""
+    time spent over Studio's limit, samples without any status, the longest pause of this Python process
+    (python_max_gap_s - the sampler wakes every 0.05 s) and the longest time without bytes from the CNC."""
     win = [(t, a) for t, a in samples if t_start <= t <= t_end]
     ages = [(t, a) for t, a in win if a is not None]
     worst = max(ages, key=lambda x: x[1]) if ages else (None, None)
     return {"samples": len(win), "no_status_samples": len(win) - len(ages),
             "max_age_s": round(worst[1], 3) if worst[1] is not None else None,
             "worst_at_s": round(worst[0] - t_ref, 2) if worst[0] is not None else None,
-            "time_over_limit_s": round(SAMPLE_S * sum(1 for _, a in ages if a > FRESH_S), 2)}
+            "time_over_limit_s": round(SAMPLE_S * sum(1 for _, a in ages if a > FRESH_S), 2),
+            "python_max_gap_s": _max_gap([t for t, _ in samples], t_start, t_end) if win else None,
+            "rx_max_gap_s": _max_gap(rx_times, t_start, t_end) if rx_times else None}
+
+
+def cause(stats):
+    """Which side was silent during the worst gap: the CNC's bytes (USB/controller) or Python itself."""
+    if stats["max_age_s"] is None or stats["max_age_s"] <= FRESH_S:
+        return ""
+    if stats["python_max_gap_s"] is not None and stats["python_max_gap_s"] > 1.0:
+        return f" -> Python itself paused {stats['python_max_gap_s']} s (camera library holding Python)"
+    if stats["rx_max_gap_s"] is not None and stats["rx_max_gap_s"] > 1.0:
+        return f" -> no bytes from the CNC for {stats['rx_max_gap_s']} s while Python ran (USB link or controller)"
+    return " -> bytes arrived and Python ran: status lines were not usable"
+
+
+def usb_controller(sys_path):
+    """/sys/devices/.../xhci-hcd.1/usb3/3-1/... -> 'xhci-hcd.1' (the Pi 5 has two USB controllers)."""
+    for part in sys_path.split("/"):
+        if part.startswith("xhci-hcd"):
+            return part
+    return None
+
+
+def usb_map(tty):
+    """{'cnc': controller of the tty, 'camera': controller of the D405} from /sys (Linux only)."""
+    out = {"cnc": None, "camera": None}
+    try:
+        out["cnc"] = usb_controller(os.path.realpath(f"/sys/class/tty/{os.path.basename(tty)}/device"))
+        base = "/sys/bus/usb/devices"
+        for d in os.listdir(base):
+            try:
+                with open(os.path.join(base, d, "idVendor")) as f1, open(os.path.join(base, d, "idProduct")) as f2:
+                    if (f1.read().strip(), f2.read().strip()) == ("8086", "0b5b"):
+                        out["camera"] = usb_controller(os.path.realpath(os.path.join(base, d)))
+            except OSError:
+                continue
+    except OSError:
+        pass
+    return out
 
 
 def grade(max_age):
@@ -152,13 +206,17 @@ def main(argv=None):
         time.sleep(2.0)
         st = link.status()
         r["machine"] = {"state": st["state"], "mpos": st["mpos"], "restarted_on_connect": st["restarted"]}
-        print(json.dumps(r["machine"]))
+        r["usb"] = usb_map(port)
+        print(json.dumps(r["machine"]), json.dumps(r["usb"]))
         threading.Thread(target=sampler, daemon=True).start()
+
+        def rx():
+            return wrapped[-1].rx_times if wrapped else []
 
         print("--- A: link only, 8 s")
         t0 = time.monotonic()
         time.sleep(8.0)
-        r["phases"]["A_link_only"] = age_stats(samples, t0, time.monotonic(), t0)
+        r["phases"]["A_link_only"] = age_stats(samples, t0, time.monotonic(), t0, rx())
 
         def page(stop_page, c):      # the Studio page fetching preview pictures
             while not stop_page.is_set():
@@ -190,8 +248,8 @@ def main(argv=None):
             stop_page.set()
             cam.stop()
             res["record_s"] = round(t_done - t_press, 1)
-            res["preview"] = age_stats(samples, t_phase, t_press, t_press) if with_preview else None
-            res["recording"] = age_stats(samples, t_press, t_done, t_press)
+            res["preview"] = age_stats(samples, t_phase, t_press, t_press, rx()) if with_preview else None
+            res["recording"] = age_stats(samples, t_press, t_done, t_press, rx())
             r["phases"][name] = res
             print("    " + json.dumps(res))
             cam = None
@@ -224,11 +282,12 @@ def main(argv=None):
         if name == "A_link_only":
             continue
         flag, text = grade(res["recording"]["max_age_s"])
-        extra = f" at +{res['recording']['worst_at_s']} s after Record"
+        extra = f" at +{res['recording']['worst_at_s']} s after Record{cause(res['recording'])}"
         if res.get("preview"):
             pf, pt = grade(res["preview"]["max_age_s"])
             flag = "NO " if "NO " in (flag, pf) else flag
-            extra += f"; during preview {res['preview']['max_age_s']} s, preview CPU {res.get('preview_cpu_percent')} %"
+            extra += (f"; during preview {res['preview']['max_age_s']} s{cause(res['preview'])}, "
+                      f"preview CPU {res.get('preview_cpu_percent')} %")
         if "error" in res:
             flag, extra = "NO ", extra + f"; {res['error']}"
         lines.append((flag, name, text + extra + f"; {res.get('frame_pairs')} frame pairs"))
@@ -236,6 +295,10 @@ def main(argv=None):
     m = r.get("machine", {})
     print(f"  port {port} | machine {m.get('state')} at {m.get('mpos')} | after: {r.get('machine_after', {}).get('state')} | "
           f"only '?' sent: {r.get('status_queries_sent')} times")
+    u = r.get("usb", {})
+    if u.get("cnc") and u.get("camera"):
+        print(f"  USB: CNC on {u['cnc']}, camera on {u['camera']} -> "
+              f"{'SAME USB controller' if u['cnc'] == u['camera'] else 'different USB controllers'}")
     for flag, name, text in lines:
         print(f"  {flag} {name}: {text}")
     if r.get("machine_after", {}).get("messages"):
