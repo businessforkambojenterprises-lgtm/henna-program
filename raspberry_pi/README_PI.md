@@ -7,7 +7,8 @@ being made in stages; each must work before the next. The laptop version is not 
 |---|---|---|
 | 1 | Camera: build Intel RealSense v2.58.4 (same as the laptop) on the Pi, check the D405 streams and records | **PASS** with 2.58.4: USB 3.2, 27.2 fps, 0.0001 m; Studio's repair + check on a Pi recording PASS |
 | 2 | Pi version of Studio: `/dev/ttyUSB0`, Linux fonts, own browser window, setup script, desktop icon | scripts ready |
-| 3 | Same tests as the laptop: unit tests, simulator, Home, scan position, hover run on the prosthetic | after stage 2 |
+| 3a | Speed check (camera only): why a Pi scan was refused ('Position status became stale during recording') - SD card speed, swap, power/temperature, preview cost, recordings to SD and to RAM | script ready |
+| 3 | Same tests as the laptop: unit tests, simulator, Home, scan position, hover run on the prosthetic | after stage 3a |
 
 ## Stage 1 (camera only - the CNC is not used)
 Needs: Raspberry Pi 5 (4 GB is enough), 64-bit Raspberry Pi OS (Bookworm), internet, official power supply,
@@ -27,3 +28,11 @@ Note: the Raspberry Pi Connect remote shell adds `^[[200~` / `~` when pasting - 
 3. Start from the icon (or `bash ~/henna-program/raspberry_pi/henna_studio.sh`): Studio v20 opens in its own browser
    window; closing the window stops Studio safely (a moving machine is stopped, the CNC disconnected).
 The CNC appears as `/dev/ttyUSB0` (found automatically). Recordings go to `~/Documents`, logs to `~/henna_studio.log`.
+
+## Stage 3a (speed check - camera only, the CNC is never used)
+A Studio scan writes about 56 MB/s; the check measures whether the Pi keeps up.
+1. `cd ~/henna-program && git pull`
+2. Close Henna Studio. D405 on a blue USB 3 port, pointed at something still (a hand is fine - camera only).
+3. `~/henna-venv/bin/python ~/henna-program/raspberry_pi/stage3a_pi_check.py`  (about 3 minutes, needs 2 GB free)
+4. Send back the lines after `=== STAGE 3A RESULT`. Its test files are removed at the end; the full result stays
+   in `~/henna_stage3a_check_<time>.json`.
