@@ -1,4 +1,4 @@
-HENNA STUDIO - WINDOWS x64 - v20
+HENNA STUDIO - WINDOWS x64 - v21
 
 1. Extract the entire ZIP to a writable folder, such as your Desktop.
 2. Double-click HennaStudio.exe (or the Henna Studio shortcut on the Desktop).
@@ -32,7 +32,8 @@ Studio does everything - no UGS. Close UGS and RealSense Viewer before starting.
 6. Run: Start (four confirmations), Pause / Resume, STOP. Prosthetic hand only.
 Jog (top bar): 0.1 / 1 / 10 mm steps after Home, always at Z -20 or higher.
 Pause = hold (must be confirmed by the controller within 1.5 s, else Studio stops the run).
-STOP = hold + reset: home again. If Studio shows 'STOP NOT CONFIRMED', use the emergency stop.
+STOP = hold + reset: home again. If Studio shows 'STOP NOT CONFIRMED', use the emergency stop;
+the warning stays until a successful Home.
 Any controller error stops the run.
 The first real run is a machine validation test: run it once in the air, with NO hand.
 

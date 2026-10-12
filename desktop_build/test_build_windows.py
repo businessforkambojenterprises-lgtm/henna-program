@@ -20,7 +20,9 @@ class BuildInputs(unittest.TestCase):
                          'henna_preview/program_reread_v2.py', 'webui_server_v18.py', 'webui/studio_v18.html',
                          'henna_preview/stroke_font.py', 'webui_server_v19.py', 'webui/studio_v19.html',
                          'henna_preview/font_strokes.py', 'webui_server_v20.py', 'webui/studio_v20.html',
-                         'henna_preview/grbl_program_link_v20.py', 'models/hand_landmarker.task'):
+                         'henna_preview/grbl_program_link_v20.py', 'webui_server_v21.py',
+                         'henna_preview/grbl_program_link_v21.py', 'henna_preview/name_files_v21.py',
+                         'models/hand_landmarker.task'):
             path = self.project / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b'fixture')
@@ -44,6 +46,11 @@ class BuildInputs(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'SHA-256'):
             build.prepare_app(self.project, target)
         self.assertFalse(target.exists())
+
+    def test_missing_v21_entry_refused(self):
+        (self.project / 'webui_server_v21.py').unlink()
+        with self.assertRaisesRegex(ValueError, 'missing.*v21'):
+            build.verify_build_inputs(self.project)
 
     def test_missing_v20_entry_refused(self):
         (self.project / 'webui_server_v20.py').unlink()

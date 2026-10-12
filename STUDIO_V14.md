@@ -138,4 +138,7 @@ Each was reproduced by a test that fails on v20 and passes on v21 (`tests/test_r
 5. (suspected, still open) outline corners can only be edited with a mouse.
 `henna_preview/grbl_program_link_v21.py`, `henna_preview/name_files_v21.py`, `webui_server_v21.py` (page: studio_v20.html);
 earlier files unchanged. Tests: 10 more (311 in total). Simulator (`.claude/studio_v21_sim.py`): Home -> run -> STOP after
-9 of 12 lines is recorded in the job as "stopped", 9 lines, 4.2 s. Pi launcher switched to v21 (`git pull` on the Pi). Desktop app: see below.
+9 of 12 lines is recorded in the job as "stopped", 9 lines, 4.2 s. Pi launcher switched to v21 (`git pull` on the Pi).
+Desktop app: 0.21.0.1 built from the v21 commit, offline smoke test passed, self-test ok; installed in
+`Desktop\HennaStudio-Windows-x64` (5 new and 9 replaced program files, 620 job files and the app log unchanged; v20 files in
+`backup-before-v21`).
