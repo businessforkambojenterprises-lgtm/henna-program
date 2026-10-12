@@ -25,7 +25,7 @@ Note: the Raspberry Pi Connect remote shell adds `^[[200~` / `~` when pasting - 
 2. `bash ~/henna-program/raspberry_pi/stage2_setup_studio.sh`  (10-15 min): the laptop's exact package versions
    (`requirements-pi.txt`), fonts (URW Z003 script, Comic Neue), the approved hand model (SHA-256 checked),
    USB permission (group dialout - log out and in once), tests, and a **Henna Studio** desktop icon.
-3. Start from the icon (or `bash ~/henna-program/raspberry_pi/henna_studio.sh`): Studio v20 opens in its own browser
+3. Start from the icon (or `bash ~/henna-program/raspberry_pi/henna_studio.sh`): Studio v21 opens in its own browser
    window; closing the window stops Studio safely (a moving machine is stopped, the CNC disconnected).
 The CNC appears as `/dev/ttyUSB0` (found automatically). Recordings go to `~/Documents`, logs to `~/henna_studio.log`.
 

@@ -123,3 +123,19 @@ in the code and reproduced by a test that fails on v15 and passes on v20 (`tests
 5. (suspected, not fixed yet) outline corners can only be edited with a mouse - keyboard editing to come.
 `henna_preview/grbl_program_link_v20.py`, `webui_server_v20.py`, `webui/studio_v20.html`; earlier files unchanged.
 Tests: 9 more (301 in total); simulator: STOP -> "Stopped / Home again", Home -> "Ready ... press Start".
+
+## v21: second review fixes (outside review by Codex, 2026-10-12)
+Codex re-tested v20 (301 + 24 tests passed, simulator, package smoke) and reported 4 confirmed findings + the same suspected one.
+Each was reproduced by a test that fails on v20 and passes on v21 (`tests/test_review_fixes_v21.py`):
+1. After a STOP whose writes both failed, pressing Connect (on the open connection) cleared "STOP NOT CONFIRMED" while
+   the controller was still running -> v21 keeps the warning until a successful Home (a new connection does not clear it).
+2. A run whose worker finished late (after STOP -> Home -> start of the next run) was recorded with the NEXT run's status
+   -> every run keeps its own progress and its own last machine report (taken while it owned the machine and again just
+   before a STOP releases it); the record uses only those.
+3. A font name with "&" (allowed) made a malformed SVG -> the name is XML-escaped in the title (`name_files_v21.py`).
+4. Long font names (file name over 40 characters) were saved again every time -> reuse looks for the name that the upload
+   actually saved and its numbered copies with the same content.
+5. (suspected, still open) outline corners can only be edited with a mouse.
+`henna_preview/grbl_program_link_v21.py`, `henna_preview/name_files_v21.py`, `webui_server_v21.py` (page: studio_v20.html);
+earlier files unchanged. Tests: 10 more (311 in total). Simulator (`.claude/studio_v21_sim.py`): Home -> run -> STOP after
+9 of 12 lines is recorded in the job as "stopped", 9 lines, 4.2 s. Pi launcher switched to v21 (`git pull` on the Pi). Desktop app: see below.

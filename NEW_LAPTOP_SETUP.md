@@ -44,7 +44,7 @@ model, the desktop app or the recordings - that is why the package exists.
 1. Start **Henna Studio** from the desktop shortcut (its own window) - or from source in a Command Prompt:
    ```
    cd /d "%USERPROFILE%\Desktop\Ai+d405"
-   .venv\Scripts\python.exe webui_server_v20.py
+   .venv\Scripts\python.exe webui_server_v21.py
    ```
    and open http://127.0.0.1:8765. Use one of them at a time (one user per device).
 2. **Connect** (the CH340 COM port is found automatically), then **Home** (`$HZ`, then `$H`).
