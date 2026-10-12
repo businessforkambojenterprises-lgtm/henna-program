@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Start Henna Studio v22 on the Raspberry Pi in its own browser window (no address bar).
+# Start Henna Studio on the Raspberry Pi in its own browser window (no address bar): webui_server_pi.py =
+# Studio v22 with the camera in its own process and the faster preview (branch raspberry-pi; PASS 2026-10-12).
 # Closing the window stops Studio safely: Ctrl+C to the server = a moving machine is stopped (feed hold + reset),
 # the CNC is disconnected and the camera released - the same shutdown as on the laptop.
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -14,7 +15,7 @@ if curl -s -o /dev/null "$URL/"; then          # already running: just show it
   exec "$BROWSER" --app="$URL" --user-data-dir="$HOME/.henna-studio-browser"
 fi
 echo "=== $(date) start" >> "$LOG"
-"$HOME/henna-venv/bin/python" webui_server_v22.py >> "$LOG" 2>&1 &
+"$HOME/henna-venv/bin/python" webui_server_pi.py >> "$LOG" 2>&1 &
 SERVER=$!
 for _ in $(seq 1 240); do
   curl -s -o /dev/null "$URL/" && break

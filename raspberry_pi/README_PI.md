@@ -13,8 +13,8 @@ being made in stages; each must work before the next. The laptop version is not 
 | 2 | Pi version of Studio: `/dev/ttyUSB0`, Linux fonts, own browser window, setup script, desktop icon | scripts ready |
 | 3a | Speed check (camera only): why a Pi scan was refused ('Position status became stale during recording') - SD card speed, swap, power/temperature, preview cost, recordings to SD and to RAM | **done** 2026-10-12: SD 76 MB/s, zram only, 5 A supply, no throttling; recordings never stalled (worst 0.44 s); preview 48 ms/frame (lookup table 6.2 ms) - the cause is not the Pi alone |
 | 3b | CNC link check (sends only '?', no motion): machine-status age while the camera records | 2026-10-12: refusal reproduced in 5 of 6 runs - Python paused 2.0-2.5 s when the camera starts/stops (camera and CNC on different USB controllers); faster preview CPU 98 -> 13 % |
-| 3c | Pi Studio (`henna_studio_fast.sh` = Studio v22 + camera in its own process `camera_process.py` + faster preview `web_recorder_fast.py`) | phase E of 3b checks it |
-| 3 | Same tests as the laptop: unit tests, simulator, Home, scan position, hover run on the prosthetic | after stage 3b |
+| 3c | Pi Studio (`webui_server_pi.py` = Studio v22 + camera in its own process `camera_process.py` + faster preview `web_recorder_fast.py`) | **PASS** 2026-10-12: 3b phase E 3/3 OK (worst status age 0.29 s, no Python pause, preview CPU 17 %); 3 real Studio scans on the prosthetic, none refused (136 pairs, 0.0001 m, median 176.4-176.7 mm). Now started by `henna_studio.sh` / the desktop icon |
+| 3 | Same tests as the laptop: unit tests, simulator, Home, scan position, hover run on the prosthetic | Home + scan position + scan PASS (3c); hand & region, design, program, air run next |
 
 ## Stage 1 (camera only - the CNC is not used)
 Needs: Raspberry Pi 5 (4 GB is enough), 64-bit Raspberry Pi OS (Bookworm), internet, official power supply,
@@ -31,8 +31,9 @@ Note: the Raspberry Pi Connect remote shell adds `^[[200~` / `~` when pasting - 
 2. `bash ~/henna-program/raspberry_pi/stage2_setup_studio.sh`  (10-15 min): the laptop's exact package versions
    (`requirements-pi.txt`), fonts (URW Z003 script, Comic Neue), the approved hand model (SHA-256 checked),
    USB permission (group dialout - log out and in once), tests, and a **Henna Studio** desktop icon.
-3. Start from the icon (or `bash ~/henna-program/raspberry_pi/henna_studio.sh`): Studio v22 opens in its own browser
-   window; closing the window stops Studio safely (a moving machine is stopped, the CNC disconnected).
+3. Start from the icon (or `bash ~/henna-program/raspberry_pi/henna_studio.sh`): the Pi Studio (`webui_server_pi.py`,
+   see 3c) opens in its own browser window; closing the window stops Studio safely (a moving machine is stopped, the
+   CNC disconnected). When `main` gets a new Studio version, change the one import in `webui_server_pi.py`.
 The CNC appears as `/dev/ttyUSB0` (found automatically). Recordings go to `~/Documents`, logs to `~/henna_studio.log`.
 
 ## Stage 3a (speed check - camera only, the CNC is never used)
@@ -49,7 +50,7 @@ Uses Studio's own link class, wrapped so that only '?' (GRBL status query) can r
 2. `~/henna-venv/bin/python ~/henna-program/raspberry_pi/stage3b_cnc_link_check.py`  (about 2 minutes)
 3. Send back the lines after `=== STAGE 3B RESULT` (full result: `~/henna_stage3b_check_<time>.json`).
 
-## Stage 3c (Pi Studio - try after stage 3b phase E passes)
-`bash ~/henna-program/raspberry_pi/henna_studio_fast.sh` starts Studio v22 with the camera in its own process and
-the faster preview (the recording, machine link and checks are unchanged). `henna_studio.sh` and the desktop icon
-still start the normal v22.
+## Stage 3c (Pi Studio - PASS 2026-10-12)
+The desktop icon / `henna_studio.sh` start `webui_server_pi.py`: Studio v22 with the camera in its own process (a
+camera freeze can no longer pause the CNC link) and the faster preview. The recording, machine link and all checks
+are v22 unchanged.
