@@ -1,73 +1,60 @@
-# Moving Ai+d405 to a new laptop
+# Moving Ai+d405 to a new PC
 
-Everything that matters travels in one folder, `Ai+d405_transfer`, made by `transfer_copy.bat`.
-Nothing on the old PC is moved or deleted - keep it until the new laptop has passed Part C.
+Nothing on the old PC is moved or deleted - keep it until the new PC has passed Part C.
+The new PC uses the same Windows user name (**DELL**), so old jobs reopen there too.
 
-| In the transfer folder | What it is | Size |
+## The move package (made on the old PC by `make_move_package.py`)
+Two zips on the old PC's Desktop:
+
+| Zip | Inside `Ai+d405_move\` | Size |
 |---|---|---|
-| `Ai+d405\` | the project: code, git history, calibration, results, jobs, hand model, this guide, `CLAUDE.md` | about 70 MB |
-| `recordings_Documents\` | the camera recordings from Documents | about 23 GB |
-| `recordings_archive\` | older recordings (history only) | about 29 GB |
-| `claude_memory\` | Claude's saved notes for this project | tiny |
-| `chat_export\` | the full Claude conversation (zip) | about 100 MB |
+| `Ai+d405_move_<date>_essentials.zip` | `Ai+d405\` the project (code, git history, calibration, results, jobs, hand model), `HennaStudio-Windows-x64\` the desktop app with its own jobs and log (old `backup-before-*` folders left out), `claude_project\` Claude's notes and chats, `Henna Studio.lnk`, `restore_on_new_pc.bat` | about 0.5 GB |
+| `Ai+d405_move_<date>_recordings.zip` | `recordings\` the 7 scans from 10 Oct 2026 (Documents) - needed only to reopen those jobs | about 2 GB |
 
-## No USB drive? Use the essentials zip (recommended)
-`Desktop\Ai+d405_essentials.zip` (about 170 MB) holds the project, Claude's notes and the chat export -
-everything except the recordings, which are history only (the new laptop makes new scans).
-1. Old PC: open drive.google.com (or onedrive.live.com) and drag the zip into it.
-2. New laptop: download it from the same account, right-click -> **Extract All** to the Desktop.
-   Move the inner `Ai+d405` folder so it is `Desktop\Ai+d405`.
-3. Continue with **Part B** below (skip the recording copies).
-Recordings later, only if needed: share `Documents` over the home network (right-click -> Give access to)
-or upload single files.
+The older recordings (`D:\recordings`, 23 GB) stay on the old PC (history only). The GitHub copy
+(https://github.com/businessforkambojenterprises-lgtm/henna-program) has the code but not the jobs, the hand
+model, the desktop app or the recordings - that is why the package exists.
 
-## Part A - on the OLD PC (with a USB drive or external disk)
-1. Stop the studio (Ctrl+C in its Command Prompt), disconnect UGS, close RealSense Viewer.
-2. Plug in a USB drive or external disk with **at least 60 GB free** (NTFS or exFAT).
-3. Open a Command Prompt and type (replace `E:` with your drive's letter):
+## Part A - old PC
+1. Close Henna Studio, RealSense Viewer and UGS.
+2. Make the package (Command Prompt):
    ```
    cd /d "%USERPROFILE%\Desktop\Ai+d405"
-   transfer_copy.bat E:
+   .venv\Scripts\python.exe make_move_package.py
    ```
-4. Wait (tens of minutes for 50 GB). Each of the 4 parts ends with a summary: **FAILED must be 0**.
+   It ends with "verified" for both zips.
+3. Upload both zips to Google Drive / OneDrive, or copy them to a USB drive (exFAT or NTFS; FAT32 cannot hold the 2 GB zip).
 
-## Part B - on the NEW laptop
-1. **Install** (all free):
-   - **Python 3.11.9, 64-bit** from python.org - tick **"Add python.exe to PATH"**.
-   - **UGS** (Universal Gcode Sender, platform edition).
-   - **Intel RealSense Viewer** 2.58 (optional, for checking the camera).
-   - The **CH340 USB driver** only if the CNC does not show up as a COM port (Windows Update usually adds it).
-   - The **Claude desktop app** (same account).
-2. **Copy** from the USB drive:
-   - `Ai+d405_transfer\Ai+d405`  ->  your **Desktop**, so it is `Desktop\Ai+d405`.
-   - `recordings_Documents\*.db3`  ->  your **Documents** folder.
-   - `recordings_archive\`  ->  `D:\d405_recordings_archive` if the laptop has a D: drive, else any folder.
-3. In `Desktop\Ai+d405`, **double-click `setup_new_laptop.bat`**. It creates `.venv`, installs the exact
-   package versions (`requirements-lock.txt`) and runs the self-tests - they must end with **OK**.
-4. Plug in the **D405 on a USB 3 port** and the **CNC USB** cable.
+## Part B - new PC
+1. **Install** (all free): **Python 3.11.9 64-bit** from python.org (tick **"Add python.exe to PATH"**),
+   **Git for Windows**, the **Claude desktop app** (same account). Optional: Intel RealSense Viewer 2.58.
+   The CH340 USB driver only if the CNC does not appear as a COM port. UGS is not needed any more.
+2. Download both zips. For each: right-click -> **Extract All** -> set the destination to
+   `C:\Users\DELL\Desktop` -> Extract. Both land in `Desktop\Ai+d405_move`.
+3. Open `Desktop\Ai+d405_move` and double-click **`restore_on_new_pc.bat`**. It copies the project to
+   `Desktop\Ai+d405`, the app to `Desktop\HennaStudio-Windows-x64` (plus the shortcut), Claude's notes, and the
+   recordings to `Documents`. It stops without copying if those folders already exist. All 5 steps must pass.
+4. Double-click **`Desktop\Ai+d405\setup_new_laptop.bat`**: creates `.venv`, installs the exact package versions,
+   checks the hand model (downloads it again if missing, SHA-256 checked) and runs all self-tests - must end
+   with "Done - all tests OK".
+5. Plug in the **D405 on a blue USB 3 port** and the **CNC USB** cable.
+6. When Part C passed, `Desktop\Ai+d405_move` and the zips can be deleted on the new PC.
 
-## Part C - first checks on the new laptop
-1. Start the studio in a Command Prompt (keep the window open):
+## Part C - first checks on the new PC
+1. Start **Henna Studio** from the desktop shortcut (its own window) - or from source in a Command Prompt:
    ```
    cd /d "%USERPROFILE%\Desktop\Ai+d405"
-   .venv\Scripts\python.exe webui_server_v12.py
+   .venv\Scripts\python.exe webui_server_v20.py
    ```
-2. Open http://127.0.0.1:8765. **Connect** (the CH340 COM port is found automatically), then **Home**.
-3. New job -> Prosthetic hand -> **Scan** at pose 1: the checks must show depth units 0.0001 m and
-   about 29 camera settings.
-4. Do one full prosthetic job with the paper readings. The calibration belongs to the camera mount and the
-   machine, not to the computer, so it stays valid as long as the camera mount was not touched - the paper
-   readings confirm it.
+   and open http://127.0.0.1:8765. Use one of them at a time (one user per device).
+2. **Connect** (the CH340 COM port is found automatically), then **Home** (`$HZ`, then `$H`).
+3. New job -> Prosthetic hand -> **Move to scan position** -> **Record**: the checks must pass with depth units
+   0.0001 m.
+4. The calibration belongs to the camera mount and the machine, not the computer: it stays valid only if the
+   camera mount was not touched. First program on the new PC: an **air run with no hand under the machine**,
+   then the prosthetic as usual.
 
-## Claude on the new laptop
-- Open the project folder in the Claude desktop app (Code tab -> choose `Desktop\Ai+d405`).
-  **`CLAUDE.md` is read automatically**: safety rules, workflow, key files and findings.
-- Optional: copy `claude_memory\*` into `%USERPROFILE%\.claude\projects\<project key>\memory\`. The key
-  is the folder path with `:\`, `\` and `+` replaced by `-`, e.g. `C--Users-NAME-Desktop-Ai-d405`.
-- The old conversation is in `chat_export\` for reference; a new conversation starts fresh.
-
-## Good to know
-- Old jobs and scan records store full paths such as `C:\Users\DELL\Documents\...`. If the new Windows user
-  name is also **DELL** and you use the same folders, old jobs can be resumed. Otherwise simply start new
-  jobs - calibration, designs and all results still apply.
-- `outputs\` and recordings are not in git on purpose (size); the transfer copies them anyway.
+## Claude on the new PC
+- Open the Claude desktop app -> Code tab -> choose `Desktop\Ai+d405`. `CLAUDE.md` is read automatically and
+  Claude's notes (memory) are already in place from the restore.
+- GitHub: `git pull` / `git push` need you to sign in to GitHub once on the new PC (a browser window opens).

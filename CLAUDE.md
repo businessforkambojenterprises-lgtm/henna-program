@@ -74,6 +74,7 @@ open issue: a Pi scan was refused ('Position status became stale during recordin
 | `henna_preview/surface_offset.py` | paper-feeler offset: smallest of >= 3, raise only, refused if spread > 0.5 mm |
 | `step21_design_preview.py`, `step22_design_hover_test.py` | design preview / prosthetic hover program |
 | `validation/S2026-*/` | settings and results of every validated session |
+| `make_move_package.py`, `restore_on_new_pc.bat`, `setup_new_laptop.bat` | move to a new PC (`NEW_LAPTOP_SETUP.md`) |
 
 ## Hard-won findings (do not re-derive)
 - pyrealsense2 2.58 recordings: a late repeated 'Error Polling Enabled' option makes playback report depth
