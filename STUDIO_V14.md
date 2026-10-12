@@ -142,3 +142,13 @@ earlier files unchanged. Tests: 10 more (311 in total). Simulator (`.claude/stud
 Desktop app: 0.21.0.1 built from the v21 commit, offline smoke test passed, self-test ok; installed in
 `Desktop\HennaStudio-Windows-x64` (5 new and 9 replaced program files, 620 job files and the app log unchanged; v20 files in
 `backup-before-v21`).
+
+## v22: third review fix (outside review by Codex, 2026-10-12)
+Codex re-tested 0.21.0.1 (317 + 25 tests, smoke, simulator, the four v21 regressions all passed) and found one new
+safety problem: a successful Home cleared "STOP NOT CONFIRMED" in its completion callback, which runs after the machine
+is released. A late callback (Home done -> program started -> both STOP writes failed) erased the NEW warning while the
+controller was still running. v22 clears the warning inside the homing operation, together with "homed", under the
+lock, only while that Home's token is valid and before the machine is released (`grbl_program_link_v22.py`).
+Tests (`tests/test_review_fixes_v22.py`, 4 more, 321 in total): the late-callback schedule reproduced on v21 and fixed
+on v22; a failed Home keeps the warning. Simulator (`.claude/studio_v22_sim.py`): Home, run, STOP (8 of 12), Home again.
+Still open (suspected, UX): outline corners can only be edited with a mouse.

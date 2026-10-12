@@ -11,21 +11,22 @@ Please **test and review** Henna Studio. Report findings; do not change code unl
 
 ## What it is (read first)
 `CLAUDE.md` (rules and findings), `STUDIO_V14.md` (v14-v17 changes), `README.md`.
-Current version: **Studio v21** = scan -> hand & region -> design -> program -> run, all from the app:
+Current version: **Studio v22** = scan -> hand & region -> design -> program -> run, all from the app:
 v14 Studio streams the program itself (Start / Pause / Resume / STOP, jog >= Z -20), v15 fresh position and
 verified Pause, v16 drawing speed 300-1200 mm/min (drops to the hand <= 300), v17 low hops between strokes
 (5 mm above the highest measured skin under each crossing; `step23_design_hop_program.py`), v18 write a name
 (single-stroke capitals, `henna_preview/stroke_font.py`), v19 names in any installed font
 (`henna_preview/font_strokes.py`), v20 fixes from the first review
 (`henna_preview/grbl_program_link_v20.py`), v21 fixes from the second review (`grbl_program_link_v21.py`,
-`henna_preview/name_files_v21.py`, `webui_server_v21.py`; same page as v20; see STUDIO_V14.md).
+`henna_preview/name_files_v21.py`, `webui_server_v21.py`), v22 fix from the third review (`grbl_program_link_v22.py`,
+`webui_server_v22.py`; same page as v20; see STUDIO_V14.md).
 
 ## How to test (Windows, project folder, existing `.venv`)
 1. Unit tests (no hardware):
-   `.venv\Scripts\python.exe -m unittest discover -s tests` (expect 311 OK) and
-   `cd desktop_build` then `..\.venv\Scripts\python.exe -m unittest discover -p "test_*.py"` (expect 24 OK).
+   `.venv\Scripts\python.exe -m unittest discover -s tests` (expect 321 OK) and
+   `cd desktop_build` then `..\.venv\Scripts\python.exe -m unittest discover -p "test_*.py"` (expect 25 OK).
 2. Simulator (fake controller, no camera, temp jobs): `.venv\Scripts\python.exe .claude\studio_v17_sim.py`
-   (demo job) or `.claude\studio_v19_sim.py` / `.claude\studio_v21_sim.py` (temporary copy of the desktop app's real jobs; Design step + names),
+   (demo job) or `.claude\studio_v19_sim.py` / `.claude\studio_v22_sim.py` (temporary copy of the desktop app's real jobs; Design step + names),
    open http://127.0.0.1:8767. Connect (SIM) -> Home -> open the demo job -> Run -> Start / Pause / Resume / STOP,
    Jog dialog. Ctrl+C to stop.
 3. Packaged app smoke test (isolated app copy, never opens hardware), if a build exists:

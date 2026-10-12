@@ -33,7 +33,7 @@ pushd desktop_build
 if errorlevel 1 ( popd & echo DESKTOP TESTS FAILED - see above. & pause & exit /b 1 )
 popd
 echo.
-echo Done - all tests OK. Start Studio v21 from source with:
-echo    .venv\Scripts\python.exe webui_server_v21.py
+echo Done - all tests OK. Start Studio v22 from source with:
+echo    .venv\Scripts\python.exe webui_server_v22.py
 echo and open http://127.0.0.1:8765  (or use the desktop app: Desktop\HennaStudio-Windows-x64\HennaStudio.exe)
 pause
