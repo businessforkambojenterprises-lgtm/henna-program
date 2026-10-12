@@ -45,8 +45,9 @@ Steps: 1 Scan (Connect, Home, Move to scan position, record 5 s, file fixed + ve
 (MediaPipe, editable outline) - 3 Design (gallery / SVG upload, size, rotate, drag; nozzle 4-6 mm; "Check on
 measured skin" = step 22 plan, all or nothing) - 4 Program (step 22 + independent re-read + SHA-256) - 5 Run
 (Studio streams it; Pause = feed hold, STOP = hold + reset, home again). Jobs: `outputs/webui/<time>-job/job.json`.
-The packaged desktop app (`Desktop\HennaStudio-Windows-x64`) runs **v19 (0.19.0.1)** (earlier files in
-`backup-before-v14` ... `backup-before-v19`); it has its own `app\` data folder (jobs, log). Since 0.16.2 it opens in its own native window (pywebview/WebView2,
+The packaged desktop app (`Desktop\HennaStudio-Windows-x64`) runs **v20 (0.20.1.1)** (earlier files in
+`backup-before-v14` ... `backup-before-v20-1`); 0.20.1 removes the Windows download mark from its own window DLLs
+(other PCs) and falls back to the browser if the window cannot open; it has its own `app\` data folder (jobs, log). Since 0.16.2 it opens in its own native window (pywebview/WebView2,
 Desktop shortcut 'Henna Studio'); closing the window stops Studio safely. Simulators: `.claude/studio_v17_sim.py` (demo job), `.claude/studio_v19_sim.py` (copy of the desktop app's real jobs).
 Raspberry Pi 5 port: `raspberry_pi/` (README_PI.md) - stage 1 camera PASS, stage 2 Studio runs on the Pi;
 open issue: a Pi scan was refused ('Position status became stale during recording', likely slow SD writes).
