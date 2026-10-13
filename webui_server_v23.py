@@ -74,13 +74,20 @@ def _record(stamp):
     if v10.shutil.disk_usage(base.ROOT).free < v10.MIN_FREE_BYTES:
         raise ValueError("less than 2 GB free - make room before a calibration check")
     d = os.path.join(CHECK_DIR, stamp)
-    os.makedirs(d, exist_ok=True)
     path = os.path.join(d, "check.db3")
     st = None
-    with machine.capture_guard() as line:            # fresh, homed, idle at the verified pose - for the whole recording
-        st = v10.parse_status(line)
-        v10.check_pose(st["mpos"], tuple(v10.cal()["capture_pose_mpos"]))
-        v10.camera.record(path, 3.0)
+    try:
+        with machine.capture_guard() as line:        # fresh, homed, idle at the verified pose - for the whole recording
+            st = v10.parse_status(line)
+            v10.check_pose(st["mpos"], tuple(v10.cal()["capture_pose_mpos"]))
+            os.makedirs(d, exist_ok=True)
+            v10.camera.record(path, 3.0)
+    except Exception:
+        if os.path.exists(path):
+            os.remove(path)
+        if os.path.isdir(d) and not os.listdir(d):
+            os.rmdir(d)                               # a refused attempt leaves nothing behind
+        raise
     return d, path, st
 
 
