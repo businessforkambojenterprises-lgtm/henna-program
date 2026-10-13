@@ -78,12 +78,12 @@ class PiServerTests(unittest.TestCase):
         original = v10.camera
         try:
             import webui_server_pi
-            import webui_server_v22 as v22
+            import webui_server_v23 as v23
             from henna_preview.camera_process import ProcessCameraService
             self.assertIsInstance(v10.camera, ProcessCameraService)
             self.assertIsNone(v10.camera.pid, "no camera process until Studio uses the camera")
-            self.assertIs(webui_server_pi.studio, v22)
-            self.assertIs(v22.v10, v10)
+            self.assertIs(webui_server_pi.studio, v23)
+            self.assertIs(v23.v10, v10)
         finally:
             v10.camera = original
 

@@ -1,7 +1,8 @@
 # Henna Studio on a Raspberry Pi 5 (port in progress)
 
 **Branch `raspberry-pi`** (user decision 2026-10-12): all Pi work lives here, never on `main` (= the PC's Henna
-Studio). PC Studio updates are brought into this branch only when the user decides (`git merge main` here);
+Studio). PC Studio updates are brought into this branch only when the user decides (`git merge main` here - safe since
+2026-10-13: main's "move the Pi work off main" revert is recorded as merged without being applied);
 nothing from this branch is merged into `main`. On the Pi: `git checkout raspberry-pi`, then `git pull` as usual.
 
 The Windows `HennaStudio.exe` cannot run on a Pi (Linux on ARM). Henna Studio is Python, so a Pi version is
@@ -13,7 +14,7 @@ being made in stages; each must work before the next. The laptop version is not 
 | 2 | Pi version of Studio: `/dev/ttyUSB0`, Linux fonts, own browser window, setup script, desktop icon | scripts ready |
 | 3a | Speed check (camera only): why a Pi scan was refused ('Position status became stale during recording') - SD card speed, swap, power/temperature, preview cost, recordings to SD and to RAM | **done** 2026-10-12: SD 76 MB/s, zram only, 5 A supply, no throttling; recordings never stalled (worst 0.44 s); preview 48 ms/frame (lookup table 6.2 ms) - the cause is not the Pi alone |
 | 3b | CNC link check (sends only '?', no motion): machine-status age while the camera records | 2026-10-12: refusal reproduced in 5 of 6 runs - Python paused 2.0-2.5 s when the camera starts/stops (camera and CNC on different USB controllers); faster preview CPU 98 -> 13 % |
-| 3c | Pi Studio (`webui_server_pi.py` = Studio v22 + camera in its own process `camera_process.py` + faster preview `web_recorder_fast.py`) | **PASS** 2026-10-12: 3b phase E 3/3 OK (worst status age 0.29 s, no Python pause, preview CPU 17 %); 3 real Studio scans on the prosthetic, none refused (136 pairs, 0.0001 m, median 176.4-176.7 mm). Now started by `henna_studio.sh` / the desktop icon |
+| 3c | Pi Studio (`webui_server_pi.py` = Studio v23 (since 2026-10-13; v22 before) + camera in its own process `camera_process.py` + faster preview `web_recorder_fast.py`) | **PASS** 2026-10-12: 3b phase E 3/3 OK (worst status age 0.29 s, no Python pause, preview CPU 17 %); 3 real Studio scans on the prosthetic, none refused (136 pairs, 0.0001 m, median 176.4-176.7 mm). Now started by `henna_studio.sh` / the desktop icon |
 | 3 | Same tests as the laptop: unit tests, simulator, Home, scan position, hover run on the prosthetic | Home + scan position + scan PASS (3c); hand & region, design, program, air run next |
 
 ## Stage 1 (camera only - the CNC is not used)
@@ -51,9 +52,9 @@ Uses Studio's own link class, wrapped so that only '?' (GRBL status query) can r
 3. Send back the lines after `=== STAGE 3B RESULT` (full result: `~/henna_stage3b_check_<time>.json`).
 
 ## Stage 3c (Pi Studio - PASS 2026-10-12)
-The desktop icon / `henna_studio.sh` start `webui_server_pi.py`: Studio v22 with the camera in its own process (a
+The desktop icon / `henna_studio.sh` start `webui_server_pi.py`: Studio v23 with the camera in its own process (a
 camera freeze can no longer pause the CNC link) and the faster preview. The recording, machine link and all checks
-are v22 unchanged.
+are v23 unchanged. v23 adds Calibration (top bar): status + daily check - see below.
 
 ## Real hand R1 - hand height (camera only: the machine never moves over the hand)
 2026-10-12: a real-hand design check was refused - "travel Z does not clear the hand top + standoff". This measures
@@ -62,3 +63,9 @@ Then: `~/henna-venv/bin/python ~/henna-program/realhand_height_check.py` (newest
 It prints the hand top (the same number as Studio's check), the margin to travel Z -20 with the standoff, the
 highest hand points, and saves a picture under `outputs/realhand_checks/`. Same result as Studio on the prosthetic
 job 20261010-140217-job: hand top -31.79 (margin 7.79 mm).
+
+## Calibration - status and daily check (Studio v23, camera only)
+Top bar **Calibration**. Status = the approved calibration in use (read-only). Daily check: bed EMPTY, Connect + Home,
+tick the boxes, **Move to scan position**, tick "bed empty", **Run daily check** (about 30 s) -> OK / CHECK /
+RECALIBRATE (height, tilt, sideways shift, same camera) or UNCLEAR (something on the bed). First time only:
+**Set the reference** right after a known-good calibration. Results: `outputs/calibration/`, one log row per check.
