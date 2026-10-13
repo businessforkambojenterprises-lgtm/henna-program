@@ -143,10 +143,26 @@ def jog(params):
     if not m.get("work_area_mm"):
         if params.get("axis") != "Z" or float(params.get("direction", 0)) <= 0:
             raise MachineProfileError(f"The {m['name']}'s work area is not measured yet - only Z up may be jogged")
-    return _JOG(params)
+    if profiles.calibrated(m):
+        return _JOG(params)
+    # Not calibrated: the link's pre-jog check reads the calibration only to confirm its own fixed values (scan pose,
+    # travel Z, feeds); the jog itself uses the link's fixed limits (Z -20 or higher, inside its box). So the check
+    # gets exactly those fixed values - for this one jog only. Scan position, scans, programs and runs stay refused
+    # at the routes above.
+    with _jog_cfg_lock:
+        saved = machine._calibration
+        machine._calibration = lambda: dict(JOG_ONLY_CFG)
+        try:
+            return _JOG(params)
+        finally:
+            machine._calibration = saved
 
 
 _JOG = v23.Handler.POST_API["/api/machine/jog"][0]
+_jog_cfg_lock = threading.Lock()
+from henna_preview.grbl_scan_link import POSE as _POSE, TRAVEL_Z as _TRAVEL_Z  # noqa: E402
+JOG_ONLY_CFG = {"capture_pose_mpos": list(_POSE), "travel_z": _TRAVEL_Z, "draw_feed_mm_min": 300.0,
+                "travel_feed_mm_min": 1000.0, "note": "jog-only values of the machine link, not a calibration"}
 
 
 def machines_list(_=None):

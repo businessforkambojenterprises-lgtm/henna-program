@@ -827,7 +827,7 @@ function jogShow(){if(!$('dlgjog').open)return;const m=MACH||{},fresh=machFresh(
  else help='Each press moves one step and waits until the machine stops. Greyed buttons would leave the allowed area.';
  $('joghelp').textContent=help;$('jogstop').hidden=!(busy==='jog'||(m.connected&&m.state&&!['Idle','Alarm'].includes(m.state)));
  document.querySelectorAll('#jstep button').forEach(b=>b.classList.toggle('on',+b.dataset.step===jogStep))}
-$('mjog').onclick=()=>{if(!MACH||!MACH.connected)return;$('jnoperson').checked=false;msg('msgjog','','');$('dlgjog').showModal();jogShow()};
+$('mjog').onclick=()=>{if(!MACH||!MACH.connected)return;loadMachines().then(jogShow).catch(()=>{});$('jnoperson').checked=false;msg('msgjog','','');$('dlgjog').showModal();jogShow()};
 $('jnoperson').onchange=jogShow;
 $('jstep').addEventListener('click',e=>{const b=e.target.closest('[data-step]');if(!b)return;jogStep=+b.dataset.step;jogShow()});
 document.querySelectorAll('[data-jog]').forEach(b=>b.onclick=async()=>{if(b.disabled)return;const[ax,d]=b.dataset.jog.split(',');msg('msgjog','','');

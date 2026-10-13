@@ -90,7 +90,9 @@ class MachineProfileTests(unittest.TestCase):
     def test_jog_without_work_area_is_z_up_only(self):
         choose("ball-screw")
         calls = []
-        real = v24._JOG
+        real, real_machines = v24._JOG, v24.profiles.machines
+        no_area = [dict(m, work_area_mm=None) if m["id"] == "ball-screw" else m for m in real_machines()]
+        v24.profiles.machines = lambda: no_area                  # a machine whose work area is not known
         v24._JOG = lambda p: calls.append(p) or {"ok": True}
         try:
             for bad in ({"axis": "X", "direction": 1}, {"axis": "Y", "direction": -1}, {"axis": "Z", "direction": -1}):
@@ -98,11 +100,28 @@ class MachineProfileTests(unittest.TestCase):
                     v24.jog(dict(bad, step_mm=1))
             v24.jog({"axis": "Z", "direction": 1, "step_mm": 1})
             self.assertEqual(len(calls), 1)
+            v24.profiles.machines = real_machines
             choose("belt-drive")                         # measured work area: all axes go to the link's own limits
             v24.jog({"axis": "X", "direction": 1, "step_mm": 1})
             self.assertEqual(len(calls), 2)
         finally:
+            v24._JOG, v24.profiles.machines = real, real_machines
+
+    def test_jog_on_uncalibrated_machine_reaches_the_link(self):
+        choose("ball-screw")
+        seen = []
+        real = v24._JOG
+        v24._JOG = lambda p: seen.append(v24.machine._calibration()) or {"ok": True}
+        try:
+            v24.jog({"axis": "X", "direction": 1, "step_mm": 10})       # provisional work area: X/Y allowed
+        finally:
             v24._JOG = real
+        self.assertEqual(seen[0]["travel_z"], -20.0)
+        self.assertEqual(seen[0]["capture_pose_mpos"], [145.8, 42.6, -40.0])
+        with self.assertRaisesRegex(v24.MachineProfileError, "not calibrated"):
+            v24.machine._calibration()                                   # restored: still refuses afterwards
+        with self.assertRaisesRegex(v24.MachineProfileError, "not calibrated"):
+            v10.cal()
 
     def test_job_of_another_machine_is_refused(self):
         choose("ball-screw")
