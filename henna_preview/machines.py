@@ -75,9 +75,40 @@ class Profiles:
         """The calibration dict Studio uses everywhere (replaces webui_server_v10.cal) - refuses if none."""
         return self.cal_of(self.active())
 
+    # ---- v25: per-machine motion values and calibration mode ----
+    @staticmethod
+    def motion(m):
+        mo = m.get("motion")
+        if not mo or not m.get("work_area_mm"):
+            raise MachineProfileError(f"The {m['name']} has no scan position / travel Z / work area yet")
+        return mo
+
+    def calibration_mode(self, m):
+        return not self.calibrated(m) and bool(m.get("calibration_mode")) and bool(m.get("motion"))
+
+    def motion_cfg(self, m):
+        """What the machine link checks before every move: its scan pose, travel Z, feeds and Z floor."""
+        mo = self.motion(m)
+        return {"capture_pose_mpos": list(mo["scan_pose_mpos"]), "travel_z": mo["travel_z"],
+                "firmware_z_floor": mo["firmware_z_floor"], "draw_feed_mm_min": 300.0, "travel_feed_mm_min": 1000.0,
+                "machine": m["id"], "note": "motion values of this machine (registry), not a calibration"}
+
+    def check_consistent(self, m):
+        """A calibrated machine's calibration file must agree with its registry motion values."""
+        if not self.calibrated(m):
+            return
+        cal, mo = self.cal_of(m), self.motion(m)
+        for key, ck in (("scan_pose_mpos", "capture_pose_mpos"), ("travel_z", "travel_z"),
+                        ("firmware_z_floor", "firmware_z_floor")):
+            if [float(v) for v in (cal[ck] if isinstance(cal[ck], list) else [cal[ck]])] != \
+                    [float(v) for v in (mo[key] if isinstance(mo[key], list) else [mo[key]])]:
+                raise MachineProfileError(f"The {m['name']}'s calibration file and its registry disagree on {key}")
+
     def summary(self):
         mid = self.active_id()
         return {"active": mid, "machines": [{"id": m["id"], "name": m["name"], "drive": m.get("drive"),
                                              "calibrated": self.calibrated(m), "work_area_mm": m.get("work_area_mm"),
+                                             "calibration_mode": self.calibration_mode(m),
+                                             "scan_pose_mpos": (m.get("motion") or {}).get("scan_pose_mpos"),
                                              "notes": m.get("notes"), "active": m["id"] == mid}
                                             for m in self.machines()]}
