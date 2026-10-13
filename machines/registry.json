@@ -8,7 +8,10 @@
       "name": "Belt drive (first machine)",
       "drive": "belt",
       "calibration": "current_calibration.json",
-      "work_area_mm": [225.0, 176.0],
+      "work_area_mm": [
+        225.0,
+        176.0
+      ],
       "notes": "calibrated 2026-10-05 to 2026-10-07 (X/Y block-corrected, Z k 141.47, depth scale g 0.979); unchanged"
     },
     {
@@ -16,8 +19,12 @@
       "name": "Ball screw (new machine)",
       "drive": "ball screw",
       "calibration": null,
-      "work_area_mm": null,
-      "notes": "added 2026-10-13; NOT CALIBRATED: the belt-drive calibration put the nozzle about 10 cm from the hand (video 20261013_100612)"
+      "work_area_mm": [
+        225.0,
+        176.0
+      ],
+      "notes": "added 2026-10-13; NOT CALIBRATED: the belt-drive calibration put the nozzle about 10 cm from the hand (video 20261013_100612). Controller (read 2026-10-13): MKS DLC32 V2.2.6, steps/mm X400 Y400 Z100, max travel X400 Y250 Z299, max rate X/Y 1000 Z 300 mm/min, soft + hard limits on",
+      "work_area_status": "PROVISIONAL (user 2026-10-13): the same 225 x 176 box Jog already enforces, inside the controller's own 400 x 250 with soft + hard limits on; for the axis check only - replace with the measured size"
     }
   ]
 }
