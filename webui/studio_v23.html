@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Henna Studio</title>
+<style>
+:root{--bg:#f5f4f0;--panel:#ffffff;--panel-2:#faf9f6;--text:#1d1c1a;--muted:#6d6a64;--line:#e4e1da;--accent:#8a3c12;--accent-2:#b6541c;
+--accent-bg:#f8ece4;--info:#185fa5;--info-bg:#e6f1fb;--ok:#2f6b12;--ok-bg:#e8f2dc;--warn:#8a5a0b;--warn-bg:#faeedb;--bad:#a32d2d;--bad-bg:#fbe9e9;
+--canvas:#efede8;--shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.05);--r:14px}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#171614;--panel:#211f1c;--panel-2:#1b1a18;--text:#ece9e2;--muted:#a19d94;
+--line:#36332e;--accent:#e79b6a;--accent-2:#f0b48c;--accent-bg:#3a2417;--info:#85b7eb;--info-bg:#0f2a45;--ok:#9ccc6a;--ok-bg:#1d3110;--warn:#f2c46e;
+--warn-bg:#3a2a0a;--bad:#f09a9a;--bad-bg:#3d1616;--canvas:#141311;--shadow:0 1px 2px rgba(0,0,0,.3)}}
+:root[data-theme="dark"]{--bg:#171614;--panel:#211f1c;--panel-2:#1b1a18;--text:#ece9e2;--muted:#a19d94;--line:#36332e;--accent:#e79b6a;--accent-2:#f0b48c;
+--accent-bg:#3a2417;--info:#85b7eb;--info-bg:#0f2a45;--ok:#9ccc6a;--ok-bg:#1d3110;--warn:#f2c46e;--warn-bg:#3a2a0a;--bad:#f09a9a;--bad-bg:#3d1616;
+--canvas:#141311;--shadow:0 1px 2px rgba(0,0,0,.3)}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+code,.mono{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;font-size:12.5px}
+/* top bar */
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:17px;letter-spacing:.1px;white-space:nowrap}
+.brand svg{width:28px;height:28px}
+.jobchip{display:flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;font-size:13px;color:var(--muted);min-width:0}
+.jobchip b{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jobchip>span:first-child{display:none}
+.spacer{flex:1}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12px;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.c-bad{background:var(--bad-bg);color:var(--bad)}.c-warn{background:var(--warn-bg);color:var(--warn)}.c-ok{background:var(--ok-bg);color:var(--ok)}.c-info{background:var(--info-bg);color:var(--info)}
+.c-acc{background:var(--accent-bg);color:var(--accent)}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 16px;border-radius:10px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:550;font-size:14px;line-height:1.2;transition:background .15s,border-color .15s,opacity .15s}
+.btn:hover{background:var(--panel-2)}
+a.btn{text-decoration:none;color:inherit}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#1d1c1a}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#1d1c1a}}
+.btn.primary:hover{background:var(--accent-2);border-color:var(--accent-2)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.small{padding:5px 10px;font-size:13px;border-radius:8px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.icon{width:16px;height:16px;flex:none}
+/* layout */
+.shell{display:grid;grid-template-columns:270px minmax(0,1fr);gap:22px;max-width:1360px;margin:0 auto;padding:22px 20px 60px}
+@media (max-width:980px){.shell{grid-template-columns:minmax(0,1fr)}.rail{position:static!important}}
+.rail{position:sticky;top:76px;align-self:start}
+.steps{list-style:none;margin:0;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.step{display:flex;gap:12px;align-items:flex-start;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+.step:hover{background:var(--panel-2)}
+.step.on{background:var(--accent-bg);border-color:transparent}
+.step.locked{cursor:not-allowed;opacity:.5}
+.dot{width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:13px;font-weight:650;border:1.5px solid var(--line);background:var(--panel);color:var(--muted)}
+.step.on .dot{border-color:var(--accent);color:var(--accent)}
+.step.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+.step .t{font-weight:600;font-size:14px;line-height:1.3}
+.step .s{font-size:12px;color:var(--muted);line-height:1.35;margin-top:2px}
+.railnote{margin-top:12px;padding:12px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.railnote b{color:var(--text)}
+/* content */
+.head{display:flex;align-items:flex-end;gap:16px;margin:2px 0 16px}
+.head h1{font-size:24px;font-weight:650;margin:0;letter-spacing:-.2px}
+.head p{margin:4px 0 0;color:var(--muted);font-size:14px;max-width:760px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px}
+.card h2{font-size:15px;font-weight:650;margin:0 0 4px}
+.card .sub{font-size:13px;color:var(--muted);margin:0 0 14px}
+.cols{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);gap:18px}
+.cols.even{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media (max-width:1100px){.cols,.cols.even{grid-template-columns:minmax(0,1fr)}}
+.stack{display:grid;gap:18px;align-content:start}
+label.f{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.4px}
+select,input[type=number],input[type=text],textarea{width:100%;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2)}
+textarea{resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;line-height:1.45}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.row{display:flex;gap:10px;align-items:center}.row>*{min-width:0}
+.hint{font-size:12.5px;color:var(--muted);margin-top:6px}
+.cmd{display:flex;gap:8px;align-items:center;margin:6px 0}
+.cmd code{flex:1;min-width:0;overflow-wrap:anywhere;background:var(--panel-2);border:1px solid var(--line);padding:7px 10px;border-radius:8px}
+.msg{margin-top:14px;font-size:13.5px;padding:10px 12px;border-radius:10px;white-space:pre-wrap;display:none}
+.msg.err{display:block;background:var(--bad-bg);color:var(--bad)}.msg.info{display:block;background:var(--info-bg);color:var(--info)}.msg.good{display:block;background:var(--ok-bg);color:var(--ok)}
+.msg.warn{display:block;background:var(--warn-bg);color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.stat{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.stat .l{font-size:12px;color:var(--muted)}.stat .v{font-size:18px;font-weight:650;margin-top:2px;overflow-wrap:anywhere}
+.checks{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px;font-size:13.5px}
+.checks li{display:flex;gap:8px;align-items:flex-start}
+.checks .ok{color:var(--ok)}.checks .no{color:var(--bad)}
+.media{position:relative;border-radius:12px;overflow:hidden;background:var(--canvas);border:1px solid var(--line)}
+.media img,.media canvas{display:block;width:100%;height:auto}
+canvas.edit{cursor:crosshair;touch-action:none}
+canvas.move{cursor:grab;touch-action:none}canvas.move.drag{cursor:grabbing}
+.badge{position:absolute;left:10px;top:10px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff}
+.placeholder{display:grid;place-items:center;aspect-ratio:16/9;color:var(--muted);font-size:14px;text-align:center;padding:20px}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+.tile{border:1.5px solid var(--line);border-radius:12px;padding:8px;background:var(--panel-2);cursor:pointer;text-align:left}
+.tile:hover{border-color:var(--accent-2)}
+.tile.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+.tile.bad{opacity:.55;cursor:not-allowed}
+.tile canvas{width:100%;aspect-ratio:1;border-radius:8px;background:var(--panel);display:block}
+.tile .n{font-size:13px;font-weight:600;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .m{font-size:11.5px;color:var(--muted)}
+.upload{display:grid;place-items:center;border-style:dashed;color:var(--muted);font-size:13px;min-height:100%}
+.verdict{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;font-weight:650}
+.verdict.pass{background:var(--ok-bg);color:var(--ok)}.verdict.fail{background:var(--bad-bg);color:var(--bad)}.verdict.neutral{background:var(--warn-bg);color:var(--warn)}
+.points{display:grid;gap:12px}
+.point{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--panel-2)}
+.point h3{margin:0 0 2px;font-size:14px}
+.point .lim{font-size:12.5px;color:var(--warn);margin:6px 0}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:600;font-size:12.5px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;margin:10px 0;cursor:pointer}
+.check input{margin-top:4px;width:16px;height:16px;accent-color:var(--accent)}
+.foot{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
+.ol{margin:0;padding-left:20px;font-size:14px}.ol li{margin:5px 0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:14px}.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:550;overflow-wrap:anywhere}
+.spin{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;display:inline-block;vertical-align:-3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.spin{animation:none}}
+/* dialogs */
+dialog{border:1px solid var(--line);border-radius:16px;padding:0;background:var(--panel);color:var(--text);box-shadow:0 20px 60px rgba(0,0,0,.25);width:min(640px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(20,18,15,.45)}
+.dlg{padding:20px}.dlg h2{margin:0 0 6px;font-size:18px}.dlg .sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media (max-width:560px){.choice{grid-template-columns:1fr}}
+.opt{border:1.5px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;background:var(--panel-2);text-align:left}
+.opt:hover{border-color:var(--accent-2)}.opt b{display:block;font-size:15px;margin-bottom:4px}.opt span{font-size:13px;color:var(--muted)}
+.joblist{max-height:60vh;overflow:auto;display:grid;gap:8px}
+.jobrow{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--panel-2);text-align:left}
+.jobrow:hover{border-color:var(--accent-2)}.jobrow .a{font-weight:600;font-size:14px}.jobrow .b{font-size:12.5px;color:var(--muted)}
+.empty{color:var(--muted);text-align:center;padding:40px 10px}
+.machine{display:flex;align-items:center;gap:8px;padding:4px 6px 4px 10px;border:1px solid var(--line);border-radius:999px}
+.machine .mono{color:var(--muted);white-space:nowrap}
+.btn.stop{background:#c62828;border-color:#c62828;color:#fff;font-weight:700;letter-spacing:.5px}.btn.stop:hover{background:#a51f1f}
+.bar{height:10px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;margin:12px 0 4px}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.bar.finishing>i{animation:pulse 1.1s ease-in-out infinite}@keyframes pulse{50%{opacity:.4}}
+@media (prefers-reduced-motion: reduce){.bar.finishing>i{animation:none;opacity:.6}}
+.namebox{margin-top:16px;padding-top:4px;border-top:1px solid var(--line)}.namebox .row,.namebox select{max-width:460px}.namebox input{flex:1}
+.runbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.runbtns .btn{padding:12px 16px;font-size:15px}
+.jogwrap{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;margin-top:6px}
+@media (max-width:560px){.jogwrap{grid-template-columns:1fr}}
+.jogpad{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,58px);gap:8px}
+.jogz{display:grid;grid-template-rows:repeat(2,58px);gap:8px;margin-left:14px}
+.jogpad .btn,.jogz .btn{width:58px;height:58px;padding:0;font-size:15px;font-weight:650}
+.jogc{display:grid;place-items:center;font-size:11px;color:var(--muted);text-align:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:var(--panel);padding:7px 14px;cursor:pointer;font-weight:550}
+.seg button.on{background:var(--accent);color:#fff}
+:root[data-theme="dark"] .seg button.on{color:#1d1c1a}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .seg button.on{color:#1d1c1a}}
+@media (max-width:1180px){.machine .mono{display:none}}
+@media (max-width:900px){.top{flex-wrap:wrap;row-gap:8px;padding:10px 16px}.machine{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header class="top">
+ <div class="brand" aria-label="Henna Studio">
+  <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="var(--accent-bg)"/><path d="M16 6c3 4 5 7 5 10a5 5 0 0 1-10 0c0-3 2-6 5-10z" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="16.5" r="1.6" fill="var(--accent)"/><path d="M9 24c2-1.5 4.5-2 7-2s5 .5 7 2" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+  Henna Studio
+ </div>
+ <div class="jobchip" id="jobchip" hidden><span>Job</span><b id="jobname"></b><span class="chip" id="jobsubject"></span></div>
+ <div class="spacer"></div>
+ <div class="machine" id="mach" hidden>
+  <span class="chip c-warn" id="mstate">Machine off</span><span class="mono" id="mpos"></span>
+  <button class="btn small" id="mconnect" type="button">Connect</button>
+  <button class="btn small" id="mhome" type="button" hidden>Home</button>
+  <button class="btn small" id="mjog" type="button" hidden>Jog</button>
+  <button class="btn small stop" id="mstop" type="button" hidden>STOP</button>
+ </div>
+ <button class="btn small" id="btncal" type="button">Calibration</button>
+ <button class="btn small" id="btnjobs" type="button">Jobs</button>
+ <button class="btn small primary" id="btnnew" type="button">New job</button>
+ <button class="btn small ghost" id="btntheme" type="button" aria-label="Switch light or dark">◐</button>
+</header>
+
+<div class="shell">
+ <nav class="rail" aria-label="Workflow steps">
+  <ol class="steps" id="steps"></ol>
+  <div class="railnote" id="railnote"><b>Safety</b>
+   <div class="chips" style="margin:8px 0">
+    <span class="chip c-bad" title="Nothing here is validated for use on a person">motion_ready = false</span>
+    <span class="chip c-info" id="ctlchip" title="No UGS needed">Homing, scan position + program run</span>
+   </div>
+   <span id="railtext">The page homes the machine, moves to the scan position and runs the checked hover program - over the prosthetic hand only, 4 mm above measured skin, no dispensing. STOP = feed hold + reset. Real hands: camera preview only.</span></div>
+ </nav>
+
+ <main id="main">
+  <!-- welcome -->
+  <section id="v-welcome">
+   <div class="head"><div><h1>Welcome to Henna Studio</h1><p>Start a new job to scan a hand, outline the area, place a design, write a checked hover program and run it from here. Or resume a job from the list.</p></div></div>
+   <div class="cols even">
+    <div class="card"><h2>New job</h2><p class="sub">Choose what is under the camera.</p><div class="choice">
+     <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow: scan, region, design, hover program and run - all in Studio.</span></button>
+     <button class="opt" type="button" data-subject="person"><b>Real hand</b><span>Camera only: scan, region and design preview. No paper readings, no program.</span></button>
+    </div></div>
+    <div class="card"><h2>Recent jobs</h2><p class="sub">Click a job to continue where you left off.</p><div class="joblist" id="recent"></div></div>
+   </div>
+  </section>
+
+  <!-- calibration (v23): status + daily check - camera only, never with a hand under the machine -->
+  <section id="v-calib" hidden>
+   <div class="head"><div><h1>Calibration</h1><p>Which calibration is in use, and a daily check that the camera has not moved. Nothing here changes the calibration. Camera only - never with a hand under the machine.</p></div></div>
+   <div class="cols even">
+    <div class="card"><h2>Status</h2><p class="sub">The approved calibration files and what they say.</p><div id="calstatus"><div class="empty"><span class="spin"></span></div></div></div>
+    <div class="stack">
+     <div class="card"><h2>Daily check</h2>
+      <p class="sub">Bed empty and set up as at the reference - no hand. Connect and Home above, move to the scan position, then run the check (about 30 s).</p>
+      <label class="check"><input type="checkbox" id="calclear"><span>I have removed all hands and objects from the travel area.</span></label>
+      <label class="check"><input type="checkbox" id="calestop"><span>I am at the emergency stop.</span></label>
+      <button class="btn block" id="calmove" type="button" disabled>Move to scan position</button>
+      <div class="chips" style="margin-top:12px"><span class="chip c-warn" id="calposstate">Checking machine…</span></div>
+      <p class="hint" id="calposhelp" aria-live="polite"></p>
+      <label class="check"><input type="checkbox" id="calempty"><span>The bed is empty - no hand - and set up as at the reference.</span></label>
+      <button class="btn primary block" id="calcheck" type="button" disabled>Run daily check</button>
+      <div class="msg" id="msgcal"></div>
+      <div id="calresult"></div>
+     </div>
+     <details class="card"><summary style="cursor:pointer;font-weight:650">Set the reference</summary>
+      <p class="hint">Once, right after a known-good calibration (and again only after a new calibration). The old reference is kept.</p>
+      <label class="check"><input type="checkbox" id="calgood"><span>The calibration is known good now.</span></label>
+      <button class="btn block" id="calref" type="button" disabled>Record the reference</button>
+      <div class="msg" id="msgcalref"></div>
+     </details>
+     <div class="card"><h2>Recent checks</h2><div id="calhist"><p class="hint">None yet.</p></div></div>
+    </div>
+   </div>
+  </section>
+
+  <!-- 1 scan -->
+  <section id="v-scan" hidden>
+   <div class="head"><div><h1>1 · Scan</h1><p>Clear the travel area, home this session and move to the scan position. Once the position is ready, place the hand and record. The file is checked before the next step.</p></div></div>
+   <div class="cols">
+    <div class="stack">
+     <div class="card">
+      <div class="row" style="justify-content:space-between"><h2>Live camera</h2><span class="chip c-warn" id="camstate">Camera off</span></div>
+      <p class="sub">Left: colour. Right: depth (yellow near, purple far, black no depth).</p>
+      <div class="media"><img id="camimg" alt="Live colour and depth image from the camera" hidden><div class="placeholder" id="camph">Starting the camera… If this stays empty, close RealSense Viewer.</div></div>
+     </div>
+    </div>
+    <div class="stack">
+     <div class="card">
+      <h2>Scan position</h2><p class="sub">Connect the machine and use Home above before the first move this session. Keep every hand and object out of the travel area until the position is ready.</p>
+      <button class="btn block" id="scanmove" type="button" disabled>Move to scan position</button>
+      <div class="chips" style="margin-top:12px"><span class="chip c-warn" id="scanposstate">Checking machine…</span></div>
+      <div class="mono hint" id="scanposcoords"></div>
+      <p class="hint" id="scanposhelp" aria-live="polite">Waiting for fresh machine status.</p>
+      <label class="f" for="scansec">Length</label>
+      <div class="row"><input type="range" id="scansec" min="3" max="10" step="1" value="5"><span class="mono" id="scansecout" style="width:40px">5 s</span></div>
+      <button class="btn primary block" id="scanrec" type="button" style="margin-top:16px" disabled>Record scan</button>
+      <div class="msg" id="msgscan"></div>
+      <ul class="checks" id="scanchecks"></ul>
+     </div>
+     <details class="card"><summary style="cursor:pointer;font-weight:650">Use an existing recording instead</summary>
+      <label class="f" for="exrec">Recording</label><select id="exrec"></select>
+      <label class="f" for="exline">Status line sent before that recording</label><textarea id="exline" rows="2"></textarea>
+      <div class="hint">Use the status saved with this recording, from when it was captured.</div>
+      <button class="btn block" id="exuse" type="button" style="margin-top:12px">Use this recording</button>
+      <div class="msg" id="msgex"></div>
+     </details>
+    </div>
+   </div>
+   <div class="foot"><span></span><button class="btn primary" id="toHand" type="button" disabled>Continue to hand &amp; region →</button></div>
+  </section>
+
+  <!-- 2 hand & region -->
+  <section id="v-region" hidden>
+   <div class="head"><div><h1>2 · Hand &amp; region</h1><p>The hand is found automatically. Adjust the outline to cover only the area to decorate, check it, then accept it.</p></div></div>
+   <div class="cols">
+    <div class="card">
+     <div class="row" style="justify-content:space-between"><h2>Outline</h2><span class="chip c-info" id="regstate">Not checked</span></div>
+     <p class="sub">Drag a corner to move it · double-click an edge to add a corner · right-click a corner to remove it. Magenta = no depth (never filled in).</p>
+     <div class="media"><canvas id="ed" class="edit" width="848" height="480" aria-label="Region outline editor"></canvas><div class="placeholder" id="edph">Finding the hand…</div></div>
+    </div>
+    <div class="stack">
+     <div class="card">
+      <h2>Hand detection</h2><p class="sub" id="handinfo">—</p>
+      <button class="btn block" id="redetect" type="button">Detect again</button>
+      <label class="f" for="margin">Suggested outline margin <span id="marginout"></span></label>
+      <input type="range" id="margin" min="0" max="0.5" step="0.01" value="0.15">
+      <button class="btn block" id="regreset" type="button" style="margin-top:12px">Reset to suggestion</button>
+     </div>
+     <div class="card">
+      <h2>Check and accept</h2><p class="sub">Checking counts the measured depth inside the outline.</p>
+      <div class="stats" id="regstats"></div>
+      <div class="row" style="margin-top:14px"><button class="btn block" id="regcheck" type="button">Check region</button><button class="btn primary block" id="regaccept" type="button" disabled>Accept region</button></div>
+      <div class="msg" id="msgreg"></div>
+     </div>
+    </div>
+   </div>
+   <div class="foot"><button class="btn" data-go="scan" type="button">← Scan</button><button class="btn primary" id="toDesign" type="button" disabled>Continue to design →</button></div>
+  </section>
+
+  <!-- 3 design -->
+  <section id="v-design" hidden>
+   <div class="head"><div><h1>3 · Design</h1><p>Pick a line-art design, then size, rotate and drag it into place on the hand. The final check plans every stroke on the measured skin; a design is used whole or not at all.</p></div></div>
+   <div class="card" style="margin-bottom:18px"><div class="row" style="justify-content:space-between"><h2>Designs</h2><span class="hint" style="margin:0">Line art only (strokes, not filled shapes)</span></div>
+    <div class="gallery" id="gallery" style="margin-top:12px"></div><input type="file" id="upfile" accept=".svg,image/svg+xml" hidden><div class="msg" id="msgup"></div>
+    <div class="namebox"><label class="f" for="nametext">Write a name</label>
+     <div class="row"><input type="text" id="nametext" maxlength="16" placeholder="e.g. Harsh" autocomplete="off" spellcheck="false"><button class="btn" id="nameadd" type="button">Add name</button></div>
+     <label class="f" for="namefont">Font</label><select id="namefont"><option value="studio">Studio single-line capitals</option></select>
+     <div class="hint" id="namehint">Every font is turned into single pen lines (the centre of each letter). Handwriting fonts work best; very decorative fonts can come out messy. Then size, turn and place it like any design.</div></div></div>
+   <div class="cols">
+    <div class="card">
+     <div class="row" style="justify-content:space-between"><h2>Placement</h2><span class="chip" id="fitchip">—</span></div>
+     <p class="sub">Drag the design to move it. Outside the outline is dimmed.</p>
+     <div class="media"><canvas id="dc" class="move" width="848" height="480" aria-label="Design placement on the hand"></canvas><div class="placeholder" id="dcph">Loading the hand…</div></div>
+    </div>
+    <div class="stack">
+     <div class="card">
+      <h2>Size and position</h2><p class="sub" id="desname">—</p>
+      <label class="f" for="dsize">Size <span id="dsizeout"></span></label><input type="range" id="dsize" min="10" max="40" step="1" value="30">
+      <label class="f" for="drot">Rotation <span id="drotout"></span></label><input type="range" id="drot" min="-180" max="180" step="1" value="0">
+      <div class="row" style="margin-top:12px"><button class="btn small block" id="dcentre" type="button">Centre on palm</button><button class="btn small block" id="drot0" type="button">Reset rotation</button></div>
+      <label class="f" for="dstand">Nozzle height above measured skin</label>
+      <select id="dstand"></select>
+      <div class="hint">4 mm or more. On the textured prosthetic, 4 mm gave a real gap of about 2 mm (the camera reads silicone about 1.5 mm deep).</div>
+      <button class="btn primary block" id="dcheck" type="button" style="margin-top:16px">Check on measured skin</button>
+      <div class="msg" id="msgdes"></div>
+     </div>
+     <div class="card" id="desres" hidden>
+      <div class="verdict" id="desverdict"></div>
+      <div class="stats" id="desstats" style="margin-top:12px"></div>
+      <ul class="checks" id="desproblems"></ul>
+      <div class="media" style="margin-top:12px"><img id="desimg" alt="Planned strokes and heights on the measured skin"></div>
+     </div>
+    </div>
+   </div>
+   <div class="foot"><button class="btn" data-go="region" type="button">← Hand &amp; region</button><button class="btn primary" id="toSurface" type="button" disabled>Continue →</button></div>
+  </section>
+
+  <!-- 4 program -->
+  <section id="v-program" hidden>
+   <div class="head"><div><h1>4 · Program</h1><p>The hover program is written at the nozzle height and speed you chose. Between strokes the nozzle only hops 5 mm above the highest skin under the crossing. A separate checker re-reads it. Studio runs it in the next step.</p></div></div>
+   <div class="cols">
+    <div class="stack">
+     <div class="card"><h2>Summary</h2><dl class="kv" id="pgsum" style="margin-top:10px"></dl></div>
+     <div class="card" id="pgout" hidden>
+      <h2>Program</h2><p class="sub">Kept with the job. Only this exact file can be run.</p><div id="pgfile" class="mono hint"></div>
+      <ul class="checks" id="pgchecks"></ul>
+      <div class="media" style="margin-top:12px"><img id="pgimg" alt="Program preview: stroke order and heights"></div>
+      <div class="row" style="margin-top:10px"><a class="btn small" id="pgdl" href="#">Download a copy</a></div>
+     </div>
+    </div>
+    <div class="card">
+     <h2>Confirm</h2><p class="sub">Programs are for the prosthetic hand only.</p>
+     <label class="f" for="pgfeed" style="margin-top:4px">Drawing speed</label><select id="pgfeed"></select>
+     <div class="hint" id="pgfeedhint">Default 600 mm/min; 300 to 1200 allowed. The first run at a new speed should be an air run (no hand). The drop down to the hand always stays at 300.</div>
+     <label class="check" style="margin-top:14px"><input type="checkbox" id="pgpros"><span>Prosthetic hand only. No person near the machine and no paste in the dispenser.</span></label>
+     <label class="check"><input type="checkbox" id="pgstill"><span>The hand has not moved since the scan.</span></label>
+     <button class="btn primary block" id="pgrun" type="button" style="margin-top:8px">Write program</button>
+     <div class="msg" id="msgpg"></div>
+    </div>
+   </div>
+   <div class="foot"><button class="btn" data-go="design" type="button">← Design</button><button class="btn primary" id="toRun" type="button" disabled>Continue to run →</button></div>
+  </section>
+
+  <!-- 5 run -->
+  <section id="v-run" hidden>
+   <div class="head"><div><h1>5 · Run</h1><p>Studio sends the checked program to the machine itself. Watch from the side and keep a hand on the emergency stop.</p></div></div>
+   <div class="cols">
+    <div class="stack">
+     <div class="card">
+      <div class="row" style="justify-content:space-between"><h2>Run</h2><span class="chip c-warn" id="runstate">Not ready</span></div>
+      <p class="hint" id="runhelp" aria-live="polite" style="margin:4px 0 0"></p>
+      <div class="bar" role="progressbar" aria-label="Program progress" aria-valuemin="0" aria-valuemax="100" id="runbar"><i id="runbarfill"></i></div>
+      <div class="stats" id="runstats" style="margin-top:12px"></div>
+      <div class="runbtns">
+       <button class="btn primary" id="runstart" type="button" disabled>Start</button>
+       <button class="btn" id="runpause" type="button" disabled>Pause</button>
+      </div>
+      <button class="btn stop block" id="runstop" type="button" style="margin-top:10px;padding:12px" disabled>STOP</button>
+      <p class="hint">Pause holds the motion and can be resumed. STOP holds and resets the controller - home again afterwards.</p>
+      <div class="msg" id="msgrun"></div>
+     </div>
+     <div class="card"><h2>Runs of this job</h2><div id="runhist" style="margin-top:8px"></div></div>
+    </div>
+    <div class="stack">
+     <div class="card"><h2>Before you start</h2><ol class="ol">
+      <li>Connect and <b>Home</b> this session (top bar).</li>
+      <li>Only the prosthetic hand is under the machine, in the same place as in the scan. <span id="scanage" class="hint"></span></li>
+      <li>Film from the side at palm height.</li>
+      <li>Stand at the emergency stop. Stop at once if the tip touches.</li>
+     </ol></div>
+     <div class="card"><h2>Program</h2><dl class="kv" id="runsum" style="margin-top:10px"></dl></div>
+    </div>
+   </div>
+   <div class="foot"><button class="btn" data-go="program" type="button">← Program</button><button class="btn" id="finish" type="button">Back to start</button></div>
+  </section>
+
+  <!-- camera only end -->
+  <section id="v-person" hidden>
+   <div class="head"><div><h1>Camera-only job</h1><p>This job is for a real hand. The studio stops at the design preview: programs and runs are for the prosthetic hand only.</p></div></div>
+   <div class="card"><div class="verdict neutral">No program is written for a person.</div><p class="hint" style="margin-top:12px">The scan, region and design check are logged and can be reviewed from the job list.</p></div>
+   <div class="foot"><button class="btn" data-go="design" type="button">← Design</button><button class="btn" data-home type="button">Back to start</button></div>
+  </section>
+ </main>
+</div>
+
+<dialog id="dlgnew"><div class="dlg"><h2>New job</h2><p class="sub">What is under the camera?</p><div class="choice">
+ <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow, including the hover run.</span></button>
+ <button class="opt" type="button" data-subject="person"><b>Real hand</b><span>Camera only: scan, region and design preview.</span></button>
+</div><div class="foot"><span></span><button class="btn" type="button" data-close>Cancel</button></div></div></dialog>
+<dialog id="dlghome"><div class="dlg"><h2>Home the machine</h2><p class="sub">Sends $HZ (Z up first), then $H. The head moves to its home corner.</p>
+ <label class="check"><input type="checkbox" id="hclear"><span>Nothing is under or near the nozzle - no hand on the bed.</span></label>
+ <label class="check"><input type="checkbox" id="hestop"><span>I am at the emergency stop.</span></label>
+ <div class="msg" id="msghome"></div>
+ <div class="foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="hgo" disabled>Home now</button></div></div></dialog>
+<dialog id="dlgscanmove"><div class="dlg"><h2>Move to scan position</h2><p class="sub">Remove all hands and objects from the travel area before moving. The head rises to travel height, moves across, then lowers to the scan position.</p>
+ <label class="check"><input type="checkbox" id="scanclear"><span>I have removed all hands and objects from the travel area.</span></label>
+ <label class="check"><input type="checkbox" id="scanestop"><span>I am at the emergency stop.</span></label>
+ <div class="msg" id="msgscanmove"></div>
+ <div class="foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="scanmovego" disabled>Move to scan position</button></div></div></dialog>
+<dialog id="dlgrun"><div class="dlg"><h2>Start the hover run</h2><p class="sub">The head rises to travel height, then follows the design 4 mm or more above the measured skin at the program's drawing speed. No dispensing.</p>
+ <label class="check"><input type="checkbox" id="rpros"><span>A prosthetic hand is under the machine - no person, no paste in the dispenser.</span></label>
+ <label class="check"><input type="checkbox" id="rstill"><span>The hand has not moved since the scan.</span></label>
+ <label class="check"><input type="checkbox" id="rclear"><span>Nothing else is in the travel area.</span></label>
+ <label class="check"><input type="checkbox" id="restop"><span>I am at the emergency stop and filming from the side.</span></label>
+ <div class="msg" id="msgrundlg"></div>
+ <div class="foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="rungo" disabled>Start run</button></div></div></dialog>
+<dialog id="dlgjog"><div class="dlg"><h2>Jog</h2><p class="sub">Moves stay at travel height (Z -20) or higher, so the nozzle cannot reach a hand. Below Z -20 only Z up works. Only a checked program lowers the nozzle.</p>
+ <label class="check"><input type="checkbox" id="jnoperson"><span>No person's hand is under the machine.</span></label>
+ <div class="row" style="margin:6px 0 4px"><span class="hint" style="margin:0">Step</span><div class="seg" id="jstep" role="group" aria-label="Jog step"><button type="button" data-step="0.1">0.1 mm</button><button type="button" data-step="1" class="on">1 mm</button><button type="button" data-step="10">10 mm</button></div></div>
+ <div class="jogwrap">
+  <div class="row" style="align-items:flex-start;gap:0">
+   <div class="jogpad">
+    <span></span><button class="btn" type="button" data-jog="Y,1">Y+</button><span></span>
+    <button class="btn" type="button" data-jog="X,-1">X−</button><div class="jogc mono" id="jogpos">–</div><button class="btn" type="button" data-jog="X,1">X+</button>
+    <span></span><button class="btn" type="button" data-jog="Y,-1">Y−</button><span></span>
+   </div>
+   <div class="jogz"><button class="btn" type="button" data-jog="Z,1">Z+</button><button class="btn" type="button" data-jog="Z,-1">Z−</button></div>
+  </div>
+  <p class="hint" id="joghelp" aria-live="polite" style="margin:0"></p>
+ </div>
+ <div class="msg" id="msgjog"></div>
+ <div class="foot"><button class="btn stop" type="button" id="jogstop" hidden>STOP</button><span></span><button class="btn" type="button" data-close>Close</button></div></div></dialog>
+<dialog id="dlgjobs"><div class="dlg"><h2>Jobs</h2><p class="sub">Most recent first.</p><div class="joblist" id="joblist"></div><div class="foot"><span></span><button class="btn" type="button" data-close>Close</button></div></div></dialog>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(v,d=2)=>v==null?'–':Number(v).toFixed(d);
+function msg(id,kind,t){const m=$(id);m.className='msg '+(kind||'');m.innerHTML=kind==='info'?`<span class="spin"></span> ${esc(t)}`:esc(t||'')}
+function stat(l,v){return`<div class="stat"><div class="l">${esc(l)}</div><div class="v">${esc(v)}</div></div>`}
+async function api(url,body){const o=body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
+ const r=await fetch(url,o);let j;try{j=await r.json()}catch(e){throw new Error('The studio server did not answer. Is it still running in its Command Prompt window?')}
+ if(!r.ok)throw new Error(j.error||r.statusText);return j}
+function cmdHtml(cmds){return cmds.map(c=>`<div class="cmd"><code>${esc(c)}</code><button class="btn small" type="button" data-copy="${esc(c)}">Copy</button></div>`).join('')}
+document.addEventListener('click',e=>{const b=e.target.closest('button[data-copy]');if(!b)return;
+ navigator.clipboard.writeText(b.dataset.copy).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1200)},()=>{b.textContent='Select + Ctrl+C'})});
+function store(k,v){try{v===undefined?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}
+function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
+
+/* theme */
+(()=>{const t=load('studio-theme');if(t)document.documentElement.dataset.theme=t})();
+$('btntheme').onclick=()=>{const cur=document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+ const n=cur==='dark'?'light':'dark';document.documentElement.dataset.theme=n;store('studio-theme',n);redrawAll()};
+
+/* ---------- state ---------- */
+let JOB=null,CAL=null,STAND=null,FEEDS=null,VIEW='welcome';
+/* CAL = the approved calibration file, unchanged; STAND = v14 nozzle-height range (4 mm minimum) */
+async function loadCal(){if(!CAL)CAL=await api('/api/studio/calibration');if(!STAND)STAND=(await api('/api/studio/v14_rules')).standoff_mm_allowed}
+const STEPS=[{k:'scan',t:'Scan',s:'Record the hand at the capture pose'},{k:'region',t:'Hand & region',s:'Detect the hand and outline the area'},
+ {k:'design',t:'Design',s:'Choose, size and place the design'},
+ {k:'program',t:'Program',s:'Write and re-read the hover program',pros:true},{k:'run',t:'Run',s:'Studio runs it - Start, Pause, STOP',pros:true}];
+function runsOfProgram(){const p=JOB&&JOB.steps.program;return p?(JOB.runs||[]).filter(r=>r.program===p.program):[]}
+function done(k){const s=JOB?JOB.steps:{};return{scan:!!s.scan,region:!!s.region,design:!!s.plan||(JOB&&JOB.subject==='person'&&!!s.design),
+ program:!!s.program,run:runsOfProgram().some(r=>r.result==='finished')}[k]}
+function reachable(k){if(!JOB)return false;const i=STEPS.findIndex(x=>x.k===k);if(STEPS[i].pros&&JOB.subject!=='prosthetic')return false;
+ return STEPS.slice(0,i).every(x=>done(x.k))}
+function renderRail(){$('steps').innerHTML=STEPS.map((x,i)=>{const lock=!reachable(x.k),d=done(x.k);
+ return`<li class="step${VIEW===x.k?' on':''}${d?' done':''}${lock?' locked':''}" data-step="${x.k}" tabindex="${lock?-1:0}" role="button" aria-disabled="${lock}">
+ <span class="dot">${d?'✓':i+1}</span><span><div class="t">${esc(x.t)}</div><div class="s">${esc(x.pros&&JOB&&JOB.subject!=='prosthetic'?'Prosthetic hand only':x.s)}</div></span></li>`}).join('');
+ $('jobchip').hidden=!JOB;if(JOB){$('jobname').textContent=JOB.id.replace(/-job.*$/,'');$('jobsubject').textContent=JOB.subject==='prosthetic'?'Prosthetic':'Real hand · camera only';
+  $('jobsubject').className='chip '+(JOB.subject==='prosthetic'?'c-acc':'c-warn')}}
+$('steps').addEventListener('click',e=>{const li=e.target.closest('.step');if(li&&reachable(li.dataset.step))go(li.dataset.step)});
+$('steps').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.dataset.step&&reachable(e.target.dataset.step)){e.preventDefault();go(e.target.dataset.step)}});
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+document.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>go('welcome'));
+$('finish').onclick=()=>go('welcome');
+
+function go(view,scanFinished=false){if(recBusy&&!scanFinished)return;if(view!=='scan')camStop();VIEW=view;
+ ['welcome','scan','region','design','program','run','person','calib'].forEach(v=>$('v-'+v).hidden=v!==view);renderRail();window.scrollTo({top:0,behavior:'smooth'});
+ ({welcome:showWelcome,scan:showScan,region:showRegion,design:showDesign,program:showProgram,run:showRun,person:()=>{},calib:showCalib})[view]()}
+function nextFor(job){const s=job.steps;if(!s.scan)return'scan';if(!s.region)return'region';if(job.subject==='person')return s.design?'person':'design';
+ if(!s.plan)return'design';if(!s.program)return'program';return'run'}
+async function openJob(id,view){JOB=await api('/api/studio/job?id='+encodeURIComponent(id));store('studio-job',JOB.id);go(view||nextFor(JOB))}
+function setJob(j){JOB=j;renderRail()}
+
+/* ---------- welcome & jobs ---------- */
+function jobRows(list){if(!list.length)return'<div class="empty">No jobs yet.</div>';
+ return list.map(j=>`<button class="jobrow" type="button" data-job="${esc(j.id)}"><span class="a">${esc(j.id.replace(/-job.*$/,'').replace(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/,'$3.$2.$1 $4:$5'))}${j.design?' · '+esc(j.design.replace('.svg','')):''}</span>
+ <span class="chip ${j.verdict==='PASS'?'c-ok':j.subject==='person'?'c-warn':'c-info'}">${esc(j.status)}</span><span class="b">${j.subject==='prosthetic'?'Prosthetic':'Real hand'}${j.recording?' · '+esc(j.recording):''}</span></button>`).join('')}
+async function showWelcome(){try{const j=await api('/api/studio/jobs');$('recent').innerHTML=jobRows(j.jobs.slice(0,8))}catch(e){$('recent').innerHTML=`<div class="msg err" style="display:block">${esc(e.message)}</div>`}}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-job]');if(!b||machineBusy())return;document.querySelectorAll('dialog').forEach(d=>d.open&&d.close());
+ try{await openJob(b.dataset.job)}catch(err){alert(err.message)}});
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-subject]');if(!b||machineBusy())return;
+ document.querySelectorAll('dialog').forEach(d=>d.open&&d.close());
+ try{const j=await api('/api/studio/job_new',{subject:b.dataset.subject});JOB=j;store('studio-job',j.id);go('scan')}catch(err){alert(err.message)}});
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
+$('btnnew').onclick=()=>$('dlgnew').showModal();
+$('btnjobs').onclick=async()=>{$('joblist').innerHTML='<div class="empty"><span class="spin"></span></div>';$('dlgjobs').showModal();
+ try{$('joblist').innerHTML=jobRows((await api('/api/studio/jobs')).jobs)}catch(e){$('joblist').innerHTML=`<div class="empty">${esc(e.message)}</div>`}};
+
+/* ---------- 1 scan ---------- */
+let camTimer=null,recBusy=false,recs=[];
+function camShow(s){const c=$('camstate');if(s.error){c.className='chip c-bad';c.textContent='Camera error';$('camph').hidden=false;$('camph').textContent=s.error;return}
+ c.className='chip '+(s.state==='off'?'c-warn':'c-ok');c.textContent={off:'Camera off',preview:'Live',recording:'Recording - keep still'}[s.state]||s.state}
+async function camStart(){clearInterval(camTimer);try{camShow(await api('/api/cam/start',{}))}catch(e){camShow({error:e.message})}camTimer=setInterval(camTick,400)}
+async function camTick(){if(VIEW!=='scan'){clearInterval(camTimer);return}
+ try{const s=await api('/api/cam/status');camShow(s);if(s.state==='off'&&!s.error&&!recBusy){await api('/api/cam/start',{});return}
+  if(s.has_frame){const im=$('camimg');im.hidden=false;$('camph').hidden=true;im.src='/api/cam/preview.jpg?t='+Date.now()}}catch(e){}}
+function camStop(){clearInterval(camTimer);fetch('/api/cam/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
+function scanChecks(sc){const c=sc.checks;if(!c)return`<li><span class="ok">✓</span><span>Using existing recording ${esc(sc.name)} (${sc.frame_pairs} frame pairs)</span></li>`;
+ return[`Saved ${esc(sc.name)}`,`Depth units ${Number(c.depth_units_m.toPrecision(3))} m`,`${c.camera_settings} camera settings stored`,`${sc.frame_pairs} frame pairs`,`Median depth ${c.median_depth_mm} mm`]
+  .map(t=>`<li><span class="ok">✓</span><span>${t}</span></li>`).join('')}
+async function showScan(){scanPositionShow();machPoll();
+ $('scanchecks').innerHTML=JOB.steps.scan?scanChecks(JOB.steps.scan):'';$('toHand').disabled=!JOB.steps.scan;msg('msgscan','','');
+ camStart();
+ try{const j=await api('/api/recordings');recs=j.recordings.filter(r=>r.usable).sort((a,b)=>b.modified.localeCompare(a.modified));
+  $('exrec').innerHTML=recs.map((r,i)=>`<option value="${i}">${esc(r.name)} · ${r.frame_pairs} frames · ${esc(r.modified.replace('T',' '))}</option>`).join('')}catch(e){}}
+$('scansec').oninput=()=>$('scansecout').textContent=$('scansec').value+' s';
+$('scanrec').onclick=async()=>{if(!scanReady()){scanPositionShow();msg('msgscan','err','Wait for a fresh, homed, idle machine at the scan position.');return}
+ const jobId=JOB.id;recBusy=true;machGeneration++;machShow(MACH);msg('msgscan','info','Recording - keep everything still. Then the file is checked (about 20 s).');
+ try{const r=await api('/api/studio/scan',{job:jobId,seconds:+$('scansec').value});setJob(r.job);
+  $('scanchecks').innerHTML=scanChecks(JOB.steps.scan);msg('msgscan','good','Scan saved and checked.');$('toHand').disabled=false;go('region',true)}
+ catch(e){msg('msgscan','err',e.message)}finally{recBusy=false;machSeen=0;machGeneration++;machShow(MACH);machPoll()}};
+$('exuse').onclick=async()=>{const r=recs[$('exrec').value];if(!r)return;$('exuse').disabled=true;msg('msgex','info','Checking…');
+ try{const j=await api('/api/studio/use_recording',{job:JOB.id,path:r.path,status_line:$('exline').value});setJob(j.job);
+  $('scanchecks').innerHTML=scanChecks(JOB.steps.scan);msg('msgex','good','Recording selected.');$('toHand').disabled=false}
+ catch(e){msg('msgex','err',e.message)}finally{$('exuse').disabled=false}};
+$('toHand').onclick=()=>go('region');
+
+/* ---------- 2 hand & region ---------- */
+let RUN=null,poly=[],edited=false,checked=false,dragI=-1;const imgC=new Image(),imgH=new Image(),ed=$('ed'),ex=ed.getContext('2d');
+function handInfo(){const h=JOB.steps.hand;$('handinfo').textContent=h?`Hand found · confidence ${fmt(h.score)} · frame ${h.frame} · ${h.landmarks_on_missing_depth} of 21 landmarks on missing depth`:'Not detected yet'}
+async function loadRun(keep){const r=await api(`/api/studio/hand?job=${encodeURIComponent(JOB.id)}&margin=${$('margin').value}`);RUN=r;ed.width=r.width;ed.height=r.height;
+ await Promise.all([new Promise(ok=>{imgC.onload=ok;imgC.src=r.colour}),new Promise(ok=>{imgH.onload=ok;imgH.src=r.holes})]);
+ if(!keep){poly=r.suggestion?r.suggestion.map(p=>p.slice()):[];edited=false}$('edph').hidden=true;invalidate();drawEd()}
+async function showRegion(){handInfo();$('regstats').innerHTML='';msg('msgreg','','');$('toDesign').disabled=!JOB.steps.region;
+ if(JOB.steps.region){$('regstate').className='chip c-ok';$('regstate').textContent='Accepted'}
+ try{if(!JOB.steps.hand){$('edph').hidden=false;$('edph').innerHTML='<span><span class="spin"></span> Finding the hand (about 10 s)…</span>';await detect()}
+  else{await loadRun(false);if(JOB.steps.region){poly=JOB.steps.region.polygon_px.map(p=>p.slice());edited=true;drawEd();$('regstate').className='chip c-ok';$('regstate').textContent='Accepted'}}}
+ catch(e){$('edph').hidden=false;$('edph').textContent=e.message;msg('msgreg','err',e.message)}}
+async function detect(){const r=await api('/api/studio/detect',{job:JOB.id});setJob(r.job);handInfo();await loadRun(false);$('toDesign').disabled=true}
+$('redetect').onclick=async()=>{$('redetect').disabled=true;msg('msgreg','info','Detecting the hand…');try{await detect();msg('msgreg','','')}catch(e){msg('msgreg','err',e.message)}finally{$('redetect').disabled=false}};
+$('margin').oninput=()=>$('marginout').textContent=`(${Math.round(100*$('margin').value)}%)`;$('margin').oninput();
+$('margin').onchange=async()=>{if(!RUN)return;if(edited&&!confirm('Replace your edited outline with a new suggestion?'))return;await loadRun(false)};
+$('regreset').onclick=async()=>{if(!RUN)return;if(edited&&!confirm('Discard your edits?'))return;await loadRun(false)};
+function invalidate(){checked=false;$('regaccept').disabled=true;$('regstate').className='chip c-info';$('regstate').textContent='Not checked'}
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function drawEd(){if(!RUN)return;const W=ed.width,H=ed.height;ex.clearRect(0,0,W,H);ex.drawImage(imgC,0,0,W,H);ex.drawImage(imgH,0,0,W,H);
+ if(poly.length){ex.save();ex.fillStyle='rgba(0,0,0,.45)';ex.beginPath();ex.rect(0,0,W,H);ex.moveTo(poly[0][0],poly[0][1]);poly.slice(1).forEach(p=>ex.lineTo(p[0],p[1]));ex.closePath();ex.fill('evenodd');ex.restore();
+  ex.strokeStyle='#e79b6a';ex.lineWidth=2;ex.beginPath();poly.forEach((p,i)=>i?ex.lineTo(p[0],p[1]):ex.moveTo(p[0],p[1]));ex.closePath();ex.stroke();
+  poly.forEach(p=>{ex.beginPath();ex.arc(p[0],p[1],6,0,7);ex.fillStyle='#fff';ex.fill();ex.lineWidth=2;ex.strokeStyle='#b6541c';ex.stroke()})}
+ if(RUN.landmarks){ex.fillStyle='rgba(133,183,235,.9)';RUN.landmarks.forEach(l=>{ex.beginPath();ex.arc(l[0],l[1],2.5,0,7);ex.fill()})}}
+function evPt(e,c){const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]}
+function nearest(p){let b=-1,bd=1e9;poly.forEach((q,i)=>{const d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<bd){bd=d;b=i}});return bd<=14*ed.width/ed.getBoundingClientRect().width?b:-1}
+ed.addEventListener('pointerdown',e=>{if(e.button!==0||!RUN)return;dragI=nearest(evPt(e,ed));if(dragI>=0)ed.setPointerCapture(e.pointerId)});
+ed.addEventListener('pointermove',e=>{if(dragI<0)return;const p=evPt(e,ed);poly[dragI]=[Math.max(0,Math.min(ed.width,p[0])),Math.max(0,Math.min(ed.height,p[1]))];edited=true;invalidate();drawEd()});
+ed.addEventListener('pointerup',()=>dragI=-1);
+ed.addEventListener('contextmenu',e=>{e.preventDefault();const i=nearest(evPt(e,ed));if(i>=0&&poly.length>3){poly.splice(i,1);edited=true;invalidate();drawEd()}});
+ed.addEventListener('dblclick',e=>{const p=evPt(e,ed);let b=0,bd=1e9;
+ for(let i=0;i<poly.length;i++){const a=poly[i],c=poly[(i+1)%poly.length],dx=c[0]-a[0],dy=c[1]-a[1];let t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/(dx*dx+dy*dy||1);t=Math.max(0,Math.min(1,t));
+  const d=Math.hypot(a[0]+t*dx-p[0],a[1]+t*dy-p[1]);if(d<bd){bd=d;b=i}}poly.splice(b+1,0,p);edited=true;invalidate();drawEd()});
+$('regcheck').onclick=async()=>{if(!RUN)return;$('regcheck').disabled=true;msg('msgreg','info','Checking measured depth inside the outline…');
+ try{const j=await api('/api/studio/region_check',{job:JOB.id,polygon:poly});const s=j.stats;
+  $('regstats').innerHTML=stat('Pixels inside',s.inside_px.toLocaleString())+stat('Missing depth',s.missing_pct+'%')+stat('Depth range',s.depth_mm_range?`${s.depth_mm_range[0].toFixed(0)}–${s.depth_mm_range[1].toFixed(0)} mm`:'–');
+  checked=s.measured_px>0;$('regaccept').disabled=!checked;$('regstate').className='chip '+(checked?'c-info':'c-bad');$('regstate').textContent=checked?'Checked':'No depth inside';
+  msg('msgreg',checked?'':'err',checked?'':'No measured depth inside this outline. Redraw it.')}
+ catch(e){msg('msgreg','err',e.message)}finally{$('regcheck').disabled=false}};
+$('regaccept').onclick=async()=>{if(!checked)return;if(!confirm('Accept this outline? The next steps will use only this area of this scan.'))return;
+ $('regaccept').disabled=true;msg('msgreg','info','Saving…');
+ try{const j=await api('/api/studio/region_accept',{job:JOB.id,polygon:poly,margin:+$('margin').value,edited});setJob(j.job);
+  $('regstate').className='chip c-ok';$('regstate').textContent='Accepted';msg('msgreg','good','Region accepted.');$('toDesign').disabled=false}
+ catch(e){$('regaccept').disabled=false;msg('msgreg','err',e.message)}};
+$('toDesign').onclick=()=>go('design');
+
+/* ---------- 3 design ---------- */
+let DESIGNS=[],DES=null,FR=null,centre=null,dImgC=new Image(),dImgH=new Image(),ddrag=null;const dc=$('dc'),dx=dc.getContext('2d');
+function thumb(cv,d){const c=cv.getContext('2d'),W=cv.width=120,H=cv.height=120;c.clearRect(0,0,W,H);c.strokeStyle=css('--accent');c.lineWidth=1.4;c.lineJoin='round';
+ d.preview.forEach(s=>{c.beginPath();s.xy.forEach((p,i)=>{const x=W/2+p[0]*(W-16),y=H/2-p[1]*(H-16);i?c.lineTo(x,y):c.moveTo(x,y)});if(s.closed)c.closePath();c.stroke()})}
+function renderGallery(){const g=$('gallery');g.innerHTML=DESIGNS.map((d,i)=>`<button class="tile${DES&&DES.svg===d.svg?' on':''}${d.usable?'':' bad'}" type="button" data-di="${i}" ${d.usable?'':'disabled'} title="${esc(d.error||(d.filled_shapes&&d.filled_shapes.length?'Filled shapes - not line art':d.svg))}">
+ <canvas></canvas><div class="n">${esc(d.name)}</div><div class="m">${d.usable?`${d.strokes} strokes${d.uploaded?' · uploaded':''}`:'not usable'}</div></button>`).join('')
+ +`<button class="tile upload" type="button" id="upbtn"><span>＋<br>Upload SVG</span></button>`;
+ [...g.querySelectorAll('.tile[data-di]')].forEach(t=>thumb(t.querySelector('canvas'),DESIGNS[+t.dataset.di]));
+ $('upbtn').onclick=()=>$('upfile').click()}
+$('gallery').addEventListener('click',e=>{const t=e.target.closest('.tile[data-di]');if(!t||t.disabled)return;DES=DESIGNS[+t.dataset.di];renderGallery();$('desname').textContent=DES.name+` · ${DES.strokes} strokes`;drawDes();invalidateDes()});
+let FONTS=null;
+async function loadFonts(){if(FONTS)return;try{FONTS=(await api('/api/studio/fonts')).fonts}catch(e){return}const sel=$('namefont'),keep=sel.value;
+ const opt=f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`,b=FONTS.filter(f=>f.builtin),r=FONTS.filter(f=>f.recommended&&!f.builtin),o=FONTS.filter(f=>!f.recommended);
+ sel.innerHTML=b.map(opt).join('')+(r.length?`<optgroup label="Handwriting (recommended)">${r.map(opt).join('')}</optgroup>`:'')+(o.length?`<optgroup label="All fonts on this PC">${o.map(opt).join('')}</optgroup>`:'');
+ sel.value=keep||'studio';if(!sel.value)sel.value='studio'}
+async function addName(){const t=$('nametext').value.trim();if(!t){msg('msgup','err','Type a name first.');return}
+ $('nameadd').disabled=true;msg('msgup','info','Writing the name…');
+ const fid=$('namefont').value||'studio',fname=$('namefont').selectedOptions[0]?$('namefont').selectedOptions[0].textContent:'';
+ try{const j=await api('/api/studio/name_design',{text:t,font:fid});const i=DESIGNS.findIndex(x=>x.svg===j.design.svg);if(i>=0)DESIGNS[i]=j.design;else DESIGNS.push(j.design);
+  DES=j.design;renderGallery();$('desname').textContent=DES.name+` · ${DES.strokes} strokes`;drawDes();invalidateDes();
+  msg('msgup','good',`"${fid==='studio'?t.toUpperCase():t}" in ${fname} is ready (${DES.strokes} strokes). Size it, place it, then Check on measured skin.`)}
+ catch(e){msg('msgup','err',e.message)}finally{$('nameadd').disabled=false}}
+$('nameadd').onclick=addName;$('namefont').addEventListener('focus',loadFonts);loadFonts();$('nametext').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addName()}});
+$('upfile').onchange=async()=>{const f=$('upfile').files[0];if(!f)return;msg('msgup','info','Checking the design…');
+ try{const text=await f.text();const j=await api('/api/studio/design_upload',{filename:f.name,svg:text});DESIGNS.push(j.design);DES=j.design;renderGallery();
+  $('desname').textContent=DES.name+` · ${DES.strokes} strokes`;drawDes();invalidateDes();msg('msgup','good',`Added "${DES.name}".`)}
+ catch(e){msg('msgup','err',e.message)}finally{$('upfile').value=''}};
+function mapPx(x,y){const A=FR.affine_machine_to_px;return[A[0][0]*x+A[0][1]*y+A[0][2],A[1][0]*x+A[1][1]*y+A[1][2]]}
+function pxToMachineDelta(du,dv){const A=FR.affine_machine_to_px,a=A[0][0],b=A[0][1],c=A[1][0],d=A[1][1],det=a*d-b*c;return[(d*du-b*dv)/det,(-c*du+a*dv)/det]}
+function designPx(){if(!DES||!FR||!centre)return[];const s=+$('dsize').value,r=$('drot').value*Math.PI/180,co=Math.cos(r),si=Math.sin(r);
+ return DES.preview.map(st=>({closed:st.closed,px:st.xy.map(p=>{const x=p[0]*s,y=p[1]*s;return mapPx(centre[0]+co*x-si*y,centre[1]+si*x+co*y)})}))}
+function inside(p,pl){let c=false;for(let i=0,j=pl.length-1;i<pl.length;j=i++){const a=pl[i],b=pl[j];if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
+function drawDes(){if(!FR)return;const W=dc.width,H=dc.height,pl=FR.polygon_px;dx.clearRect(0,0,W,H);dx.drawImage(dImgC,0,0,W,H);dx.drawImage(dImgH,0,0,W,H);
+ dx.save();dx.fillStyle='rgba(0,0,0,.5)';dx.beginPath();dx.rect(0,0,W,H);dx.moveTo(pl[0][0],pl[0][1]);pl.slice(1).forEach(p=>dx.lineTo(p[0],p[1]));dx.closePath();dx.fill('evenodd');dx.restore();
+ dx.strokeStyle='rgba(231,155,106,.9)';dx.setLineDash([6,5]);dx.lineWidth=1.5;dx.beginPath();pl.forEach((p,i)=>i?dx.lineTo(p[0],p[1]):dx.moveTo(p[0],p[1]));dx.closePath();dx.stroke();dx.setLineDash([]);
+ const strokes=designPx();let ok=true;strokes.forEach(s=>s.px.forEach(p=>{if(!inside(p,pl))ok=false}));
+ dx.lineJoin='round';dx.lineCap='round';
+ strokes.forEach(s=>{dx.beginPath();s.px.forEach((p,i)=>i?dx.lineTo(p[0],p[1]):dx.moveTo(p[0],p[1]));if(s.closed)dx.closePath();dx.strokeStyle='rgba(255,255,255,.85)';dx.lineWidth=4;dx.stroke();dx.strokeStyle=ok?'#8a3c12':'#d33';dx.lineWidth=2;dx.stroke()});
+ const fc=$('fitchip');if(!DES){fc.className='chip';fc.textContent='Choose a design';return}
+ fc.className='chip '+(ok?'c-ok':'c-bad');fc.textContent=ok?'Inside the outline':'Outside the outline - move or shrink'}
+function invalidateDes(){$('desres').hidden=true;$('toSurface').disabled=true;msg('msgdes','','')}
+async function showDesign(){msg('msgdes','','');$('toSurface').disabled=!(JOB.steps.plan||(JOB.subject==='person'&&JOB.steps.design));
+ $('toSurface').textContent=JOB.subject==='person'?'Finish (camera only) →':'Continue to program →';
+ await loadCal();const st=$('dstand');if(!st.options.length){const[a,b]=STAND;for(let v=a;v<=b+1e-9;v+=0.5){const o=document.createElement('option');o.value=v;o.textContent=v.toFixed(1)+' mm';st.appendChild(o)}}
+ $('dsize').min=CAL.fit_mm_allowed[0];$('dsize').max=CAL.fit_mm_allowed[1];
+ try{const[d,f]=await Promise.all([api('/api/studio/designs'),api('/api/studio/design_frame?job='+encodeURIComponent(JOB.id))]);DESIGNS=d.designs;FR=f;
+  dc.width=f.width;dc.height=f.height;await Promise.all([new Promise(ok=>{dImgC.onload=ok;dImgC.src=f.colour}),new Promise(ok=>{dImgH.onload=ok;dImgH.src=f.holes})]);$('dcph').hidden=true;
+  const sd=JOB.steps.design;if(sd){DES=DESIGNS.find(x=>x.svg===sd.svg)||null;$('dsize').value=sd.fit_mm;$('drot').value=sd.rotation_deg;st.value=sd.standoff_mm;centre=sd.centre_machine_xy.slice()}
+  else{DES=DES&&DESIGNS.find(x=>x.svg===DES.svg)||DESIGNS.find(x=>x.usable)||null;centre=f.centre_machine_xy.slice();st.value=STAND[0]}
+  $('dsize').oninput();$('drot').oninput();renderGallery();if(DES)$('desname').textContent=DES.name+` · ${DES.strokes} strokes`;drawDes();
+  if(sd&&sd.verdict)showDesResult({verdict:sd.verdict,preview:sd.preview,problems:[]},true);
+  if(sd&&sd.standoff_mm<STAND[0]){st.value=STAND[0];
+   if(JOB.subject==='prosthetic'){$('toSurface').disabled=true;msg('msgdes','warn',`This design was checked at ${sd.standoff_mm} mm. Studio now uses ${STAND[0]} mm or more - press "Check on measured skin" again.`)}}}
+ catch(e){$('dcph').hidden=false;$('dcph').textContent=e.message;msg('msgdes','err',e.message)}}
+$('dsize').oninput=()=>{$('dsizeout').textContent=`(${$('dsize').value} mm)`;drawDes()};$('drot').oninput=()=>{$('drotout').textContent=`(${$('drot').value}°)`;drawDes()};
+$('dsize').onchange=$('drot').onchange=$('dstand').onchange=invalidateDes;
+$('dcentre').onclick=()=>{if(FR){centre=FR.centre_machine_xy.slice();drawDes();invalidateDes()}};
+$('drot0').onclick=()=>{$('drot').value=0;$('drot').oninput();invalidateDes()};
+dc.addEventListener('pointerdown',e=>{if(!FR||!DES)return;ddrag={p:evPt(e,dc),c:centre.slice()};dc.classList.add('drag');dc.setPointerCapture(e.pointerId)});
+dc.addEventListener('pointermove',e=>{if(!ddrag)return;const p=evPt(e,dc),d=pxToMachineDelta(p[0]-ddrag.p[0],p[1]-ddrag.p[1]);centre=[ddrag.c[0]+d[0],ddrag.c[1]+d[1]];drawDes()});
+dc.addEventListener('pointerup',()=>{if(ddrag){ddrag=null;dc.classList.remove('drag');invalidateDes()}});
+function showDesResult(r,restored){$('desres').hidden=false;const pass=r.verdict==='PASS';
+ $('desverdict').className='verdict '+(pass?'pass':'fail');$('desverdict').textContent=pass?'✓ Fits on the measured skin':'✕ Refused - nothing will be cut away';
+ $('desstats').innerHTML=r.strokes!=null?stat('Strokes',r.strokes)+stat('Line length',fmt(r.line_length_mm,0)+' mm')+stat('Run time',r.estimated_run_time_s?`≈ ${(r.estimated_run_time_s/60).toFixed(1)} min`:'–')
+  +stat('Nozzle Z',r.nozzle_z_range?`${fmt(r.nozzle_z_range[0],1)} to ${fmt(r.nozzle_z_range[1],1)}`:'–'):'';
+ $('desproblems').innerHTML=(r.problems||[]).map(p=>`<li><span class="no">✕</span><span>${esc(p)}</span></li>`).join('');
+ $('desimg').src=r.preview+'?t='+Date.now();$('toSurface').disabled=!pass;if(!restored)$('desres').scrollIntoView({behavior:'smooth',block:'nearest'})}
+$('dcheck').onclick=async()=>{if(!DES||!centre){msg('msgdes','err','Choose a design first.');return}
+ $('dcheck').disabled=true;msg('msgdes','info','Planning every stroke on the measured skin (about 20–40 s)…');
+ try{const r=await api('/api/studio/check_design',{job:JOB.id,svg:DES.svg,fit_mm:+$('dsize').value,rotation_deg:+$('drot').value,centre_machine_xy:centre,standoff_mm:+$('dstand').value});
+  setJob(r.job);showDesResult(r.result);msg('msgdes',r.result.verdict==='PASS'?'good':'err',r.result.verdict==='PASS'?'The whole design fits on usable skin. No program written yet.':'The design does not fit as placed. Move it, shrink it, or redraw the outline.')}
+ catch(e){msg('msgdes','err',e.message)}finally{$('dcheck').disabled=false}};
+$('toSurface').onclick=()=>go(JOB.subject==='person'?'person':'program');
+
+/* ---------- 4 program ---------- */
+function progOk(){const p=JOB&&JOB.steps.program;return !!(p&&['v14','v16','v17'].includes(p.studio))}
+function hopText(p){const h=p&&p.hops;if(!h)return 'Between strokes: up to travel height Z -20 (older program)';
+ return h.low?`Between strokes: ${h.low} of ${h.total} low hops, ${h.clearance_mm} mm above the highest skin (Z ${h.z_range[0]} to ${h.z_range[1]})`:'Between strokes: up to travel height Z -20 (no measured skin for a low hop)'}
+function progFeed(p){return p&&p.draw_feed_mm_min||300}
+async function loadFeeds(){if(!FEEDS)FEEDS=await api('/api/studio/v16_rules');const sel=$('pgfeed');if(!sel.options.length)FEEDS.feeds_mm_min.forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f+' mm/min'+(f===FEEDS.default_feed_mm_min?' (default)':f===FEEDS.approved_feed_mm_min?' (slowest)':f>FEEDS.default_feed_mm_min?' - faster':'');sel.appendChild(o)})}
+function feedNote(){const p=JOB.steps.program,f=+$('pgfeed').value,stale=p&&progOk()&&progFeed(p)!==f;$('toRun').disabled=!progOk()||stale;
+ if(stale)msg('msgpg','warn',`The written program uses ${progFeed(p)} mm/min. Press Write program to use ${f} mm/min.`);else if($('msgpg').classList.contains('warn'))msg('msgpg','','')}
+$('pgfeed').onchange=feedNote;
+async function showProgram(){const s=JOB.steps;try{await loadFeeds()}catch(e){}
+ $('pgsum').innerHTML=[['Hand','Prosthetic (no person)'],['Scan',s.scan.name],['Design',`${DES?DES.name:s.design.svg} · ${s.design.fit_mm} mm · ${s.design.rotation_deg}°`],
+  ['Centre',`X${fmt(s.design.centre_machine_xy[0],1)} Y${fmt(s.design.centre_machine_xy[1],1)}`],['Nozzle height',s.design.standoff_mm+' mm above measured skin, no offset'],
+  ['Run time',`≈ ${(s.plan.estimated_run_time_s/60).toFixed(1)} min`]]
+  .map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+ $('pgpros').checked=false;$('pgstill').checked=false;msg('msgpg','','');$('pgfeed').value=String(s.program?progFeed(s.program):(FEEDS?FEEDS.default_feed_mm_min:300));showProgOut();feedNote()}
+function showProgOut(){const p=JOB.steps.program;$('pgout').hidden=!p;if(!p)return;$('pgdl').href=p.download;$('pgimg').src=p.preview+'?t='+Date.now();
+ if(!progOk()){$('pgfile').textContent='';$('pgchecks').innerHTML='<li><span class="no">✕</span><span>This program was written for UGS by an older Studio. Write it again here.</span></li>';return}
+ $('pgfile').textContent=p.program_file.split(/[\\/]/).pop();
+ const r=p.reread;$('pgchecks').innerHTML=[`${r.lines} lines, ${r.strokes} strokes, ${r.draw_moves} drawing moves`,`Only G21, G90, G53 G0/G1 - no spindle, valve or $ commands`,
+  `Every height at or above the floor (lowest Z ${fmt(r.z_min,2)})`,`Nozzle ${p.standoff_mm} mm above measured skin, no offset`,`Drawing speed ${progFeed(p)} mm/min; drop to the hand ${p.descent_feed_mm_min||Math.min(progFeed(p),300)} mm/min`,hopText(p),`Independent re-read: ${r.problems} problems`]
+  .map(t=>`<li><span class="ok">✓</span><span>${esc(t)}</span></li>`).join('')}
+$('pgrun').onclick=async()=>{if(!$('pgpros').checked||!$('pgstill').checked){msg('msgpg','err','Tick both confirmations first.');return}
+ $('pgrun').disabled=true;msg('msgpg','info','Writing and re-reading the program (about 20 s)…');
+ try{const r=await api('/api/studio/program',{job:JOB.id,confirm_prosthetic:true,confirm_unmoved:true,draw_feed_mm_min:+$('pgfeed').value});setJob(r.job);showProgOut();feedNote();msg('msgpg','good','Program ready. Continue to Run.')}
+ catch(e){msg('msgpg','err',e.message)}finally{$('pgrun').disabled=false}};
+$('toRun').onclick=()=>go('run');
+
+/* ---------- 5 run ---------- */
+let runAction='',lastRunState='',lastRunJob=null;
+const RUN_TICKS=['rpros','rstill','rclear','restop'];
+function prog(){return MACH&&MACH.program||null}
+function finishing(p){return !!p&&p.state==='running'&&!p.paused&&p.total>0&&p.done>=p.total}
+function running(){return !!MACH&&MACH.busy==='program'}
+function canStart(){return !!JOB&&JOB.subject==='prosthetic'&&progOk()&&machFresh()&&MACH.connected&&MACH.homed===true&&MACH.state==='Idle'&&!machineBusy()}
+function mmss(s){if(s==null)return'–';s=Math.max(0,Math.round(s));return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
+function ago(t){const m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?`${m} min ago`:`${Math.floor(m/60)} h ${m%60} min ago`}
+function scanTime(name){const m=/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/.exec(name||'');return m?new Date(+m[1],m[2]-1,+m[3],+m[4],+m[5],+m[6]).getTime():null}
+function showRun(){const p=JOB.steps.program,s=JOB.steps;
+ $('runsum').innerHTML=[['Design',`${s.design.svg.split('/').pop().replace('.svg','')} · ${s.design.fit_mm} mm`],['Nozzle height',`${p.standoff_mm??s.design.standoff_mm} mm above measured skin`],
+  ['Drawing speed',`${progFeed(p)} mm/min (drop ${p.descent_feed_mm_min||Math.min(progFeed(p),300)})`],['Between strokes',p.hops&&p.hops.low?`low hops (${p.hops.low}/${p.hops.total}), ${p.hops.clearance_mm} mm above skin`:'travel height Z -20'],['Lines',p.reread?p.reread.lines:'–'],['Run time',`≈ ${(p.estimated_run_time_s/60).toFixed(1)} min`],['File',p.program_file.split(/[\\/]/).pop()]]
+  .map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+ const st=scanTime(s.scan.name);$('scanage').textContent=st?`Scan taken ${ago(st)}.`:'';
+ if(st&&Date.now()-st>30*60000)$('scanage').textContent+=' The prosthetic settles 0.25–1 mm in about 30 min - consider a new scan.';
+ msg('msgrun','','');renderRunHist();runShow()}
+function renderRunHist(){const rs=runsOfProgram().slice().reverse();
+ $('runhist').innerHTML=rs.length?'<table><thead><tr><th>Started</th><th>Result</th><th>Lines</th><th>Time</th></tr></thead><tbody>'+rs.map(r=>`<tr><td>${esc((r.started||'').replace('T',' '))}</td>
+  <td><span class="chip ${r.result==='finished'?'c-ok':r.result==='running'?'c-info':r.result==='stopped'?'c-warn':'c-bad'}">${esc(r.result)}</span>${r.error?`<div class="hint">${esc(r.error)}</div>`:''}</td>
+  <td>${r.lines_done??'–'} / ${r.lines??'–'}</td><td>${mmss(r.elapsed_s)}</td></tr>`).join('')+'</tbody></table>':'<p class="hint">No runs yet.</p>'}
+function runShow(){if(VIEW!=='run'||!JOB||!JOB.steps.program)return;const p=prog(),m=MACH||{},fresh=machFresh(),busy=machineBusy(),act=running();
+ if(act&&runsOfProgram().some(r=>r.result==='running'))lastRunJob=JOB.id;
+ const mine=lastRunJob===JOB.id;let title,help,kind='c-warn';
+ if(!progOk()){title='Write the program again';help='This program was written for UGS by an older Studio. Go back to Program and write it again.';kind='c-bad'}
+ else if(act&&finishing(p)){title='Finishing last moves';help='All lines are sent. The machine is drawing its last few moves - wait for Finished.';kind='c-info'}
+ else if(act){title=p&&p.paused?'Paused':'Running';help=p&&p.paused?'Motion is held. Resume to continue, or STOP.':'Keep a hand on the emergency stop. Pause or STOP if anything looks wrong.';kind=p&&p.paused?'c-warn':'c-info'}
+ else if(busy){title='Machine busy';help='Wait for the current machine action to finish.'}
+ else if(!fresh){title='Status unavailable';help='Waiting for fresh machine status.'}
+ else if(!m.connected){title='Machine off';help='Use Connect in the top bar.'}
+ else if(!m.homed){title='Home first';help='Remove the hand, Home in the top bar, then put the hand back exactly as scanned - or scan again.'}
+ else if(m.state!=='Idle'){title='Waiting for Idle';help='The machine must be idle before a run.'}
+ else{title='Ready';help='Press Start, then tick the four confirmations.';kind='c-ok'}
+ if(!act&&mine&&p&&p.state&&p.state!=='running'){const r={finished:['Finished','c-ok','The last run finished at the program end position.'],
+   stopped:['Stopped','c-warn','The last run was stopped with STOP.'],failed:['Failed','c-bad','The last run stopped: '+(p.error||'see the history')+'.']}[p.state];
+  if(r){if(canStart()){help=r[2]+' Ready to run again: press Start.'}            /* current readiness first, last result as context */
+   else{title=r[0];kind=r[1];help=r[2]+(m.homed?'':' Home again before the next move.')}}}
+ if(m.stop_unconfirmed){title='STOP NOT CONFIRMED';kind='c-bad';help='Studio could not confirm the stop. Use the emergency stop now, then Connect and Home again.'}
+ $('runstate').className='chip '+kind;$('runstate').textContent=title;$('runhelp').textContent=help;
+ const show=!!p&&(act||mine),pct=show&&p.total?Math.round(100*p.done/p.total):0;
+ $('runbarfill').style.width=pct+'%';$('runbar').setAttribute('aria-valuenow',pct);$('runbar').classList.toggle('finishing',act&&finishing(p));
+ $('runstats').innerHTML=stat('Progress',show?(act&&finishing(p)?'Finishing…':`${pct}%`):'–')+stat('Lines sent',show?`${p.done} / ${p.total}`:'–')+stat('Elapsed',show?mmss(p.elapsed_s):'–')
+  +stat('Nozzle Z',m.mpos?fmt(m.mpos[2],2):'–');
+ $('runstart').disabled=!canStart()||!!runAction;$('runpause').disabled=!act||!!runAction;$('runpause').textContent=act&&p&&p.paused?'Resume':'Pause';
+ $('runstop').disabled=!act||runAction==='stop';
+ RUN_TICKS.forEach(id=>$(id).disabled=!!runAction);
+ $('rungo').disabled=!canStart()||!!runAction||!RUN_TICKS.every(id=>$(id).checked);
+ const now=p&&p.state||'';if(lastRunState==='running'&&now&&now!=='running'&&mine)reloadJob(6);lastRunState=now}
+async function reloadJob(tries){try{const j=await api('/api/studio/job?id='+encodeURIComponent(JOB.id));setJob(j);if(VIEW==='run')renderRunHist();
+  if(tries>1&&runsOfProgram().some(r=>r.result==='running')&&!running())setTimeout(()=>reloadJob(tries-1),700)}catch(e){}}
+$('runstart').onclick=()=>{if(!canStart())return;RUN_TICKS.forEach(id=>$(id).checked=false);msg('msgrundlg','','');runShow();$('dlgrun').showModal()};
+RUN_TICKS.forEach(id=>$(id).onchange=runShow);
+$('rungo').onclick=async()=>{if($('rungo').disabled)return;runAction='start';runShow();msg('msgrundlg','info','Checking the program file and starting…');
+ try{const r=await api('/api/machine/run',{job:JOB.id,confirm_prosthetic:true,confirm_unmoved:true,confirm_clear:true,confirm_estop:true});
+  const {job,...m}=r;lastRunJob=job.id;lastRunState='running';setJob(job);machineAccept(m);$('dlgrun').close();msg('msgrun','','');renderRunHist()}
+ catch(e){msg('msgrundlg','err',e.message)}finally{runAction='';runShow()}};
+$('runpause').onclick=async()=>{const p=prog();if(!running()||!p)return;runAction='pause';runShow();
+ try{machineAccept(await api(p.paused?'/api/machine/resume':'/api/machine/pause',{}))}catch(e){msg('msgrun','err',e.message)}finally{runAction='';runShow()}};
+$('runstop').onclick=async()=>{runAction='stop';runShow();try{machineAccept(await api('/api/machine/stop',{}))}catch(e){msg('msgrun','err',e.message)}finally{runAction='';runShow()}};
+
+function redrawAll(){if(VIEW==='region')drawEd();if(VIEW==='design'){drawDes();renderGallery()}}
+
+/* ---------- machine link v14 (v15 link, v16 page): position, homing, fixed scan-position move and program run ---------- */
+let MACH=null,machTimer=null,machSeen=0,machAction='',machGeneration=0,machPolling=false,machCommandId=0;
+const MACH_FRESH_MS=2000;
+function machFresh(){const elapsed=Date.now()-machSeen;return !!MACH&&machSeen>0&&elapsed<MACH_FRESH_MS&&(!MACH.connected||(Number.isFinite(MACH.age_s)&&MACH.age_s*1000+elapsed<1500))}
+function machineBusy(){return machAction||(recBusy?'recording':MACH&&MACH.busy)||''}
+function scanCanMove(){return !!JOB&&machFresh()&&MACH.connected&&MACH.homed===true&&MACH.state==='Idle'&&!machineBusy()}
+function scanReady(){return scanCanMove()&&MACH.capture_ready===true}
+function machineAccept(m){MACH=m;machSeen=Date.now();machGeneration++;machShow(MACH)}
+function scanPositionShow(){const m=MACH||{},fresh=machFresh(),busy=machineBusy(),chip=$('scanposstate');
+ const ready=scanReady(),canMove=scanCanMove();let title,help,kind='c-warn';
+ if(busy){title={homing:'Homing…',scan_position:'Moving to scan position…',recording:'Recording / checking…',program:'Running program…',jog:'Jogging…',stop:'Stopping…',connect:'Connecting…',disconnect:'Disconnecting…'}[busy]||'Machine busy';
+  help=busy==='recording'?'Keep the hand and machine still until the scan is checked.':'Keep all hands and objects out of the travel area. Use STOP if needed.';kind='c-info'}
+ else if(!fresh){title='Position not verified';help='Waiting for fresh machine status. Recording and scan-position moves are disabled.'}
+ else if(!m.connected){title='Machine disconnected';help='Close UGS if it is open, then use Connect above. Home this session before moving.'}
+ else if(!m.homed){title='Home required';help='Remove all hands and objects, then use Home above. Homing is required this session.'}
+ else if(m.state!=='Idle'){title='Waiting for Idle';help='The machine must be idle before moving or recording.'}
+ else if(ready){title='Position ready';help='Position ready. Place the hand, keep it still, then Record scan.';kind='c-ok'}
+ else{title='Move to scan position';help=m.capture_error||'Clear the travel area, then use Move to scan position.'}
+ chip.className='chip '+kind;chip.textContent=title;$('scanposhelp').textContent=help;
+ $('scanposcoords').textContent=m.mpos?`${fresh?'':'Last reported: '}X${fmt(m.mpos[0],3)} Y${fmt(m.mpos[1],3)} Z${fmt(m.mpos[2],3)}`:'';
+ $('scanmove').disabled=!canMove;$('scanrec').disabled=!ready;$('scansec').disabled=!!busy;
+ $('scanclear').disabled=!!busy;$('scanestop').disabled=!!busy;
+ $('scanmovego').disabled=!canMove||!$('scanclear').checked||!$('scanestop').checked;
+ $('hclear').disabled=!!busy;$('hestop').disabled=!!busy;
+ $('hgo').disabled=!fresh||!m.connected||!!busy||!$('hclear').checked||!$('hestop').checked;
+ $('btnjobs').disabled=!!busy;$('btnnew').disabled=!!busy;$('exuse').disabled=!!busy;
+ $('toHand').disabled=!!busy||!JOB||!JOB.steps.scan;
+}
+async function machInit(){await machPoll();machTimer=setInterval(()=>{machShow(MACH);machPoll()},500)}
+async function machPoll(){if(machPolling)return;machPolling=true;const generation=machGeneration;
+ try{const m=await api('/api/machine/status');if(generation===machGeneration)machineAccept(m)}
+ catch(e){if(generation===machGeneration){machSeen=0;machShow(MACH)}}finally{machPolling=false}}
+function machShow(m){m=m||{};const st=$('mstate'),busy=machineBusy(),fresh=machFresh();$('mach').hidden=false;
+ $('mconnect').textContent=m.connected?'Disconnect':'Connect';$('mconnect').disabled=!!busy;
+ $('mhome').hidden=!m.connected;$('mhome').disabled=!fresh||!!busy;$('mjog').hidden=!m.connected;$('mjog').disabled=!fresh||!!busy&&busy!=='jog'||!m.homed;
+ $('mstop').hidden=!(busy||(m.connected&&!['Idle','Alarm',null,undefined].includes(m.state)));
+ $('mstop').disabled=machAction==='stop';
+ $('mpos').textContent=m.mpos?`X${fmt(m.mpos[0],3)} Y${fmt(m.mpos[1],3)} Z${fmt(m.mpos[2],3)}`:'';
+ if(m.stop_unconfirmed){st.className='chip c-bad';st.textContent='STOP NOT CONFIRMED - use the e-stop'}
+ else if(!fresh){st.className='chip c-warn';st.textContent='Status unavailable'}
+ else if(!m.connected){st.className='chip c-warn';st.textContent='Machine off'}
+ else{const s={homing:'Homing…',scan_position:'Moving to scan position…',recording:'Recording / checking…',program:m.program&&m.program.paused?'Program paused':finishing(m.program)?'Finishing…':'Running program…',jog:'Jogging…',stop:'Stopping…'}[busy]||m.state||'…';
+  st.className='chip '+(m.state==='Idle'&&!busy?'c-ok':m.state==='Alarm'?'c-bad':'c-info');
+  st.textContent=m.restarted?s+' · restarted - home first':s}
+ scanPositionShow();runShow();jogShow();calibShow()}
+async function machineCommand(path,body,action){if(machineBusy()&&action!=='stop')throw new Error('Wait for the current machine action to finish.');
+ const commandId=++machCommandId;machAction=action;machGeneration++;machShow(MACH);
+ try{const m=await api(path,body);if(commandId===machCommandId)machineAccept(m);return m}
+ catch(e){if(commandId===machCommandId)machSeen=0;throw e}
+ finally{if(commandId===machCommandId){machAction='';machGeneration++;machShow(MACH);machPoll()}}}
+$('mconnect').onclick=async()=>{if(machineBusy())return;const connected=MACH&&MACH.connected;
+ try{await machineCommand(connected?'/api/machine/disconnect':'/api/machine/connect',connected?{}:{port:MACH&&MACH.default_port},connected?'disconnect':'connect')}
+ catch(e){alert(e.message)}};
+$('mhome').onclick=()=>{if(!machFresh()||!MACH.connected||machineBusy())return;$('hclear').checked=false;$('hestop').checked=false;msg('msghome','','');scanPositionShow();$('dlghome').showModal()};
+$('hclear').onchange=$('hestop').onchange=scanPositionShow;
+$('hgo').onclick=async()=>{if($('hgo').disabled)return;
+ try{await machineCommand('/api/machine/home',{confirm_clear:true,confirm_estop:true},'homing');$('dlghome').close()}catch(e){msg('msghome','err',e.message)}};
+$('scanmove').onclick=()=>{if(!scanCanMove())return;$('scanclear').checked=false;$('scanestop').checked=false;msg('msgscanmove','','');scanPositionShow();$('dlgscanmove').showModal()};
+$('scanclear').onchange=$('scanestop').onchange=scanPositionShow;
+$('scanmovego').onclick=async()=>{if(!scanCanMove()||!$('scanclear').checked||!$('scanestop').checked)return;
+ try{await machineCommand('/api/machine/scan_position',{job:JOB.id,confirm_clear:true,confirm_estop:true},'scan_position');$('dlgscanmove').close()}
+ catch(e){msg('msgscanmove','err',e.message)}};
+$('mstop').onclick=async()=>{try{await machineCommand('/api/machine/stop',{},'stop')}catch(e){alert(e.message)}};
+
+/* ---------- jog: always at or above travel Z ---------- */
+const TRAVEL_Z=-20,Z_TOP=0;let jogStep=1;
+function jogShow(){if(!$('dlgjog').open)return;const m=MACH||{},fresh=machFresh(),busy=machineBusy(),z=m.mpos?m.mpos[2]:null;
+ const ok=fresh&&m.connected&&m.homed===true&&m.state==='Idle'&&!busy&&$('jnoperson').checked&&z!=null;
+ $('jogpos').innerHTML=m.mpos?`X ${fmt(m.mpos[0],2)}<br>Y ${fmt(m.mpos[1],2)}<br>Z ${fmt(z,2)}`:'–';
+ document.querySelectorAll('[data-jog]').forEach(b=>{const[ax,d]=b.dataset.jog.split(','),dir=+d;let allow=ok;
+  if(allow&&ax==='Z'){const t=+(z+dir*jogStep).toFixed(3);if(t>Z_TOP+1e-9||(dir<0&&t<TRAVEL_Z-1e-9))allow=false}
+  else if(allow){if(z<TRAVEL_Z-0.05)allow=false;else{const i=ax==='X'?0:1,t=m.mpos[i]+dir*jogStep;if(t<0||t>(ax==='X'?225:176))allow=false}}
+  b.disabled=!allow});
+ let help;if(!fresh||!m.connected)help='Connect the machine first.';else if(!m.homed)help='Home first.';else if(busy==='jog')help='Moving…';
+ else if(busy)help='Machine busy.';else if(!$('jnoperson').checked)help='Tick the box to enable the buttons.';
+ else if(z!=null&&z<TRAVEL_Z-0.05)help=`The nozzle is below Z ${TRAVEL_Z}: raise Z first (Z+). X and Y unlock at Z ${TRAVEL_Z} or higher.`;
+ else help='Each press moves one step and waits until the machine stops. Greyed buttons would leave the allowed area.';
+ $('joghelp').textContent=help;$('jogstop').hidden=!(busy==='jog'||(m.connected&&m.state&&!['Idle','Alarm'].includes(m.state)));
+ document.querySelectorAll('#jstep button').forEach(b=>b.classList.toggle('on',+b.dataset.step===jogStep))}
+$('mjog').onclick=()=>{if(!MACH||!MACH.connected)return;$('jnoperson').checked=false;msg('msgjog','','');$('dlgjog').showModal();jogShow()};
+$('jnoperson').onchange=jogShow;
+$('jstep').addEventListener('click',e=>{const b=e.target.closest('[data-step]');if(!b)return;jogStep=+b.dataset.step;jogShow()});
+document.querySelectorAll('[data-jog]').forEach(b=>b.onclick=async()=>{if(b.disabled)return;const[ax,d]=b.dataset.jog.split(',');msg('msgjog','','');
+ try{await machineCommand('/api/machine/jog',{axis:ax,direction:+d,step_mm:jogStep,confirm_no_person:$('jnoperson').checked},'jog')}
+ catch(e){msg('msgjog','err',e.message)}finally{jogShow()}});
+$('jogstop').onclick=async()=>{try{await machineCommand('/api/machine/stop',{},'stop')}catch(e){msg('msgjog','err',e.message)}};
+/* ---------- calibration (v23): status + daily check - camera only ---------- */
+let CALST=null,calBusy='';
+const VERDICT_CHIP={OK:'c-ok',CHECK:'c-warn',RECALIBRATE:'c-bad',UNCLEAR:'c-info'};
+function calVal(v,u){return v===null||v===undefined?'–':esc(String(v))+(u?' '+u:'')}
+function renderCalStatus(){const s=CALST;if(!s)return;
+ const rows=s.items.map(i=>{const v=i.values||{};const key={xy_calibration:`RMS ${calVal(v.rms_mm,'mm')} · block shift RMS ${calVal(v.block_shift_rms_mm,'mm')} · held-out ${calVal(v.held_out_point_error_mm,'mm')}`,
+   z_calibration:`k ${calVal(v.k_mm,'mm')} · spread ${calVal(v.k_spread_mm,'mm')} · RMS ${calVal(v.z_rms_mm,'mm')}`,
+   depth_scale:`g ${calVal(v.g)} · d_ref ${calVal(v.d_ref_mm,'mm')} · fit RMS ${calVal(v.fit_rms_mm,'mm')}`}[i.key];
+  return `<tr><td><b>${esc(i.name)}</b><div class="hint" style="margin:0">${esc(i.what)}</div></td><td>${i.ok?key:'<span class="no">'+esc(i.error||'missing')+'</span>'}</td>
+   <td class="mono">${i.ok?esc((i.created||'').slice(0,10))+'<div class="hint" style="margin:0">'+calVal(i.age_days)+' days</div>':''}</td></tr>`}).join('');
+ const r=s.reference;
+ $('calstatus').innerHTML=`<table><thead><tr><th>Part</th><th>Key numbers</th><th>Made</th></tr></thead><tbody>${rows}</tbody></table>
+  <dl class="kv" style="margin-top:14px"><dt>Scan position</dt><dd class="mono">${s.capture_pose_mpos?s.capture_pose_mpos.map(x=>fmt(x,3)).join(' / '):'–'}</dd>
+  <dt>Travel Z</dt><dd class="mono">${calVal(s.travel_z)}</dd>
+  <dt>Daily-check reference</dt><dd>${r?`${esc((r.created||'').replace('T',' '))} · camera <span class="mono">${esc(r.serial||'?')}</span>`:'<span class="no">not set yet - set it once, right after a known-good calibration</span>'}</dd>
+  <dt>Decided</dt><dd class="hint" style="margin:0">${esc(s.decided_by||'')}</dd></dl>
+  ${s.ok?'':'<div class="msg err" style="display:block">A calibration file is missing or unreadable - do not run programs until this is solved.</div>'}`;
+ $('calhist').innerHTML=s.checks&&s.checks.length?'<table><thead><tr><th>Time</th><th>Result</th><th>Height</th><th>Tilt</th><th>Sideways</th></tr></thead><tbody>'+
+  s.checks.map(c=>`<tr><td>${esc((c.time||'').replace('T',' '))}</td><td><span class="chip ${VERDICT_CHIP[c.verdict]||'c-info'}">${esc(c.verdict)}</span></td>
+   <td class="mono">${calVal(c.height_mm,'mm')}</td><td class="mono">${calVal(c.tilt_deg,'°')}</td><td class="mono">${calVal(c.sideways_mm,'mm')}</td></tr>`).join('')+'</tbody></table>':'<p class="hint">None yet.</p>'}
+function showCalResult(r){const lim=(CALST&&CALST.limits)||{};
+ $('calresult').innerHTML=`<div class="row" style="margin-top:12px"><span class="chip ${VERDICT_CHIP[r.verdict]||'c-info'}" style="font-size:15px">${esc(r.verdict)}</span></div>
+  <ul class="checks">${(r.reasons||[]).map(t=>`<li><span>${esc(t)}</span></li>`).join('')}</ul>
+  <dl class="kv" style="margin-top:10px"><dt>Height change</dt><dd class="mono">${calVal(r.height_mm,'mm')}</dd><dt>Tilt change</dt><dd class="mono">${calVal(r.tilt_deg,'°')}</dd>
+  <dt>Sideways shift</dt><dd class="mono">${calVal(r.sideways_mm,'mm')}</dd><dt>Bed changed</dt><dd class="mono">${calVal(r.changed_pct,'%')}</dd>
+  <dt>Camera</dt><dd class="mono">${calVal(r.camera)}${r.same_camera===false?' <span class="no">(reference: '+esc(r.reference_camera||'?')+')</span>':''}</dd></dl>`}
+async function showCalib(){CALST=null;$('calstatus').innerHTML='<div class="empty"><span class="spin"></span></div>';$('calresult').innerHTML='';msg('msgcal','','');msg('msgcalref','','');
+ ['calclear','calestop','calempty','calgood'].forEach(id=>$(id).checked=false);calibShow();
+ try{CALST=await api('/api/calibration/status');renderCalStatus()}catch(e){$('calstatus').innerHTML=`<div class="msg err" style="display:block">${esc(e.message)}</div>`}}
+function calCanMove(){return machFresh()&&MACH.connected&&MACH.homed===true&&MACH.state==='Idle'&&!machineBusy()&&!calBusy}
+function calReady(){return calCanMove()&&MACH.capture_ready===true}
+function calibShow(){if(VIEW!=='calib')return;const m=MACH||{},fresh=machFresh(),busy=machineBusy()||calBusy,ready=calReady();let t,h,k='c-warn';
+ if(calBusy){t='Recording / checking…';h='Keep the bed and machine still.';k='c-info'}
+ else if(busy){t='Machine busy';h='Wait for the current machine action to finish.';k='c-info'}
+ else if(!fresh){t='Position not verified';h='Waiting for fresh machine status.'}
+ else if(!m.connected){t='Machine disconnected';h='Use Connect above, then Home.'}
+ else if(!m.homed){t='Home required';h='Remove all hands and objects, then use Home above.'}
+ else if(m.state!=='Idle'){t='Waiting for Idle';h=''}
+ else if(ready){t='Position ready';h='At the scan position. Bed empty? Then run the check.';k='c-ok'}
+ else{t='Move to scan position';h=m.capture_error||'Tick both boxes, then Move to scan position.'}
+ $('calposstate').className='chip '+k;$('calposstate').textContent=t;$('calposhelp').textContent=h;
+ $('calmove').disabled=!calCanMove()||!$('calclear').checked||!$('calestop').checked;
+ $('calcheck').disabled=!ready||!$('calempty').checked||!(CALST&&CALST.reference);
+ $('calref').disabled=!ready||!$('calempty').checked||!$('calgood').checked;
+ ['calclear','calestop','calempty','calgood'].forEach(id=>$(id).disabled=!!busy);
+ $('btncal').disabled=!!busy}
+['calclear','calestop','calempty','calgood'].forEach(id=>$(id).onchange=calibShow);
+$('btncal').onclick=()=>{if(machineBusy()||recBusy)return;document.querySelectorAll('dialog').forEach(d=>d.open&&d.close());go('calib')};
+$('calmove').onclick=async()=>{if($('calmove').disabled)return;msg('msgcal','','');
+ try{await machineCommand('/api/calibration/scan_position',{confirm_clear:true,confirm_estop:true},'scan_position')}catch(e){msg('msgcal','err',e.message)}
+ finally{$('calclear').checked=false;$('calestop').checked=false;calibShow()}};
+async function calRecord(path,body,box,okText){calBusy='recording';machGeneration++;calibShow();msg(box,'info','Recording 3 s and comparing - keep everything still (about 30 s).');
+ try{const r=await api(path,body);msg(box,'good',okText);return r}catch(e){msg(box,'err',e.message)}
+ finally{calBusy='';machSeen=0;machGeneration++;machPoll();try{CALST=await api('/api/calibration/status');renderCalStatus()}catch(e){}calibShow()}}
+$('calcheck').onclick=async()=>{if($('calcheck').disabled)return;$('calresult').innerHTML='';
+ const r=await calRecord('/api/calibration/check',{confirm_empty:true},'msgcal','Check finished.');if(r)showCalResult(r)};
+$('calref').onclick=async()=>{if($('calref').disabled)return;
+ await calRecord('/api/calibration/reference',{confirm_empty:true,confirm_reference:true},'msgcalref','Reference recorded. Daily checks compare with it from now on.');
+ $('calgood').checked=false;calibShow()};
+
+machInit();
+
+/* ---------- start ---------- */
+(async()=>{try{await loadCal()}catch(e){}
+ const last=load('studio-job');if(last){try{await openJob(last);return}catch(e){store('studio-job')}}go('welcome')})();
+</script>
+</body>
+</html>
