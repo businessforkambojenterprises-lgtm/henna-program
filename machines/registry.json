@@ -1,0 +1,23 @@
+{
+  "schema": "henna_machines/1",
+  "note": "One entry per physical machine. A machine's calibration belongs to that machine only. Change only with the user's approval.",
+  "decided_by": "user 2026-10-13: two named machines; keep the belt-drive calibration exactly as it is; the ball-screw machine gets its own new calibration",
+  "machines": [
+    {
+      "id": "belt-drive",
+      "name": "Belt drive (first machine)",
+      "drive": "belt",
+      "calibration": "current_calibration.json",
+      "work_area_mm": [225.0, 176.0],
+      "notes": "calibrated 2026-10-05 to 2026-10-07 (X/Y block-corrected, Z k 141.47, depth scale g 0.979); unchanged"
+    },
+    {
+      "id": "ball-screw",
+      "name": "Ball screw (new machine)",
+      "drive": "ball screw",
+      "calibration": null,
+      "work_area_mm": null,
+      "notes": "added 2026-10-13; NOT CALIBRATED: the belt-drive calibration put the nozzle about 10 cm from the hand (video 20261013_100612)"
+    }
+  ]
+}
