@@ -1,4 +1,4 @@
-"""Offline integration smoke checks for the portable Henna Studio v22 bundle.
+"""Offline integration smoke checks for the portable Henna Studio v28 bundle.
 
 All writable application data goes into a fresh copy at WORK/test_app. Never
 opens a browser or calls a camera, serial, homing, program, or movement API.
@@ -25,9 +25,10 @@ from urllib.request import Request, urlopen
 
 READ_PATHS = frozenset({
     "/", "/classic", "/api/studio/calibration", "/api/studio/designs",
-    "/api/studio/jobs", "/api/studio/job",
+    "/api/studio/jobs", "/api/studio/job", "/api/machines",
 })
-WRITE_PATHS = frozenset({"/api/studio/job_new"})
+# /api/machines/select only stores which machine this computer uses (refused while connected) - no hardware
+WRITE_PATHS = frozenset({"/api/studio/job_new", "/api/machines/select"})
 WORKERS = (
     "step02_inspect_depth.py", "step04_hand_detect.py",
     "step21_design_preview.py", "step22_design_hover_test.py", "step23_design_hop_program.py",
@@ -148,15 +149,13 @@ class Harness:
             if self.proc.poll() is not None:
                 raise AssertionError(f"Server exited {self.proc.returncode}; inspect {name}.log")
             try:
-                calibration = self.request("/api/studio/calibration", timeout=2)
+                machines = self.request("/api/machines", timeout=2)     # v24+: answers before a machine is chosen
             except (URLError, TimeoutError, ConnectionError) as exc:
                 last_error = str(exc)
                 time.sleep(0.25)
                 continue
-            require(calibration == load_json(self.app / "current_calibration.json"),
-                    "Live server calibration differs from copied application calibration")
             self.report["checks"][name] = {"ready_seconds": round(time.monotonic() - start, 3)}
-            return calibration
+            return machines
         raise TimeoutError(f"Server not ready within 60 seconds: {last_error}")
 
     def stop(self):
@@ -204,6 +203,8 @@ class Harness:
                          "webui_server_v20.py", "webui/studio_v20.html", "henna_preview/grbl_program_link_v20.py",
                          "webui_server_v21.py", "henna_preview/grbl_program_link_v21.py", "henna_preview/name_files_v21.py",
                          "webui_server_v22.py", "henna_preview/grbl_program_link_v22.py",
+                         "webui_server_v28.py", "webui/studio_v28.html", "henna_preview/hand_watch.py",
+                         "machines/registry.json",
                          "models/hand_landmarker.task", *WORKERS):
                 require((self.app / name).is_file(), f"Required app asset missing: {name}")
             self.report["checks"]["assets_and_fixed_rules"] = "passed"
@@ -233,6 +234,12 @@ class Harness:
                 require((self.app / design["svg"]).is_file(), f"Missing gallery SVG: {design['svg']}")
             jobs_before = self.request("/api/studio/jobs")["jobs"]
             require(jobs_before == [], "Fresh packaged app unexpectedly contains existing jobs")
+            require("realhand" in studio, "v28 page (real-hand job type) not served")
+            machines = self.request("/api/machines")
+            require({m["id"] for m in machines["machines"]} >= {"belt-drive", "ball-screw"}, "Machine registry missing")
+            self.request("/api/machines/select", {"id": "belt-drive", "confirm_machine": True})   # v24+: a job needs a machine
+            require(self.request("/api/studio/calibration") == load_json(self.app / "current_calibration.json"),
+                    "Live server calibration differs from copied application calibration")
             job = self.request("/api/studio/job_new", {"subject": "prosthetic"})
             require(job["schema"] == "studio_job/1", "Unexpected new-job schema")
             require(job["subject"] == "prosthetic", "New job subject mismatch")

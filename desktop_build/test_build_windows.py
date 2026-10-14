@@ -23,6 +23,11 @@ class BuildInputs(unittest.TestCase):
                          'henna_preview/grbl_program_link_v20.py', 'webui_server_v21.py',
                          'henna_preview/grbl_program_link_v21.py', 'henna_preview/name_files_v21.py',
                          'webui_server_v22.py', 'henna_preview/grbl_program_link_v22.py',
+                         'webui_server_v23.py', 'webui_server_v24.py', 'webui_server_v25.py', 'webui_server_v26.py',
+                         'webui_server_v27.py', 'webui_server_v28.py', 'webui/studio_v26.html', 'webui/studio_v28.html',
+                         'henna_preview/machines.py', 'henna_preview/machine_motion.py', 'henna_preview/calib_session.py',
+                         'henna_preview/grbl_program_link_v26.py', 'henna_preview/travel_clearance.py',
+                         'henna_preview/hand_watch.py', 'henna_preview/depth_sample.py', 'machines/registry.json',
                          'models/hand_landmarker.task'):
             path = self.project / relative
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -47,6 +52,11 @@ class BuildInputs(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'SHA-256'):
             build.prepare_app(self.project, target)
         self.assertFalse(target.exists())
+
+    def test_missing_v28_entry_refused(self):
+        (self.project / 'webui_server_v28.py').unlink()
+        with self.assertRaisesRegex(ValueError, 'missing.*v28'):
+            build.verify_build_inputs(self.project)
 
     def test_missing_v22_entry_refused(self):
         (self.project / 'webui_server_v22.py').unlink()

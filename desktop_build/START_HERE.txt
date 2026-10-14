@@ -1,4 +1,4 @@
-HENNA STUDIO - WINDOWS x64 - v22
+HENNA STUDIO - WINDOWS x64 - v28
 
 1. Extract the entire ZIP to a writable folder, such as your Desktop.
 2. Double-click HennaStudio.exe (or the Henna Studio shortcut on the Desktop).

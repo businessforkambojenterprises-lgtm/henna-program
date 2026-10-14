@@ -39,8 +39,9 @@ def ray_table(intr, shape, stride):
 
 def machine_points(depth_raw, scale, rays, head, R, t, k, depth_fn, mask=None):
     """(N, 3) machine X, Y, skin Z of the valid depth pixels below the tip's own depth (never the nozzle)."""
+    from henna_preview.head_mask import head_pixels
     d_mm = depth_raw.astype(float) * float(scale) * 1000.0
-    ok = depth_raw > 0
+    ok = (depth_raw > 0) & ~head_pixels(depth_raw, scale, k, depth_fn, grow_px=3)   # the tip itself reads ~k+1.4 mm
     if mask is not None:
         ok &= mask
     d = d_mm[ok]

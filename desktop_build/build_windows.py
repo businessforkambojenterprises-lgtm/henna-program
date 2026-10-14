@@ -34,7 +34,12 @@ def verify_build_inputs(project):
                      'henna_preview/font_strokes.py', 'webui_server_v20.py', 'webui/studio_v20.html',
                      'henna_preview/grbl_program_link_v20.py', 'webui_server_v21.py',
                      'henna_preview/grbl_program_link_v21.py', 'henna_preview/name_files_v21.py',
-                     'webui_server_v22.py', 'henna_preview/grbl_program_link_v22.py'):
+                     'webui_server_v22.py', 'henna_preview/grbl_program_link_v22.py',
+                     'webui_server_v23.py', 'webui_server_v24.py', 'webui_server_v25.py', 'webui_server_v26.py',
+                     'webui_server_v27.py', 'webui_server_v28.py', 'webui/studio_v26.html', 'webui/studio_v28.html',
+                     'henna_preview/machines.py', 'henna_preview/machine_motion.py', 'henna_preview/calib_session.py',
+                     'henna_preview/grbl_program_link_v26.py', 'henna_preview/travel_clearance.py',
+                     'henna_preview/hand_watch.py', 'henna_preview/depth_sample.py', 'machines/registry.json'):
         if not (project / relative).is_file():
             raise ValueError('Required build input missing: ' + relative +
                              '. See models/MODEL_INFO.txt for the approved hand model.')
@@ -66,6 +71,21 @@ def prepare_app(project, destination):
         if relative.is_absolute() or not resolved.is_relative_to(project):
             raise ValueError('Expected calibration file inside project: ' + str(relative))
         copy_file(resolved, destination / relative)
+    # v24+: the machine registry and each machine's own approved calibration (no registry history)
+    registry = json.loads((project / 'machines' / 'registry.json').read_text(encoding='utf-8'))
+    copy_file(project / 'machines' / 'registry.json', destination / 'machines' / 'registry.json')
+    for sheet in (project / 'machines').glob('calibration_dot_sheet_*'):
+        copy_file(sheet, destination / 'machines' / sheet.name)
+    for machine in registry['machines']:
+        rel = machine.get('calibration')
+        if not rel or rel == 'current_calibration.json':
+            continue
+        cal = json.loads((project / rel).read_text(encoding='utf-8'))
+        for relative in [rel] + [cal[k] for k in ('xy_calibration', 'z_calibration', 'depth_scale') if cal.get(k)]:
+            resolved = (project / relative).resolve()
+            if Path(relative).is_absolute() or not resolved.is_relative_to(project):
+                raise ValueError('Expected machine calibration file inside project: ' + str(relative))
+            copy_file(resolved, destination / relative)
     log_name = 'validation_log_S2026-10-05-A.csv'
     with (project / log_name).open(encoding='utf-8', newline='') as stream:
         header = next(csv.reader(stream))
@@ -89,7 +109,7 @@ def main():
     app = work / 'source_snapshot'
     prepare_app(project, app)
     manifest = {
-        'application': 'Henna Studio', 'studio_version': 22, 'package_version': '0.22.0.1',
+        'application': 'Henna Studio', 'studio_version': 28, 'package_version': '0.28.0.1',
         'platform': 'Windows x64', 'python': sys.version, 'motion_ready': False,
         'source_commit': subprocess.check_output(['git', '-C', str(project), 'rev-parse', 'HEAD'], text=True).strip(),
         'source_git_status': subprocess.check_output(['git', '-C', str(project), 'status', '--porcelain'], text=True),
