@@ -45,7 +45,7 @@ class WatchMathTests(unittest.TestCase):
         self.assertAlmostEqual(centre[0], 100.0, delta=2.0)                        # camera axis under the head
         raw = skin(170.0)
         raw[:, :30] = int(130.0 * 10)                                              # the nozzle, nearer than the tip
-        self.assertEqual(len(pts(raw)), (212 - 30) * 120)                          # never counted as skin
+        self.assertEqual(len(pts(raw)), (212 - 31) * 120)          # never counted as skin (+1 column of head margin)
 
     def test_still_hand_is_ok(self):
         r = hw.evaluate(self.ref, pts(skin(170.0)), (100, 100, -5))
@@ -74,6 +74,14 @@ class WatchMathTests(unittest.TestCase):
         self.assertEqual(r["verdict"], "near")
         self.assertIn("within 1.0 mm", hw.message(r))
         self.assertEqual(hw.evaluate(self.ref, pts(skin(170.0)), (100, 100, skin_z + 6.0))["verdict"], "ok")
+
+    def test_the_nozzle_tip_in_view_is_not_skin_near_the_tip(self):
+        raw = skin(170.0)
+        raw[0:62, 100:112] = int((K - 15) * 10)                    # dispenser from the top edge, to the camera centre
+        raw[58:62, 104:108] = int((K + 1.4) * 10)                 # the tip itself, 1.4 mm 'below' its own plane
+        skin_z = -5.0 - (170.0 - K)
+        r = hw.evaluate(self.ref, pts(raw), (100, 100, skin_z + 6.0))
+        self.assertNotEqual(r["verdict"], "near")                 # without the head mask: near (gap 1.4 mm) every run
 
     def test_hand_out_of_sight_is_unseen(self):
         raw = skin(170.0)

@@ -32,20 +32,26 @@ from henna_preview.smooth_path import build_smooth_strokes, corner_stats, measur
 from step12_nozzle_sim import ROOT, _j
 
 
+from henna_preview.head_mask import head_pixels  # noqa: E402  (the machine head's own pixels, 2026-10-14)
+
+
 def hand_top_from_raw(raw, scale, landmarks_px, k_mm, head_z, depth_fn, grow_px=25):
-    """Highest measured skin inside the grown landmark hull (0.5th percentile depth) -> contact Z."""
+    """Highest measured skin inside the grown landmark hull (0.5th percentile depth) -> contact Z.
+    The machine head's own pixels (head_pixels) never count as skin."""
     hull = np.array(convex_hull(landmarks_px))
     c = hull.mean(0)
     hull = c + (hull - c) * (1 + grow_px / max(1.0, np.linalg.norm(hull - c, axis=1).mean()))
     h, w = raw.shape
     v, u = np.mgrid[0:h, 0:w]
     inside = Path(hull).contains_points(np.column_stack([u.ravel(), v.ravel()])).reshape(h, w)
-    d = raw[inside & (raw > 0)].astype(float) * scale * 1000.0
+    head = head_pixels(raw, scale, k_mm, depth_fn)
+    d = raw[inside & (raw > 0) & ~head].astype(float) * scale * 1000.0
     if not len(d):
         raise NozzlePathError("no usable depth over the hand")
     d_min = float(depth_fn(float(np.percentile(d, 0.5))))
     return {"min_depth_mm": round(d_min, 1), "hand_top_contact_z": round(head_z - (d_min - k_mm), 2),
-            "pixels": int(len(d)), "note": "0.5th percentile of usable depth inside grown landmark hull"}
+            "pixels": int(len(d)), "head_pixels_excluded": int((inside & head).sum()),
+            "note": "0.5th percentile of usable depth inside grown landmark hull, the machine head's own pixels excluded"}
 
 
 def region_centre_machine(polygon_px, frame, head, xy_cal):
