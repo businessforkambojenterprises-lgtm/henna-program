@@ -88,5 +88,24 @@ class PiServerTests(unittest.TestCase):
             v10.camera = original
 
 
+    def test_pi_page_gets_the_touch_layout_only(self):
+        import webui_server_v10 as v10
+        original = v10.camera
+        try:
+            import webui_server_pi as pi
+            with open(pi.studio.v26.STUDIO_HTML, encoding="utf-8") as f:
+                page = f.read()
+            got = pi.pi_page()
+            self.assertIn('<style id="pi-touch">', got)
+            self.assertIn("--force-device-scale-factor", open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "raspberry_pi",
+                                                                            "henna_studio.sh"),
+                                                               encoding="utf-8").read())
+            self.assertEqual(got.replace(got[got.index('<style id="pi-touch">'):got.index("</head>")], ""), page)
+            self.assertIs(pi.studio.Handler, pi.PiHandler)              # served by v27's main
+            self.assertTrue(issubclass(pi.PiHandler, pi.studio.v26.Handler))
+        finally:
+            v10.camera = original
+            sys.modules.pop("webui_server_pi", None)                   # the swap test imports it fresh
+
 if __name__ == "__main__":
     unittest.main()

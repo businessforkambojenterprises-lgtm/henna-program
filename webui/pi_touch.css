@@ -1,0 +1,59 @@
+/* Henna Studio - Pi touch layout (user request 2026-10-14: "options are too small" on the 5" display).
+   Raspberry Pi Touch Display 2, 5": 1280 x 720 px on 110 x 62 mm (about 12 px per mm). The launcher zooms x2
+   (--force-device-scale-factor=2), so this page lays out on 640 x 360 CSS px: 1 CSS px = about 0.17 mm.
+   Touch targets 46 CSS px = about 8 mm, text 15 px = about 2.6 mm. Layout and sizes only - no function changes.
+   Added by webui_server_pi.py after the page's own styles; the laptop page never gets it. */
+
+/* ---- top bar: compact, wraps; the machine row (state, Home, Jog, STOP) always on its own full line ---- */
+.top{flex-wrap:wrap;gap:4px 6px;padding:4px 6px}
+.brand{font-size:0;gap:0}                          /* logo only */
+.brand svg{width:26px;height:26px}
+.top .spacer{display:none}
+.jobchip{max-width:160px;font-size:13px;padding:4px 8px}
+#btntheme{display:none}
+#btnmachine{max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.top .btn.small{min-height:36px;padding:4px 10px;font-size:14px}
+.machine:not([hidden]){display:flex;flex-wrap:wrap;align-items:center;gap:6px;order:10;width:100%;padding:0;border:0;border-radius:0}
+.machine .mono{font-size:12.5px}
+#mstop{min-width:96px;font-size:15px;font-weight:700}
+#runstop,#jogstop{min-height:60px;font-size:18px;font-weight:700}   /* about 10 mm - the button needed fastest */
+
+/* ---- steps: a row of 5 tabs instead of the sidebar; safety note shortened to its chips ---- */
+.shell{padding:8px 8px 48px;gap:10px}
+.rail{position:static!important}
+.steps{display:flex;gap:4px;padding:4px}
+.step{flex:1 1 0;min-width:0;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;text-align:center}
+.step .s{display:none}
+.step .t{font-size:12.5px;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.dot{width:28px;height:28px}
+/* the job's step tabs are not needed on the Calibration and Welcome pages */
+body:has(#v-calib:not([hidden])) .rail,body:has(#v-welcome:not([hidden])) .rail{display:none}
+.railnote{display:none}                          /* safety text is on the welcome and run pages too */
+
+/* ---- content: one column, larger targets ---- */
+.cols,.cols.even{grid-template-columns:minmax(0,1fr)!important;gap:10px}
+.stack{gap:10px}
+.card{padding:12px}
+.card h2{font-size:16px}
+.head{margin:2px 0 8px}
+.head h1{font-size:19px}
+.head p{font-size:13px}
+.btn{min-height:46px;padding:10px 16px;font-size:15px}
+.btn.small{min-height:40px;padding:6px 12px;font-size:14px}
+.check{gap:10px;min-height:40px;align-items:center}
+.check input,input[type=checkbox],input[type=radio]{width:24px;height:24px;margin-top:0;flex:none}
+select,input[type=text],input[type=number],input:not([type]),textarea{min-height:44px;font-size:15px}
+/* sliders: a 30 px (about 5 mm) handle on a thicker track - the native handle is too small for a finger */
+input[type=range]{-webkit-appearance:none;appearance:none;height:40px;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:30px;height:30px;margin-top:-11px;
+  border-radius:50%;background:var(--accent);border:3px solid var(--panel);box-shadow:0 0 0 1px var(--accent)}
+.stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+.stat .v{font-size:17px}
+img,canvas,video{max-width:100%;height:auto}
+.hint,.card .sub{font-size:13px}
+table{font-size:13px}
+.msg{font-size:14px}
+
+/* ---- dialogs fill the small screen and scroll ---- */
+dialog{width:calc(100vw - 12px);max-height:calc(100vh - 12px);overflow:auto}
