@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Start Henna Studio on the Raspberry Pi in its own browser window (no address bar): webui_server_pi.py =
-# Studio v23 (calibration section) with the camera in its own process and the faster preview (branch raspberry-pi).
+# Studio v27 (machine profiles, calibration in Studio, travel clearance) with the camera in its own process and the
+# faster preview (branch raspberry-pi).
 # Closing the window stops Studio safely: Ctrl+C to the server = a moving machine is stopped (feed hold + reset),
 # the CNC is disconnected and the camera released - the same shutdown as on the laptop.
 HERE="$(cd "$(dirname "$0")" && pwd)"

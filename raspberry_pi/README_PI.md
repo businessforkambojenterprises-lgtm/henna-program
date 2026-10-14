@@ -14,7 +14,7 @@ being made in stages; each must work before the next. The laptop version is not 
 | 2 | Pi version of Studio: `/dev/ttyUSB0`, Linux fonts, own browser window, setup script, desktop icon | scripts ready |
 | 3a | Speed check (camera only): why a Pi scan was refused ('Position status became stale during recording') - SD card speed, swap, power/temperature, preview cost, recordings to SD and to RAM | **done** 2026-10-12: SD 76 MB/s, zram only, 5 A supply, no throttling; recordings never stalled (worst 0.44 s); preview 48 ms/frame (lookup table 6.2 ms) - the cause is not the Pi alone |
 | 3b | CNC link check (sends only '?', no motion): machine-status age while the camera records | 2026-10-12: refusal reproduced in 5 of 6 runs - Python paused 2.0-2.5 s when the camera starts/stops (camera and CNC on different USB controllers); faster preview CPU 98 -> 13 % |
-| 3c | Pi Studio (`webui_server_pi.py` = Studio v23 (since 2026-10-13; v22 before) + camera in its own process `camera_process.py` + faster preview `web_recorder_fast.py`) | **PASS** 2026-10-12: 3b phase E 3/3 OK (worst status age 0.29 s, no Python pause, preview CPU 17 %); 3 real Studio scans on the prosthetic, none refused (136 pairs, 0.0001 m, median 176.4-176.7 mm). Now started by `henna_studio.sh` / the desktop icon |
+| 3c | Pi Studio (`webui_server_pi.py` = Studio v27 (since 2026-10-14; v23 from 2026-10-13, v22 before) + camera in its own process `camera_process.py` + faster preview `web_recorder_fast.py`) | **PASS** 2026-10-12: 3b phase E 3/3 OK (worst status age 0.29 s, no Python pause, preview CPU 17 %); 3 real Studio scans on the prosthetic, none refused (136 pairs, 0.0001 m, median 176.4-176.7 mm). Now started by `henna_studio.sh` / the desktop icon |
 | 3 | Same tests as the laptop: unit tests, simulator, Home, scan position, hover run on the prosthetic | Home + scan position + scan PASS (3c); hand & region, design, program, air run next |
 
 ## Stage 1 (camera only - the CNC is not used)
@@ -52,9 +52,22 @@ Uses Studio's own link class, wrapped so that only '?' (GRBL status query) can r
 3. Send back the lines after `=== STAGE 3B RESULT` (full result: `~/henna_stage3b_check_<time>.json`).
 
 ## Stage 3c (Pi Studio - PASS 2026-10-12)
-The desktop icon / `henna_studio.sh` start `webui_server_pi.py`: Studio v23 with the camera in its own process (a
+The desktop icon / `henna_studio.sh` start `webui_server_pi.py`: Studio v27 with the camera in its own process (a
 camera freeze can no longer pause the CNC link) and the faster preview. The recording, machine link and all checks
-are v23 unchanged. v23 adds Calibration (top bar): status + daily check - see below.
+are v27 unchanged. Since v23: Calibration (top bar) - status + daily check, see below.
+
+## Studio v24-v27 on the Pi (from main, 2026-10-14)
+- **Machine profiles (v24/v25):** the top bar shows the machine. On the Pi, first time: Calibration -> Machine ->
+  choose **Ball screw (new machine)** or **Belt drive**, tick "This computer is connected to the machine I choose" ->
+  **Use this machine** (only while disconnected). Each machine has its own scan position, travel Z, floor and
+  calibration (`machines/registry.json`, `machines/<id>/`).
+- **Calibration in Studio (v26):** Recalibrate / dot sheet / X/Y nudge / block touches / Approve - as on the laptop.
+  The ball-screw calibration approved 2026-10-14 12:57 is in git and works on the Pi (same camera 260322278767).
+- **Travel clearance (v27):** checks, programs and runs refuse a hand whose top is less than
+  max(standoff, 5 mm hop) + 3 mm below the travel height, and say so (or "something between the camera and the
+  hand" for a hanging cable).
+- **Daily-check reference is per device** (`outputs/` is not in git): set it once on the Pi - Calibration ->
+  Set the reference - with the bed exactly as for every check (the taped dot sheet), then Run daily check -> OK.
 
 ## Real hand R1 - hand height (camera only: the machine never moves over the hand)
 2026-10-12: a real-hand design check was refused - "travel Z does not clear the hand top + standoff". This measures
