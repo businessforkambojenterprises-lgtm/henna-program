@@ -1,4 +1,4 @@
-"""Launcher for the portable Henna Studio v22 desktop distribution (own app window).
+"""Launcher for the portable Henna Studio v28 desktop distribution (own app window).
 
 The persistent ``app`` folder beside the executable contains the original
 project sources and assets. Worker invocations stay in that folder; no device
@@ -101,6 +101,10 @@ def self_test(app_dir):
         _asset(app, "webui_server_v20.py")
         _asset(app, "webui_server_v21.py")
         _asset(app, "webui_server_v22.py")
+        for name in ("webui_server_v23.py", "webui_server_v24.py", "webui_server_v25.py", "webui_server_v26.py",
+                     "webui_server_v27.py", "webui_server_v28.py", "webui/studio_v26.html", "webui/studio_v28.html",
+                     "henna_preview/hand_watch.py", "henna_preview/depth_sample.py", "machines/registry.json"):
+            _asset(app, name)
         report["checks"]["web_assets"] = "present"
         hand = importlib.import_module("henna_preview.hand_detect")
         model = _asset(app, "models/hand_landmarker.task")
@@ -189,7 +193,7 @@ def open_window(url, studio, storage):
 
         def closing():
             try:
-                busy = studio.v14.machine.status().get("busy")
+                busy = studio.machine.status().get("busy")
             except Exception:
                 busy = None
             if busy:
@@ -212,7 +216,7 @@ def wait_in_browser_mode(url, studio):
             None, f"Henna Studio is open in your web browser:\n{url}\n\nKeep this message open while you work.\n"
                   "Press OK to close Henna Studio.", WINDOW_TITLE, 0x40 | 0x10000)
         try:
-            busy = studio.v14.machine.status().get("busy")
+            busy = studio.machine.status().get("busy")
         except Exception:
             busy = None
         if not busy or ask_close(f"The machine is busy ({busy}).\n\nClose Henna Studio and STOP the machine?"):
@@ -224,7 +228,7 @@ def serve(no_browser=False, port=None, window=True):
     if port is not None:
         base.PORT = port
         base.ALLOWED_HOSTS = {f"127.0.0.1:{port}", f"localhost:{port}"}
-    studio = importlib.import_module("webui_server_v22")
+    studio = importlib.import_module("webui_server_v28")
     original_server = base.http.server.ThreadingHTTPServer
     url = f"http://{base.HOST}:{base.PORT}"
     use_window = window and not no_browser
@@ -311,7 +315,7 @@ def open_browser_later(url):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Henna Studio v22 desktop launcher")
+    parser = argparse.ArgumentParser(description="Henna Studio v28 desktop launcher")
     parser.add_argument("--app-dir", help="Use this persistent project app folder")
     parser.add_argument("--no-browser", action="store_true", help="Start without opening a browser")
     parser.add_argument("--port", type=int, help="Local HTTP port (default: 8765)")
