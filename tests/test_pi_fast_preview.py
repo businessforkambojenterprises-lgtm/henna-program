@@ -107,5 +107,19 @@ class PiServerTests(unittest.TestCase):
             v10.camera = original
             sys.modules.pop("webui_server_pi", None)                   # the swap test imports it fresh
 
+    def test_stop_signal_runs_the_safe_shutdown(self):
+        import webui_server_v10 as v10
+        original = v10.camera
+        try:
+            import webui_server_pi as pi
+            with self.assertRaises(KeyboardInterrupt):                 # INT/TERM -> v26.main's finally
+                pi._stop(15, None)
+            src = open(pi.__file__, encoding="utf-8").read()
+            self.assertIn("signal.signal(signal.SIGINT, _stop)", src)
+            self.assertIn("signal.signal(signal.SIGTERM, _stop)", src)
+        finally:
+            v10.camera = original
+            sys.modules.pop("webui_server_pi", None)
+
 if __name__ == "__main__":
     unittest.main()

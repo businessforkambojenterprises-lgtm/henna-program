@@ -52,7 +52,17 @@ class PiHandler(studio.Handler):
 studio.Handler = PiHandler                                  # v27.main serves studio.Handler
 
 
+def _stop(signum, frame):
+    raise KeyboardInterrupt                                 # -> v26.main's safe shutdown (stop a moving machine, disconnect)
+
+
 if __name__ == "__main__":
+    import signal
+    # henna_studio.sh starts this server in the background, and a background job starts with SIGINT IGNORED - so its
+    # "window closed -> kill -INT" never stopped it (found 2026-10-14: an old server kept running after an update).
+    # Both INT and TERM now run the same safe shutdown as Ctrl+C.
+    signal.signal(signal.SIGINT, _stop)
+    signal.signal(signal.SIGTERM, _stop)
     print("Raspberry Pi: camera in its own process + faster live preview + touch layout", flush=True)
     try:
         studio.main()
