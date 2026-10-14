@@ -279,16 +279,19 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
       <div class="chips" style="margin-top:12px"><span class="chip c-warn" id="calposstate">Checking machine…</span></div>
       <p class="hint" id="calposhelp" aria-live="polite"></p>
       <label class="check"><input type="checkbox" id="calempty"><span>The bed is empty - no hand - and set up as at the reference.</span></label>
-      <button class="btn primary block" id="calcheck" type="button" disabled>Run daily check</button>
-      <div class="msg" id="msgcal"></div>
-      <div id="calresult"></div>
      </div>
-     <details class="card"><summary style="cursor:pointer;font-weight:650">Set the reference</summary>
+     <details class="card" id="calrefcard"><summary style="cursor:pointer;font-weight:650">Set the reference (first time, and after each new calibration)</summary>
       <p class="hint">Once, right after a known-good calibration (and again only after a new calibration). The old reference is kept.</p>
       <label class="check"><input type="checkbox" id="calgood"><span>The calibration is known good now.</span></label>
       <button class="btn block" id="calref" type="button" disabled>Record the reference</button>
       <div class="msg" id="msgcalref"></div>
      </details>
+     <div class="card"><h2>Run the daily check</h2>
+      <p class="hint" id="calcheckhelp"></p>
+      <button class="btn primary block" id="calcheck" type="button" disabled>Run daily check</button>
+      <div class="msg" id="msgcal"></div>
+      <div id="calresult"></div>
+     </div>
      <div class="card"><h2>Recent checks</h2><div id="calhist"><p class="hint">None yet.</p></div></div>
     </div>
    </div>
@@ -905,6 +908,8 @@ function renderCalStatus(){const s=CALST;if(!s)return;
   return `<tr><td><b>${esc(i.name)}</b><div class="hint" style="margin:0">${esc(i.what)}</div></td><td>${i.ok?key:'<span class="no">'+esc(i.error||'missing')+'</span>'}</td>
    <td class="mono">${i.ok?esc((i.created||'').slice(0,10))+'<div class="hint" style="margin:0">'+calVal(i.age_days)+' days</div>':''}</td></tr>`}).join('');
  const r=s.reference;
+ $('calrefcard').open=!r;
+ $('calcheckhelp').textContent=r?'Compares a fresh 3 s scan with the reference of '+(r.created||'').replace('T',' ')+'.':'Set the reference above first - the check compares with it.';
  $('calstatus').innerHTML=`<table><thead><tr><th>Part</th><th>Key numbers</th><th>Made</th></tr></thead><tbody>${rows}</tbody></table>
   <dl class="kv" style="margin-top:14px"><dt>Machine</dt><dd>${esc(s.machine?s.machine.name:'')}</dd><dt>Scan position</dt><dd class="mono">${s.capture_pose_mpos?s.capture_pose_mpos.map(x=>fmt(x,3)).join(' / '):'–'}</dd>
   <dt>Travel Z</dt><dd class="mono">${calVal(s.travel_z)}</dd>
