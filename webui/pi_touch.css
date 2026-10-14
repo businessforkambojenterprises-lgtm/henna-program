@@ -57,3 +57,25 @@ table{font-size:13px}
 
 /* ---- dialogs fill the small screen and scroll ---- */
 dialog{width:calc(100vw - 12px);max-height:calc(100vh - 12px);overflow:auto}
+
+/* ---- PORTRAIT (user 2026-10-14: the Pi display is used in portrait only): 720 x 1280 at x2 = 360 x 640 CSS px.
+   The machine row (state, Connect, Home, Jog, STOP) becomes a fixed bar at the bottom - always under the thumb -
+   and the top bar scrolls away with the page. ---- */
+@media (orientation:portrait){
+  .top{position:static}
+  .top .btn.small{min-height:36px;padding:4px 9px;font-size:13.5px}
+  #btnmachine{max-width:150px}
+  .jobchip{max-width:150px}
+  #jobsubject{display:none}                      /* room for the job name */
+  .machine:not([hidden]){position:fixed;left:0;right:0;bottom:0;z-index:30;justify-content:space-between;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:var(--panel);border-top:1px solid var(--line);
+    box-shadow:0 -6px 18px rgba(0,0,0,.25)}
+  .machine .mono{font-size:11.5px;order:-1;width:100%}
+  .machine .btn.small{flex:1 1 0;min-height:44px}
+  #mstop{flex:1.4 1 0;min-height:48px}
+  body{padding-bottom:120px}
+  .step .t{font-size:11px}
+  .dot{width:26px;height:26px}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .head h1{font-size:18px}
+}
