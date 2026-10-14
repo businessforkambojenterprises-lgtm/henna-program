@@ -153,6 +153,23 @@ class ServerTests(unittest.TestCase):
             shutil.rmtree(v23.REF_DIR, True)
             v23.REF_DIR = real
 
+    def test_refused_recording_leaves_no_folder(self):
+        v23 = self.v23
+
+        class Refusing:
+            def capture_guard(self):
+                raise v23.MachineError("Move to scan position and verify it before recording")
+
+        real_m, real_dir = v23.machine, v23.CHECK_DIR
+        v23.machine, v23.CHECK_DIR = Refusing(), tempfile.mkdtemp()
+        try:
+            with self.assertRaises(v23.MachineError):
+                v23._record("20261013-091748")
+            self.assertEqual(os.listdir(v23.CHECK_DIR), [])
+        finally:
+            shutil.rmtree(v23.CHECK_DIR, True)
+            v23.machine, v23.CHECK_DIR = real_m, real_dir
+
     def test_status_route(self):
         s = self.v23.cal_status()
         self.assertTrue(s["ok"])

@@ -1,0 +1,342 @@
+{
+  "created": "2026-10-14T12:57:33",
+  "motion_ready": false,
+  "tool": "nozzle (machine ball-screw)",
+  "machine": "ball-screw",
+  "camera_serial": "260322278767",
+  "approved_by": "Harsh",
+  "schema": "camera_tool_xy_calibration/1",
+  "axes": "X/Y only (Z excluded)",
+  "model": "tool_XY = head_XY_at_capture + R @ camera_xy_mm + t",
+  "valid_only_for": "this machine, this nozzle, head at its scan position, this camera mount and bed; recalibrate after any change",
+  "inputs": {
+    "recording": "C:\\Users\\DELL\\Desktop\\Ai+d405\\outputs\\calibration\\ball-screw\\session\\xy_20261014-113457.db3",
+    "head_pose_at_capture": {
+      "x": 65.7,
+      "y": 80.0,
+      "z": -5.0
+    },
+    "dots": [
+      {
+        "pixel_uv": [
+          422.0,
+          61.9
+        ],
+        "camera_mm": [
+          -1.11,
+          -78.59,
+          197.1
+        ],
+        "depth_pixels": 1,
+        "area_px": 238,
+        "label": "D1"
+      },
+      {
+        "pixel_uv": [
+          632.2,
+          58.2
+        ],
+        "camera_mm": [
+          94.95,
+          -80.51,
+          196.4
+        ],
+        "depth_pixels": 27,
+        "area_px": 239,
+        "label": "D2"
+      },
+      {
+        "pixel_uv": [
+          425.5,
+          229.9
+        ],
+        "camera_mm": [
+          0.49,
+          -1.87,
+          199.2
+        ],
+        "depth_pixels": 47,
+        "area_px": 242,
+        "label": "D3"
+      },
+      {
+        "pixel_uv": [
+          530.2,
+          227.7
+        ],
+        "camera_mm": [
+          48.47,
+          -2.89,
+          198.9
+        ],
+        "depth_pixels": 49,
+        "area_px": 243,
+        "label": "D4"
+      },
+      {
+        "pixel_uv": [
+          633.6,
+          225.9
+        ],
+        "camera_mm": [
+          96.62,
+          -3.75,
+          199.3
+        ],
+        "depth_pixels": 4,
+        "area_px": 239,
+        "label": "D5"
+      },
+      {
+        "pixel_uv": [
+          428.9,
+          394.1
+        ],
+        "camera_mm": [
+          2.1,
+          74.7,
+          201.5
+        ],
+        "depth_pixels": 3,
+        "area_px": 234,
+        "label": "D6"
+      },
+      {
+        "pixel_uv": [
+          634.9,
+          389.9
+        ],
+        "camera_mm": [
+          98.58,
+          73.18,
+          201.5
+        ],
+        "depth_pixels": 23,
+        "area_px": 238,
+        "label": "D7"
+      }
+    ],
+    "nozzle_points": {
+      "D1": {
+        "x": 38.201,
+        "y": 47.2,
+        "z": -38.0,
+        "time": "2026-10-14T11:44:11"
+      },
+      "D2": {
+        "x": 36.815,
+        "y": 144.39,
+        "z": -40.0,
+        "time": "2026-10-14T11:58:22"
+      },
+      "D3": {
+        "x": 116.216,
+        "y": 49.189,
+        "z": -40.0,
+        "time": "2026-10-14T12:06:01"
+      },
+      "D4": {
+        "x": 113.814,
+        "y": 97.991,
+        "z": -40.0,
+        "time": "2026-10-14T12:09:32"
+      },
+      "D5": {
+        "x": 113.814,
+        "y": 145.19,
+        "z": -40.0,
+        "time": "2026-10-14T12:10:53"
+      },
+      "D6": {
+        "x": 193.016,
+        "y": 52.39,
+        "z": -40.0,
+        "time": "2026-10-14T12:13:49"
+      },
+      "D7": {
+        "x": 191.415,
+        "y": 146.79,
+        "z": -40.0,
+        "time": "2026-10-14T12:14:45"
+      }
+    }
+  },
+  "result": {
+    "dots": [
+      {
+        "label": "D1",
+        "pixel_uv": [
+          422.0,
+          61.9
+        ],
+        "camera_mm": [
+          -1.11,
+          -78.59,
+          197.1
+        ],
+        "machine_xy": [
+          38.201,
+          47.2
+        ],
+        "residual_mm": [
+          -0.86,
+          -0.58
+        ],
+        "residual_len_mm": 1.04
+      },
+      {
+        "label": "D2",
+        "pixel_uv": [
+          632.2,
+          58.2
+        ],
+        "camera_mm": [
+          94.95,
+          -80.51,
+          196.4
+        ],
+        "machine_xy": [
+          36.815,
+          144.39
+        ],
+        "residual_mm": [
+          -0.18,
+          0.55
+        ],
+        "residual_len_mm": 0.58
+      },
+      {
+        "label": "D3",
+        "pixel_uv": [
+          425.5,
+          229.9
+        ],
+        "camera_mm": [
+          0.49,
+          -1.87,
+          199.2
+        ],
+        "machine_xy": [
+          116.216,
+          49.189
+        ],
+        "residual_mm": [
+          0.44,
+          -0.31
+        ],
+        "residual_len_mm": 0.54
+      },
+      {
+        "label": "D4",
+        "pixel_uv": [
+          530.2,
+          227.7
+        ],
+        "camera_mm": [
+          48.47,
+          -2.89,
+          198.9
+        ],
+        "machine_xy": [
+          113.814,
+          97.991
+        ],
+        "residual_mm": [
+          -0.87,
+          0.52
+        ],
+        "residual_len_mm": 1.01
+      },
+      {
+        "label": "D5",
+        "pixel_uv": [
+          633.6,
+          225.9
+        ],
+        "camera_mm": [
+          96.62,
+          -3.75,
+          199.3
+        ],
+        "machine_xy": [
+          113.814,
+          145.19
+        ],
+        "residual_mm": [
+          0.06,
+          -0.43
+        ],
+        "residual_len_mm": 0.44
+      },
+      {
+        "label": "D6",
+        "pixel_uv": [
+          428.9,
+          394.1
+        ],
+        "camera_mm": [
+          2.1,
+          74.7,
+          201.5
+        ],
+        "machine_xy": [
+          193.016,
+          52.39
+        ],
+        "residual_mm": [
+          0.67,
+          1.17
+        ],
+        "residual_len_mm": 1.35
+      },
+      {
+        "label": "D7",
+        "pixel_uv": [
+          634.9,
+          389.9
+        ],
+        "camera_mm": [
+          98.58,
+          73.18,
+          201.5
+        ],
+        "machine_xy": [
+          191.415,
+          146.79
+        ],
+        "residual_mm": [
+          0.74,
+          -0.91
+        ],
+        "residual_len_mm": 1.17
+      }
+    ],
+    "R": [
+      [
+        -0.001522,
+        0.999999
+      ],
+      [
+        0.999999,
+        0.001522
+      ]
+    ],
+    "t_mm": [
+      51.948,
+      -30.99
+    ],
+    "rotation_deg": 90.09,
+    "mirrored": true,
+    "rms_mm": 0.93,
+    "max_residual_mm": 1.35,
+    "scale_check": 1.0037,
+    "dots_used": 7,
+    "target_depth_mm_range": [
+      196.4,
+      201.5
+    ],
+    "problems": [],
+    "verdict": "GOOD",
+    "time": "2026-10-14T12:15:32"
+  }
+}

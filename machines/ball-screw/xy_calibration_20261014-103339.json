@@ -1,0 +1,349 @@
+{
+  "created": "2026-10-14T10:33:39",
+  "motion_ready": false,
+  "tool": "nozzle (machine ball-screw)",
+  "machine": "ball-screw",
+  "camera_serial": "260322278767",
+  "approved_by": "Harsh",
+  "schema": "camera_tool_xy_calibration/1",
+  "axes": "X/Y only (Z excluded)",
+  "model": "tool_XY = head_XY_at_capture + R @ camera_xy_mm + t",
+  "valid_only_for": "this machine, this nozzle, head at its scan position, this camera mount and bed; recalibrate after any change",
+  "inputs": {
+    "recording": "C:\\Users\\DELL\\Desktop\\Ai+d405\\outputs\\calibration\\ball-screw\\session\\xy_20261014-092920.db3",
+    "head_pose_at_capture": {
+      "x": 65.1301,
+      "y": 78.125,
+      "z": -5.0
+    },
+    "dots": [
+      {
+        "pixel_uv": [
+          421.6,
+          57.1
+        ],
+        "camera_mm": [
+          -1.18,
+          -74.4,
+          181.5
+        ],
+        "depth_pixels": 36,
+        "area_px": 294,
+        "label": "D1"
+      },
+      {
+        "pixel_uv": [
+          651.7,
+          52.9
+        ],
+        "camera_mm": [
+          94.74,
+          -75.64,
+          179.0
+        ],
+        "depth_pixels": 24,
+        "area_px": 286,
+        "label": "D2"
+      },
+      {
+        "pixel_uv": [
+          425.6,
+          240.8
+        ],
+        "camera_mm": [
+          0.5,
+          2.88,
+          182.8
+        ],
+        "depth_pixels": 49,
+        "area_px": 294,
+        "label": "D3"
+      },
+      {
+        "pixel_uv": [
+          540.4,
+          238.4
+        ],
+        "camera_mm": [
+          48.79,
+          1.86,
+          182.6
+        ],
+        "depth_pixels": 46,
+        "area_px": 287,
+        "label": "D4"
+      },
+      {
+        "pixel_uv": [
+          653.2,
+          236.0
+        ],
+        "camera_mm": [
+          96.76,
+          0.87,
+          182.3
+        ],
+        "depth_pixels": 49,
+        "area_px": 286,
+        "label": "D5"
+      },
+      {
+        "pixel_uv": [
+          429.6,
+          420.2
+        ],
+        "camera_mm": [
+          2.19,
+          79.38,
+          183.9
+        ],
+        "depth_pixels": 29,
+        "area_px": 270,
+        "label": "D6"
+      },
+      {
+        "pixel_uv": [
+          655.4,
+          415.9
+        ],
+        "camera_mm": [
+          98.44,
+          77.67,
+          183.1
+        ],
+        "depth_pixels": 24,
+        "area_px": 284,
+        "label": "D7"
+      }
+    ],
+    "nozzle_points": {
+      "D1": {
+        "x": 43.0235,
+        "y": 46.7773,
+        "z": -35.0,
+        "time": "2026-10-14T09:32:39",
+        "converted": "x43.4 y47.9 at $100/$101=400 -> x400/403.5, y400/409.6 (2026-10-14)"
+      },
+      "D2": {
+        "x": 40.0496,
+        "y": 142.4805,
+        "z": -34.8,
+        "time": "2026-10-14T09:39:20",
+        "converted": "x40.4 y145.9 at $100/$101=400 -> x400/403.5, y400/409.6 (2026-10-14)"
+      },
+      "D3": {
+        "x": 119.653,
+        "y": 48.1445,
+        "z": -34.3,
+        "time": "2026-10-14T09:44:06",
+        "converted": "x120.7 y49.3 at $100/$101=400 -> x400/403.5, y400/409.6 (2026-10-14)"
+      },
+      "D4": {
+        "x": 118.7608,
+        "y": 96.4844,
+        "z": -34.3,
+        "time": "2026-10-14T09:47:09",
+        "converted": "x119.8 y98.8 at $100/$101=400 -> x400/403.5, y400/409.6 (2026-10-14)"
+      },
+      "D5": {
+        "x": 117.373,
+        "y": 145.7031,
+        "z": -34.3,
+        "time": "2026-10-14T09:48:33",
+        "converted": "x118.4 y149.2 at $100/$101=400 -> x400/403.5, y400/409.6 (2026-10-14)"
+      },
+      "D6": {
+        "x": 195.5886,
+        "y": 52.2461,
+        "z": -34.3,
+        "time": "2026-10-14T09:50:14",
+        "converted": "x197.3 y53.5 at $100/$101=400 -> x400/403.5, y400/409.6 (2026-10-14)"
+      },
+      "D7": {
+        "x": 194.4981,
+        "y": 147.3633,
+        "z": -34.3,
+        "time": "2026-10-14T09:51:19",
+        "converted": "x196.2 y150.9 at $100/$101=400 -> x400/403.5, y400/409.6 (2026-10-14)"
+      }
+    }
+  },
+  "result": {
+    "dots": [
+      {
+        "label": "D1",
+        "pixel_uv": [
+          421.6,
+          57.1
+        ],
+        "camera_mm": [
+          -1.18,
+          -74.4,
+          181.5
+        ],
+        "machine_xy": [
+          43.0235,
+          46.7773
+        ],
+        "residual_mm": [
+          0.38,
+          0.18
+        ],
+        "residual_len_mm": 0.42
+      },
+      {
+        "label": "D2",
+        "pixel_uv": [
+          651.7,
+          52.9
+        ],
+        "camera_mm": [
+          94.74,
+          -75.64,
+          179.0
+        ],
+        "machine_xy": [
+          40.0496,
+          142.4805
+        ],
+        "residual_mm": [
+          -0.54,
+          -0.02
+        ],
+        "residual_len_mm": 0.54
+      },
+      {
+        "label": "D3",
+        "pixel_uv": [
+          425.6,
+          240.8
+        ],
+        "camera_mm": [
+          0.5,
+          2.88,
+          182.8
+        ],
+        "machine_xy": [
+          119.653,
+          48.1445
+        ],
+        "residual_mm": [
+          -0.25,
+          -0.79
+        ],
+        "residual_len_mm": 0.83
+      },
+      {
+        "label": "D4",
+        "pixel_uv": [
+          540.4,
+          238.4
+        ],
+        "camera_mm": [
+          48.79,
+          1.86,
+          182.6
+        ],
+        "machine_xy": [
+          118.7608,
+          96.4844
+        ],
+        "residual_mm": [
+          0.28,
+          -0.73
+        ],
+        "residual_len_mm": 0.78
+      },
+      {
+        "label": "D5",
+        "pixel_uv": [
+          653.2,
+          236.0
+        ],
+        "camera_mm": [
+          96.76,
+          0.87,
+          182.3
+        ],
+        "machine_xy": [
+          117.373,
+          145.7031
+        ],
+        "residual_mm": [
+          0.29,
+          0.53
+        ],
+        "residual_len_mm": 0.61
+      },
+      {
+        "label": "D6",
+        "pixel_uv": [
+          429.6,
+          420.2
+        ],
+        "camera_mm": [
+          2.19,
+          79.38,
+          183.9
+        ],
+        "machine_xy": [
+          195.5886,
+          52.2461
+        ],
+        "residual_mm": [
+          -0.8,
+          0.97
+        ],
+        "residual_len_mm": 1.26
+      },
+      {
+        "label": "D7",
+        "pixel_uv": [
+          655.4,
+          415.9
+        ],
+        "camera_mm": [
+          98.44,
+          77.67,
+          183.1
+        ],
+        "machine_xy": [
+          194.4981,
+          147.3633
+        ],
+        "residual_mm": [
+          0.64,
+          -0.14
+        ],
+        "residual_len_mm": 0.65
+      }
+    ],
+    "R": [
+      [
+        -0.00849,
+        0.999964
+      ],
+      [
+        0.999964,
+        0.00849
+      ]
+    ],
+    "t_mm": [
+      51.901,
+      -29.716
+    ],
+    "rotation_deg": 90.49,
+    "mirrored": true,
+    "rms_mm": 0.77,
+    "max_residual_mm": 1.26,
+    "scale_check": 1.0,
+    "dots_used": 7,
+    "target_depth_mm_range": [
+      179.0,
+      183.9
+    ],
+    "problems": [],
+    "verdict": "GOOD",
+    "time": "2026-10-14T09:56:01"
+  }
+}

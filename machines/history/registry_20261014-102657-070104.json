@@ -1,0 +1,52 @@
+{
+  "schema": "henna_machines/1",
+  "note": "One entry per physical machine. A machine's calibration belongs to that machine only. Change only with the user's approval.",
+  "decided_by": "user 2026-10-13: two named machines; keep the belt-drive calibration exactly as it is; the ball-screw machine gets its own new calibration; 2026-10-13: per-machine motion values (scan position, travel Z, Z floor) and calibration mode approved",
+  "machines": [
+    {
+      "id": "belt-drive",
+      "name": "Belt drive (first machine)",
+      "drive": "belt",
+      "calibration": "current_calibration.json",
+      "work_area_mm": [
+        225.0,
+        176.0
+      ],
+      "notes": "calibrated 2026-10-05 to 2026-10-07 (X/Y block-corrected, Z k 141.47, depth scale g 0.979); unchanged",
+      "motion": {
+        "scan_pose_mpos": [
+          145.8,
+          42.6,
+          -40.0
+        ],
+        "travel_z": -20.0,
+        "firmware_z_floor": -97.0,
+        "source": "copied from current_calibration.json (unchanged); the values fixed in the machine link until v24"
+      }
+    },
+    {
+      "id": "ball-screw",
+      "name": "Ball screw (new machine)",
+      "drive": "ball screw",
+      "calibration": null,
+      "work_area_mm": [
+        225.0,
+        176.0
+      ],
+      "notes": "added 2026-10-13; NOT CALIBRATED: the belt-drive calibration put the nozzle about 10 cm from the hand (video 20261013_100612). Controller (read 2026-10-13): MKS DLC32 V2.2.6, steps/mm X403.5 Y409.6 Z400 (X/Y from 400 on 2026-10-14 after the 7-dot fit, camera-checked X 19.98-20.00/20, Y 40.21-40.24/40; Z: Z was 100 until 2026-10-13 15:51 - Z moved 1/5 of commanded; 500 at 15:51, 435 at 16:01 from ruler checks, 390 from camera checks, 400 on 2026-10-14 after the print was found 3 % small), max travel X400 Y250 Z299, max rate X/Y 1000 Z 300 mm/min, soft + hard limits on",
+      "work_area_status": "PROVISIONAL (user 2026-10-13): the same 225 x 176 box Jog already enforces, inside the controller's own 400 x 250 with soft + hard limits on; for the axis check only - replace with the measured size",
+      "motion": {
+        "scan_pose_mpos": [
+          65.7,
+          80.0,
+          -5.0
+        ],
+        "travel_z": -5.0,
+        "firmware_z_floor": -24.5,
+        "source": "floor -24.5 for the Z block stage (2026-10-14): touches T1/T2 at Z-21.5 (paper strip, positioned with the touchscreen by the user's choice - the controller counts touchscreen moves); block 24.3 mm -> bed about Z-45.8; floor 3 mm below the block top"
+      },
+      "calibration_mode": "setup done in Studio 2026-10-14T10:19:43",
+      "z_room_mm": "tip about 38 mm above the bed at Z 0 (2026-10-14, $102=400) - less than the 40 mm hand clearance plus a hand; more Z room needed before hands"
+    }
+  ]
+}
