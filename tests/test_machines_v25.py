@@ -24,12 +24,17 @@ _saved = {}
 
 
 def setUpModule():
-    _saved.update(cal=v10.cal, log_row=v10.log_row, out_root=base.OUT_ROOT)
+    _saved.update(cal=v10.cal, log_row=v10.log_row, out_root=base.OUT_ROOT, log_file=v10.LOG_FILE)
     global v25
     import webui_server_v25
     v25 = webui_server_v25
-    _saved["link_cal"] = v25.machine._calibration
+    v10.cal, v10.log_row = v25.cal, v25.v24.log_row                    # this server's own state, set explicitly
+    v25.machine._calibration = v25.link_cfg
+    _saved["state_path"], _saved["registry_path"] = v25.profiles.state_path, v25.profiles.registry_path
     _saved["tmp"] = tempfile.mkdtemp()
+    from test_machines_v24 import _temp_log, _test_registry
+    v25.profiles.registry_path = _test_registry(_saved["tmp"])
+    v10.LOG_FILE = _temp_log(_saved["tmp"])
     base.OUT_ROOT = os.path.join(_saved["tmp"], "webui")
     os.makedirs(base.OUT_ROOT)
     v25.profiles.state_path = os.path.join(_saved["tmp"], "active_machine.json")
@@ -39,7 +44,9 @@ def setUpModule():
 def tearDownModule():
     machine_motion.apply(machine_motion.BELT_DRIVE)
     v10.cal, v10.log_row, base.OUT_ROOT = _saved["cal"], _saved["log_row"], _saved["out_root"]
-    v25.machine._calibration = _saved["link_cal"]
+    v10.LOG_FILE, v25.profiles.state_path = _saved["log_file"], _saved["state_path"]
+    v25.profiles.registry_path = _saved["registry_path"]
+    v25.machine._calibration = _saved["cal"]
     shutil.rmtree(_saved["tmp"], True)
 
 
@@ -110,9 +117,9 @@ class LinkCommandTests(unittest.TestCase):
 
     def test_ball_screw_route(self):
         cmds, pos = self.run_route("ball-screw")
-        self.assertEqual(cmds, ["$HZ", "$H", "$J=G21 G90 G53 Z-20.000 F300", "$J=G21 G90 G53 X80.000 Y80.000 F1000",
-                                "$J=G21 G90 G53 Z-20.000 F300"])
-        self.assertEqual(pos, [80.0, 80.0, -20.0])
+        self.assertEqual(cmds, ["$HZ", "$H", "$J=G21 G90 G53 Z-5.000 F300", "$J=G21 G90 G53 X65.700 Y80.000 F1000",
+                                "$J=G21 G90 G53 Z-5.000 F300"])
+        self.assertEqual(pos, [65.7, 80.0, -5.0])
 
 
 class CalibrationModeTests(unittest.TestCase):
@@ -122,7 +129,7 @@ class CalibrationModeTests(unittest.TestCase):
     def test_ball_screw_scans_but_no_programs(self):
         choose("ball-screw")
         c = v10.cal()
-        self.assertEqual(c["capture_pose_mpos"], [80.0, 80.0, -20.0])
+        self.assertEqual(c["capture_pose_mpos"], [65.7, 80.0, -5.0])
         self.assertNotIn("xy_calibration", c)
         job = v25.v24.job_new({"subject": "prosthetic"})
         ok = []

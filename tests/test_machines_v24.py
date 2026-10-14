@@ -15,13 +15,43 @@ import webui_server_v10 as v10  # noqa: E402
 _saved = {}
 
 
+def _temp_log(tmp):
+    """A copy of the validation log's header only: tests must never write rows into the real log."""
+    p = os.path.join(tmp, "validation_log_test.csv")
+    with open(v10.LOG_FILE, encoding="utf-8") as f, open(p, "w", encoding="utf-8", newline="\n") as g:
+        g.write(f.readline())
+    return p
+
+
+def _test_registry(tmp):
+    """The real registry with the ball-screw machine back in calibration mode (as before its approval on 2026-10-14):
+    these tests check the locks of an UNCALIBRATED machine and must not depend on the live machines' state."""
+    with open(os.path.join(ROOT, "machines", "registry.json"), encoding="utf-8") as f:
+        r = json.load(f)
+    for m in r["machines"]:
+        if m["id"] == "ball-screw":
+            m["calibration"] = None
+            m.pop("approved", None)
+            m["calibration_mode"] = "test fixture: uncalibrated"
+    os.makedirs(os.path.join(tmp, "machines"), exist_ok=True)
+    p = os.path.join(tmp, "machines", "registry.json")
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(r, f, indent=2)
+    return p
+
+
 def setUpModule():
-    _saved.update(cal=v10.cal, log_row=v10.log_row, out_root=base.OUT_ROOT)
+    _saved.update(cal=v10.cal, log_row=v10.log_row, out_root=base.OUT_ROOT, log_file=v10.LOG_FILE)
     import webui_server_v24
-    _saved["link_cal"] = None
     global v24
     v24 = webui_server_v24
+    # this server's own state, set explicitly (another test module may have imported it first and undone it)
+    v10.cal, v10.log_row = v24.profiles.active_cal, v24.log_row
+    v24.machine._calibration = v24.profiles.active_cal
+    _saved["state_path"], _saved["registry_path"] = v24.profiles.state_path, v24.profiles.registry_path
     _saved["tmp"] = tempfile.mkdtemp()
+    v24.profiles.registry_path = _test_registry(_saved["tmp"])
+    v10.LOG_FILE = _temp_log(_saved["tmp"])
     base.OUT_ROOT = os.path.join(_saved["tmp"], "webui")
     os.makedirs(base.OUT_ROOT)
     v24.profiles.state_path = os.path.join(_saved["tmp"], "active_machine.json")
@@ -29,6 +59,8 @@ def setUpModule():
 
 def tearDownModule():
     v10.cal, v10.log_row, base.OUT_ROOT = _saved["cal"], _saved["log_row"], _saved["out_root"]
+    v10.LOG_FILE, v24.profiles.state_path = _saved["log_file"], _saved["state_path"]
+    v24.profiles.registry_path = _saved["registry_path"]
     v24.machine._calibration = _saved["cal"]
     shutil.rmtree(_saved["tmp"], True)
 
