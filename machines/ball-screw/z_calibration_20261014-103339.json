@@ -1,0 +1,118 @@
+{
+  "created": "2026-10-14T10:33:39",
+  "motion_ready": false,
+  "tool": "nozzle (machine ball-screw)",
+  "machine": "ball-screw",
+  "camera_serial": "260322278767",
+  "approved_by": "Harsh",
+  "schema": "camera_tool_z_calibration/1",
+  "model": "Z_contact = Z_capture - (camera_depth_mm - k_mm)",
+  "valid_only_for": "this machine, this nozzle, this camera mount",
+  "inputs": {
+    "recording": "C:\\Users\\DELL\\Desktop\\Ai+d405\\outputs\\calibration\\ball-screw\\session\\z_20261014-101305.db3",
+    "head": {
+      "x": 65.7,
+      "y": 80.0,
+      "z": -5.0
+    },
+    "touches": [
+      {
+        "label": "T1",
+        "x": 119.001,
+        "y": 82.5,
+        "z_contact": -21.5,
+        "time": "2026-10-14T10:16:40"
+      },
+      {
+        "label": "T2",
+        "x": 102.399,
+        "y": 124.5,
+        "z_contact": -21.5,
+        "time": "2026-10-14T10:23:50"
+      },
+      {
+        "label": "T3",
+        "x": 133.4,
+        "y": 124.5,
+        "z_contact": -22.2,
+        "time": "2026-10-14T10:25:25"
+      }
+    ]
+  },
+  "result": {
+    "touches": [
+      {
+        "label": "T1",
+        "machine_xy": [
+          119.001,
+          82.5
+        ],
+        "z_contact": -21.5,
+        "camera_xy_mm": [
+          32.2,
+          1.67
+        ],
+        "pixel_uv": [
+          513,
+          239
+        ],
+        "xy_miss_mm": 0.19,
+        "depth_a_mm": 158.4,
+        "depth_pixels_used": 25,
+        "k_mm": 141.9,
+        "predicted_z_contact": -21.77,
+        "z_residual_mm": -0.27
+      },
+      {
+        "label": "T2",
+        "machine_xy": [
+          102.399,
+          124.5
+        ],
+        "z_contact": -21.5,
+        "camera_xy_mm": [
+          74.34,
+          -14.57
+        ],
+        "pixel_uv": [
+          628,
+          194
+        ],
+        "xy_miss_mm": 0.13,
+        "depth_a_mm": 157.8,
+        "depth_pixels_used": 25,
+        "k_mm": 141.3,
+        "predicted_z_contact": -21.17,
+        "z_residual_mm": 0.33
+      },
+      {
+        "label": "T3",
+        "machine_xy": [
+          133.4,
+          124.5
+        ],
+        "z_contact": -22.2,
+        "camera_xy_mm": [
+          74.08,
+          16.43
+        ],
+        "pixel_uv": [
+          626,
+          278
+        ],
+        "xy_miss_mm": 0.24,
+        "depth_a_mm": 158.9,
+        "depth_pixels_used": 25,
+        "k_mm": 141.7,
+        "predicted_z_contact": -22.27,
+        "z_residual_mm": -0.07
+      }
+    ],
+    "k_mm": 141.63,
+    "k_spread_mm": 0.6,
+    "z_rms_mm": 0.25,
+    "problems": [],
+    "verdict": "GOOD",
+    "time": "2026-10-14T10:32:02"
+  }
+}
