@@ -128,3 +128,18 @@
       .catch(function (err) { alert(err.message); });
   }, true);
 })();
+
+/* Move to scan position in one tap (user 2026-10-14: "remove this also" - the dialog with its two ticks). The route
+   rises to travel Z first, moves X/Y there (about 58 mm above the bed on the ball-screw machine), then to the scan Z.
+   Same command and guards as the dialog's button (scanCanMove: connected, homed, fresh, not busy; a job). */
+(function () {
+  'use strict';
+  addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('#scanmove');
+    if (!b || b.disabled) return;
+    e.stopPropagation(); e.preventDefault();
+    if (!scanCanMove() || !JOB) return;
+    machineCommand('/api/machine/scan_position', { job: JOB.id, confirm_clear: true, confirm_estop: true }, 'scan_position')
+      .catch(function (err) { alert(err.message); });
+  }, true);
+})();
