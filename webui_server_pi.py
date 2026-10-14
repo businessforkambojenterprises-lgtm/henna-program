@@ -1,4 +1,4 @@
-"""Henna Studio for the Raspberry Pi = Studio v27 with the camera in its own process, the faster live preview and a
+"""Henna Studio for the Raspberry Pi = Studio v28 with the camera in its own process, the faster live preview and a
 touch layout for the 5" display.
 
 - henna_preview/camera_process.py: the camera runs in a child process, so a camera-library freeze (2-2.5 s on
@@ -8,31 +8,32 @@ touch layout for the 5" display.
 - webui/pi_touch.css (2026-10-14): added to the page after its own styles - one column, steps as tabs, larger buttons
   and tick boxes for the Touch Display 2 (5", 1280 x 720); raspberry_pi/henna_studio.sh zooms the window x2.
   Layout and sizes only: the same page, routes and checks.
-Everything else - page, machine link, checks, recordings and their verification - is v27 unchanged (machine profiles,
-per-machine calibration in Studio, travel clearance over the hand). The laptop runs webui_server_v27.py. Started on
+Everything else - page, machine link, checks, recordings and their verification - is v28 unchanged (machine profiles,
+per-machine calibration in Studio, travel clearance over the hand, real-hand hover runs watched by the camera - the
+child camera process also makes the watch's depth samples). The laptop runs webui_server_v28.py. Started on
 the Pi by raspberry_pi/henna_studio.sh (the desktop icon).
 PASS on the Pi 2026-10-12 (with v22/v23): stage 3b phase E (worst status age 0.29 s) and 3 real scans, none refused.
-v23 -> v27 on 2026-10-14 (merge of main); to be checked on the Pi.
+v23 -> v27 -> v28 on 2026-10-14 (merges of main); to be checked on the Pi.
 When a new Studio version comes, change the one import below to it (its tests check the swap).
 """
 import os
 from urllib.parse import urlparse
 
-import webui_server_v27 as studio
+import webui_server_v28 as studio
 from henna_preview.camera_process import ProcessCameraService
 
 PI_CSS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webui", "pi_touch.css")
 PI_JS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webui", "pi_touch.js")
 PAGES = ("/", "/index.html", "/studio")
 
-# Every v10-v27 route looks v10.camera up at call time, so this one swap reaches all of them.
+# Every v10-v28 route looks v10.camera up at call time, so this one swap reaches all of them.
 studio.v10.camera = ProcessCameraService()
 
 
 def pi_page():
     """Studio's page with the Pi touch styles added last and the drag-to-scroll script (read per request: a git pull
     needs no restart for them)."""
-    with open(studio.v26.STUDIO_HTML, encoding="utf-8") as f:
+    with open(studio.STUDIO_HTML, encoding="utf-8") as f:
         html = f.read()
     with open(PI_CSS, encoding="utf-8") as f:
         css = f.read()
@@ -56,7 +57,7 @@ class PiHandler(studio.Handler):
         return super().do_GET()
 
 
-studio.Handler = PiHandler                                  # v27.main serves studio.Handler
+studio.Handler = PiHandler                                  # v28.main serves studio.Handler
 
 
 def _stop(signum, frame):

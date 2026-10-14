@@ -78,12 +78,12 @@ class PiServerTests(unittest.TestCase):
         original = v10.camera
         try:
             import webui_server_pi
-            import webui_server_v27 as v27
+            import webui_server_v28 as v28
             from henna_preview.camera_process import ProcessCameraService
             self.assertIsInstance(v10.camera, ProcessCameraService)
             self.assertIsNone(v10.camera.pid, "no camera process until Studio uses the camera")
-            self.assertIs(webui_server_pi.studio, v27)
-            self.assertIs(v27.v10, v10)
+            self.assertIs(webui_server_pi.studio, v28)
+            self.assertIs(v28.v10, v10)
         finally:
             v10.camera = original
 
@@ -93,7 +93,7 @@ class PiServerTests(unittest.TestCase):
         original = v10.camera
         try:
             import webui_server_pi as pi
-            with open(pi.studio.v26.STUDIO_HTML, encoding="utf-8") as f:
+            with open(pi.studio.STUDIO_HTML, encoding="utf-8") as f:
                 page = f.read()
             got = pi.pi_page()
             self.assertIn('<style id="pi-touch">', got)
@@ -104,7 +104,7 @@ class PiServerTests(unittest.TestCase):
             css = got[got.index('<style id="pi-touch">'):got.index("</head>")]
             js = got[got.index('<script id="pi-touch-js">'):got.rindex("</body>")]
             self.assertEqual(got.replace(css, "").replace(js, ""), page)          # nothing else changed
-            self.assertIs(pi.studio.Handler, pi.PiHandler)              # served by v27's main
+            self.assertIs(pi.studio.Handler, pi.PiHandler)              # served by v28's main
             self.assertTrue(issubclass(pi.PiHandler, pi.studio.v26.Handler))
         finally:
             v10.camera = original

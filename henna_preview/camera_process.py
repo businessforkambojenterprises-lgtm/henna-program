@@ -7,7 +7,8 @@ on different USB controllers - the pause was Python, not USB.
 
 Here the camera (FastCameraService) runs in a child process. Studio's process - with the CNC link and its 1.5 s
 check - only talks to it through a pipe, so a camera freeze can no longer stop it from reading the machine.
-ProcessCameraService has the five methods Studio uses: start_preview, stop, jpeg, status, record.
+ProcessCameraService has the methods Studio uses: start_preview, stop, jpeg, status, record, and (Studio v28)
+depth_sample - live aligned depth for the real-hand watch (henna_preview/depth_sample.py), made in the child too.
 - The recording, its repair and its verification run unchanged in the child (CameraService.record).
 - While record() runs, status() says 'recording' from Studio's side even if the child is busy or frozen, so
   homing, moving to the scan position, jogging and runs stay refused during a scan (as with CameraService).
@@ -26,7 +27,7 @@ import threading
 from henna_preview.web_recorder import CameraError
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-METHODS = ("start_preview", "stop", "jpeg", "status", "record")
+METHODS = ("start_preview", "stop", "jpeg", "status", "record", "depth_sample")
 OFF = {"state": "off", "error": None, "has_frame": False}
 
 
@@ -48,8 +49,13 @@ def _recv(stream):
 # ---------- child ----------
 def _load_service(spec):
     if not spec:
+        from henna_preview.depth_sample import DepthSampleMixin
         from henna_preview.web_recorder_fast import FastCameraService
-        return FastCameraService()
+
+        class FastWatchCameraService(DepthSampleMixin, FastCameraService):
+            """The Pi's faster preview + depth samples for the hand watch (v28)."""
+
+        return FastWatchCameraService()
     path, cls = spec.rsplit(":", 1)
     s = importlib.util.spec_from_file_location("camera_service_under_test", path)
     mod = importlib.util.module_from_spec(s)
@@ -182,6 +188,13 @@ class ProcessCameraService:
 
     def start_preview(self):
         return self._call("start_preview", timeout=self._start_timeout)
+
+    def depth_sample(self):
+        """The child's newest depth sample or None (a stuck child = None: the hand watch then holds the machine)."""
+        try:
+            return self._call("depth_sample", timeout=self._start_timeout if self.pid is None else self._call_timeout)
+        except Exception:
+            return None
 
     def stop(self):
         if self.pid is None:

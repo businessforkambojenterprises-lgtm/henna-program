@@ -66,6 +66,13 @@ are v27 unchanged. Since v23: Calibration (top bar) - status + daily check, see 
 - **Travel clearance (v27):** checks, programs and runs refuse a hand whose top is less than
   max(standoff, 5 mm hop) + 3 mm below the travel height, and say so (or "something between the camera and the
   hand" for a hanging cable).
+- **Real-hand hover runs (v28):** New job -> **Real hand - hover run** (Real hand - camera only stays as before).
+  6 mm above the skin, 300 mm/min, the v27 clearance; before Start the camera checks the hand is where it was scanned;
+  during the run it watches (5 checks/s) and PAUSES the machine if the hand moves > 2 mm, comes within 1.5 mm of the
+  tip, or is out of sight / no picture for 1.5 s. Resume re-checks first. The camera process makes the depth samples.
+  **Prove it first with the prosthetic in a real-hand job: move it on purpose during the run - the machine must pause.**
+- **Touch layout (Pi only):** portrait, x2 zoom, machine bar at the bottom, drag-to-scroll, Studio's own confirm box,
+  Home and Move to scan position in one tap.
 - **Daily-check reference is per device** (`outputs/` is not in git): set it once on the Pi - Calibration ->
   Set the reference - with the bed exactly as for every check (the taped dot sheet), then Run daily check -> OK.
 

@@ -31,6 +31,21 @@ class ProcessCameraTests(unittest.TestCase):
         info = cam.record("x.db3", 0.2)
         self.assertEqual((info["frame_pairs"], info["path"]), (136, "x.db3"))
 
+    def test_depth_sample_comes_through_the_pipe(self):
+        cam = self.make()
+        s = cam.depth_sample()
+        self.assertEqual((s["depth"].shape, int(s["depth"][0, 0]), s["stride"]), ((3, 4), 1700, 4))
+        self.assertEqual(cam.status()["state"], "preview")                    # sampling keeps the preview on
+
+    def test_depth_sample_after_a_child_crash_starts_a_new_child(self):
+        cam = self.make()
+        first = cam.pid or cam.status()["pid"]
+        with self.assertRaises(Exception):
+            cam.record("x.crash", 0.1)                                         # the child process dies
+        s = cam.depth_sample()                                                 # never raises; a new child answers
+        self.assertIsNotNone(s)
+        self.assertNotEqual(cam.pid, first)
+
     def test_studio_keeps_running_and_sees_recording(self):
         cam = self.make()
         cam.status()                                 # child started

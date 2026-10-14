@@ -32,6 +32,11 @@ class FakeCamera:
     def jpeg(self):
         return b"JPEG" if self.state != "off" else None
 
+    def depth_sample(self):
+        import numpy as np
+        self.state = "preview"
+        return {"t": time.time(), "stride": 4, "scale": 0.0001, "depth": np.full((3, 4), 1700, np.uint16), "intr": {}}
+
     def record(self, out_path, seconds):
         if out_path.endswith(".crash"):
             os._exit(3)
