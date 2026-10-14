@@ -4,6 +4,10 @@
    Touch targets 46 CSS px = about 8 mm, text 15 px = about 2.6 mm. Layout and sizes only - no function changes.
    Added by webui_server_pi.py after the page's own styles; the laptop page never gets it. */
 
+/* ---- touch: a finger swipe must never highlight text; typing fields stay selectable ---- */
+body{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
+
 /* ---- top bar: compact, wraps; the machine row (state, Home, Jog, STOP) always on its own full line ---- */
 .top{flex-wrap:wrap;gap:4px 6px;padding:4px 6px}
 .brand{font-size:0;gap:0}                          /* logo only */
