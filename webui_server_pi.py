@@ -4,6 +4,7 @@ touch layout for the 5" display.
 - henna_preview/camera_process.py: the camera runs in a child process, so a camera-library freeze (2-2.5 s on
   the Pi when the camera starts or stops, stage 3b 2026-10-12) can no longer pause the CNC link and its 1.5 s check.
 - henna_preview/web_recorder_fast.py (inside that child): lookup-table colours, a new picture only when fetched.
+- webui/pi_touch.js (2026-10-14): drag-to-scroll, for a touchscreen the browser reports as a mouse.
 - webui/pi_touch.css (2026-10-14): added to the page after its own styles - one column, steps as tabs, larger buttons
   and tick boxes for the Touch Display 2 (5", 1280 x 720); raspberry_pi/henna_studio.sh zooms the window x2.
   Layout and sizes only: the same page, routes and checks.
@@ -21,6 +22,7 @@ import webui_server_v27 as studio
 from henna_preview.camera_process import ProcessCameraService
 
 PI_CSS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webui", "pi_touch.css")
+PI_JS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webui", "pi_touch.js")
 PAGES = ("/", "/index.html", "/studio")
 
 # Every v10-v27 route looks v10.camera up at call time, so this one swap reaches all of them.
@@ -28,14 +30,19 @@ studio.v10.camera = ProcessCameraService()
 
 
 def pi_page():
-    """Studio's page with the Pi touch styles added last (read per request: a git pull needs no restart for CSS)."""
+    """Studio's page with the Pi touch styles added last and the drag-to-scroll script (read per request: a git pull
+    needs no restart for them)."""
     with open(studio.v26.STUDIO_HTML, encoding="utf-8") as f:
         html = f.read()
     with open(PI_CSS, encoding="utf-8") as f:
         css = f.read()
-    if "</head>" not in html:
-        raise RuntimeError("Studio page has no </head>")
-    return html.replace("</head>", f'<style id="pi-touch">\n{css}\n</style>\n</head>', 1)
+    with open(PI_JS, encoding="utf-8") as f:
+        js = f.read()
+    if "</head>" not in html or "</body>" not in html:
+        raise RuntimeError("Studio page has no </head> or </body>")
+    html = html.replace("</head>", f'<style id="pi-touch">\n{css}\n</style>\n</head>', 1)
+    i = html.rindex("</body>")
+    return html[:i] + f'<script id="pi-touch-js">\n{js}\n</script>\n' + html[i:]
 
 
 class PiHandler(studio.Handler):

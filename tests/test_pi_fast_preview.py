@@ -100,7 +100,10 @@ class PiServerTests(unittest.TestCase):
             self.assertIn("--force-device-scale-factor", open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "raspberry_pi",
                                                                             "henna_studio.sh"),
                                                                encoding="utf-8").read())
-            self.assertEqual(got.replace(got[got.index('<style id="pi-touch">'):got.index("</head>")], ""), page)
+            self.assertIn('<script id="pi-touch-js">', got)
+            css = got[got.index('<style id="pi-touch">'):got.index("</head>")]
+            js = got[got.index('<script id="pi-touch-js">'):got.rindex("</body>")]
+            self.assertEqual(got.replace(css, "").replace(js, ""), page)          # nothing else changed
             self.assertIs(pi.studio.Handler, pi.PiHandler)              # served by v27's main
             self.assertTrue(issubclass(pi.PiHandler, pi.studio.v26.Handler))
         finally:
