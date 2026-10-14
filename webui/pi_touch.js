@@ -63,3 +63,53 @@
   }, true);
   addEventListener('dragstart', function (e) { if (!noScroll(e.target)) e.preventDefault(); }, true);   // no image drag
 })();
+
+/* Confirm / alert boxes that fit the screen (user 2026-10-14: the browser's own "127.0.0.1:8765 says" box is wider
+   than the portrait screen at x2, its OK button is off the edge). The page uses confirm() synchronously
+   (`if(!confirm(..))return`), so: the first call shows Studio's own box and returns false (nothing happens yet);
+   OK replays the same click / change on the same element, and that second confirm() of the same text returns true.
+   Cancel = nothing, as with the browser's box. alert() shows the same box with one OK. */
+(function () {
+  'use strict';
+  var last = null, approved = null, approvedAt = 0;
+  addEventListener('click', function (e) { last = { el: e.target, type: 'click' }; }, true);
+  addEventListener('change', function (e) { last = { el: e.target, type: 'change' }; }, true);
+
+  function box(msg, buttons) {
+    var d = document.getElementById('pi-dlg');
+    if (!d) {
+      d = document.createElement('dialog');
+      d.id = 'pi-dlg';
+      d.innerHTML = '<div class="dlg" style="padding:16px"><p class="pi-msg" style="font-size:16px;line-height:1.45;' +
+        'margin:0 0 16px;white-space:pre-wrap;overflow-wrap:anywhere"></p><div class="pi-foot" style="display:flex;gap:10px"></div></div>';
+      document.body.appendChild(d);
+    }
+    d.querySelector('.pi-msg').textContent = String(msg);
+    var foot = d.querySelector('.pi-foot');
+    foot.innerHTML = '';
+    buttons.forEach(function (b) {
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'btn' + (b.primary ? ' primary' : '');
+      x.style.flex = '1 1 0';
+      x.textContent = b.label;
+      x.onclick = function () { d.close(); if (b.run) b.run(); };
+      foot.appendChild(x);
+    });
+    if (!d.open) d.showModal();
+  }
+
+  window.alert = function (msg) { box(msg, [{ label: 'OK', primary: true }]); };
+  window.confirm = function (msg) {
+    msg = String(msg);
+    if (approved === msg && Date.now() - approvedAt < 3000) { approved = null; return true; }
+    var src = last;
+    box(msg, [{ label: 'Cancel' }, { label: 'OK', primary: true, run: function () {
+      if (!src || !src.el || !src.el.isConnected) return;
+      approved = msg; approvedAt = Date.now();
+      if (src.type === 'change') src.el.dispatchEvent(new Event('change', { bubbles: true }));
+      else src.el.click();
+    } }]);
+    return false;
+  };
+})();
