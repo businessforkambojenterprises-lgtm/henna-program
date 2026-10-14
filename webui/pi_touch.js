@@ -113,3 +113,18 @@
     return false;
   };
 })();
+
+/* Home in one tap (user 2026-10-14: "remove this" - the Home dialog with its two ticks). Homing always lifts Z first
+   ($HZ) and then moves X/Y at the top, about 63 mm above the bed on the ball-screw machine. The same command and the
+   same guards as the dialog's "Home now": machine connected, fresh status, nothing busy; errors in Studio's box. */
+(function () {
+  'use strict';
+  addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('#mhome');
+    if (!b || b.disabled) return;
+    e.stopPropagation(); e.preventDefault();                 // instead of opening the dialog
+    if (!machFresh() || !MACH || !MACH.connected || machineBusy()) return;
+    machineCommand('/api/machine/home', { confirm_clear: true, confirm_estop: true }, 'homing')
+      .catch(function (err) { alert(err.message); });
+  }, true);
+})();
