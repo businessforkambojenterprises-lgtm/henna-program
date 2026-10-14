@@ -1,0 +1,57 @@
+{
+  "schema": "henna_machines/1",
+  "note": "One entry per physical machine. A machine's calibration belongs to that machine only. Change only with the user's approval.",
+  "decided_by": "user 2026-10-13: two named machines; keep the belt-drive calibration exactly as it is; the ball-screw machine gets its own new calibration; 2026-10-13: per-machine motion values (scan position, travel Z, Z floor) and calibration mode approved",
+  "machines": [
+    {
+      "id": "belt-drive",
+      "name": "Belt drive (first machine)",
+      "drive": "belt",
+      "calibration": "current_calibration.json",
+      "work_area_mm": [
+        225.0,
+        176.0
+      ],
+      "notes": "calibrated 2026-10-05 to 2026-10-07 (X/Y block-corrected, Z k 141.47, depth scale g 0.979); unchanged",
+      "motion": {
+        "scan_pose_mpos": [
+          145.8,
+          42.6,
+          -40.0
+        ],
+        "travel_z": -20.0,
+        "firmware_z_floor": -97.0,
+        "source": "copied from current_calibration.json (unchanged); the values fixed in the machine link until v24"
+      }
+    },
+    {
+      "id": "ball-screw",
+      "name": "Ball screw (new machine)",
+      "drive": "ball screw",
+      "calibration": "machines/ball-screw/calibration_20261014-103339.json",
+      "work_area_mm": [
+        225.0,
+        176.0
+      ],
+      "notes": "added 2026-10-13 (the belt-drive calibration put the nozzle about 10 cm from the hand, video 20261013_100612); CALIBRATED 2026-10-14 in Studio v26 (X/Y rms 0.77 mm, scale 1.000; Z k 141.63 mm, spread 0.60 mm; approved by Harsh). Its calibration lists the belt-drive's depth-scale file (g 0.979), which did not hold on this machine - Studio's toolpath does not use it; realhand_height_check.py would. Controller (read 2026-10-13): MKS DLC32 V2.2.6, steps/mm X403.5 Y409.6 Z400 (X/Y from 400 on 2026-10-14 after the 7-dot fit, camera-checked X 19.98-20.00/20, Y 40.21-40.24/40; Z: Z was 100 until 2026-10-13 15:51 - Z moved 1/5 of commanded; 500 at 15:51, 435 at 16:01 from ruler checks, 390 from camera checks, 400 on 2026-10-14 after the print was found 3 % small), max travel X400 Y250 Z299, max rate X/Y 1000 Z 300 mm/min, soft + hard limits on",
+      "work_area_status": "PROVISIONAL (user 2026-10-13): the same 225 x 176 box Jog already enforces, inside the controller's own 400 x 250 with soft + hard limits on; for the axis check only - replace with the measured size",
+      "motion": {
+        "scan_pose_mpos": [
+          65.7,
+          80.0,
+          -5.0
+        ],
+        "travel_z": -5.0,
+        "firmware_z_floor": -42.0,
+        "source": "floor -59 (2026-10-14 11:3x): arm bracket raised 16.9 mm (head_change_check: paper Z -62.9 vs -46.0); bed about Z-62.9 -> floor 4 mm above it; Z carriage gap about 64 mm (user) -> mechanical end about Z-64, 5 mm below the floor; travel/scan Z -5 (tip about 58 mm above the bed); scan X65.7 Y80 | back to -42 until Recalibrate (calibration file still says -42); -59 after it"
+      },
+      "calibration_mode": "setup done in Studio 2026-10-14T10:26:57",
+      "z_room_mm": "tip about 63 mm above the bed at Z 0 and 58 mm at travel Z -5 after the bracket raise (2026-10-14); hands up to about 45 mm pass the v27 clearance rule; Z carriage travel about 64 mm",
+      "approved": {
+        "by": "Harsh",
+        "time": "2026-10-14T10:33:39",
+        "file": "machines/ball-screw/calibration_20261014-103339.json"
+      }
+    }
+  ]
+}
