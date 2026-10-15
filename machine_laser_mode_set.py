@@ -20,6 +20,20 @@ import sys
 from machine_settings_check import ROOT, active_machine, find_port, parse_settings, read_lines, studio_connected
 
 SETTING = 32
+TRIES = 3
+
+
+def read_settings(ser):
+    """$$ until $32 and $30 are in the reply (up to TRIES times): a controller that restarted when the port opened
+    can send a late boot 'ok' that ends the first reply before any setting (seen on the Pi 2026-10-15)."""
+    num = {}
+    for _ in range(TRIES):
+        ser.write(b"$$\n")
+        num, _ = parse_settings(read_lines(ser, 6.0, until_ok=True))
+        if SETTING in num and 30 in num:
+            return num
+        read_lines(ser, 1.0)                              # let the rest arrive before asking again
+    return num
 
 
 def write_command(value):
@@ -57,14 +71,12 @@ def change_laser_mode(ser, value):
     state = status[-1][1:].split("|")[0].split(":")[0]
     if state not in ("Idle", "Alarm"):
         raise RuntimeError(f"controller is {state} - must be Idle or Alarm (nothing moving); nothing written")
-    ser.write(b"$$\n")
-    before, _ = parse_settings(read_lines(ser, 6.0, until_ok=True))
+    before = read_settings(ser)
     if SETTING not in before:
         raise RuntimeError(f"could not read ${SETTING} before the change - nothing written")
     ser.write(write_command(value))
     reply = read_lines(ser, 3.0, until_ok=True)
-    ser.write(b"$$\n")
-    after, _ = parse_settings(read_lines(ser, 6.0, until_ok=True))
+    after = read_settings(ser)
     ok = "ok" in reply and after.get(SETTING) == float(value) and \
         all(after.get(k) == v for k, v in before.items() if k != SETTING)
     return {"status": status[-1], "before": before, "after": after, "reply": reply, "ok": ok}
