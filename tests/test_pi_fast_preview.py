@@ -78,12 +78,12 @@ class PiServerTests(unittest.TestCase):
         original = v10.camera
         try:
             import webui_server_pi
-            import webui_server_v28 as v28
+            import webui_server_v29 as v29
             from henna_preview.camera_process import ProcessCameraService
             self.assertIsInstance(v10.camera, ProcessCameraService)
             self.assertIsNone(v10.camera.pid, "no camera process until Studio uses the camera")
-            self.assertIs(webui_server_pi.studio, v28)
-            self.assertIs(v28.v10, v10)
+            self.assertIs(webui_server_pi.studio, v29)
+            self.assertIs(v29.v10, v10)
         finally:
             v10.camera = original
 
@@ -104,8 +104,8 @@ class PiServerTests(unittest.TestCase):
             css = got[got.index('<style id="pi-touch">'):got.index("</head>")]
             js = got[got.index('<script id="pi-touch-js">'):got.rindex("</body>")]
             self.assertEqual(got.replace(css, "").replace(js, ""), page)          # nothing else changed
-            self.assertIs(pi.studio.Handler, pi.PiHandler)              # served by v28's main
-            self.assertTrue(issubclass(pi.PiHandler, pi.studio.v26.Handler))
+            self.assertIs(pi.studio.Handler, pi.PiHandler)              # served by v29's main
+            self.assertTrue(issubclass(pi.PiHandler, pi.studio.v28.v26.Handler))
         finally:
             v10.camera = original
             sys.modules.pop("webui_server_pi", None)                   # the swap test imports it fresh

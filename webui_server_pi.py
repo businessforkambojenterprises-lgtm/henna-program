@@ -1,4 +1,4 @@
-"""Henna Studio for the Raspberry Pi = Studio v28 with the camera in its own process, the faster live preview and a
+"""Henna Studio for the Raspberry Pi = Studio v29 with the camera in its own process, the faster live preview and a
 touch layout for the 5" display.
 
 - henna_preview/camera_process.py: the camera runs in a child process, so a camera-library freeze (2-2.5 s on
@@ -11,28 +11,33 @@ touch layout for the 5" display.
 - henna_preview/pause_button.py (2026-10-15): a hardware PAUSE push button on GPIO17 (pin 11) to GND (pin 9) - Pause
   while a program runs, STOP while anything else moves; GET /api/pi/pause_button, shown in the machine bar. The STOP
   button is a latching emergency stop in the controller's power wire, outside the software.
-Everything else - page, machine link, checks, recordings and their verification - is v28 unchanged (machine profiles,
+- henna_preview/paste_gpio.py (2026-10-15, user: "B"): the paste SSR on GPIO27 (pin 13) to GND (pin 14) - Studio
+  v29's paste ON / OFF switch this pin instead of the controller's output; GET /api/pi/paste_output.
+Everything else - page, machine link, checks, recordings and their verification - is v29 unchanged (machine profiles,
 per-machine calibration in Studio, travel clearance over the hand, real-hand hover runs watched by the camera - the
-child camera process also makes the watch's depth samples). The laptop runs webui_server_v28.py. Started on
+child camera process also makes the watch's depth samples). The laptop runs webui_server_v29.py. Started on
 the Pi by raspberry_pi/henna_studio.sh (the desktop icon).
 PASS on the Pi 2026-10-12 (with v22/v23): stage 3b phase E (worst status age 0.29 s) and 3 real scans, none refused.
-v23 -> v27 -> v28 on 2026-10-14 (merges of main); to be checked on the Pi.
+v23 -> v27 -> v28 on 2026-10-14, v29 (paste) on 2026-10-15 (merges of main).
 When a new Studio version comes, change the one import below to it (its tests check the swap).
 """
 import os
 from urllib.parse import urlparse
 
-import webui_server_v28 as studio
+import webui_server_v29 as studio
 from henna_preview.camera_process import ProcessCameraService
+from henna_preview.paste_gpio import GpioPasteOutput
 from henna_preview.pause_button import PauseButton
 
 PI_CSS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webui", "pi_touch.css")
 PI_JS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webui", "pi_touch.js")
 PAGES = ("/", "/index.html", "/studio")
 
-# Every v10-v28 route looks v10.camera up at call time, so this one swap reaches all of them.
+# Every v10-v29 route looks v10.camera up at call time, so this one swap reaches all of them.
 studio.v10.camera = ProcessCameraService()
 PAUSE_BUTTON = PauseButton(studio.machine, studio._log)
+PASTE = GpioPasteOutput()
+studio.machine.paste_output = PASTE                         # not ready until started: paste refused until then
 
 
 def pi_page():
@@ -53,7 +58,8 @@ def pi_page():
 
 class PiHandler(studio.Handler):
     server_version = studio.Handler.server_version + "-pi"
-    GET_API = dict(studio.Handler.GET_API, **{"/api/pi/pause_button": PAUSE_BUTTON.view})
+    GET_API = dict(studio.Handler.GET_API, **{"/api/pi/pause_button": PAUSE_BUTTON.view,
+                                              "/api/pi/paste_output": PASTE.view})
 
     def do_GET(self):
         if urlparse(self.path).path in PAGES:
@@ -63,7 +69,7 @@ class PiHandler(studio.Handler):
         return super().do_GET()
 
 
-studio.Handler = PiHandler                                  # v28.main serves studio.Handler
+studio.Handler = PiHandler                                  # v29.main serves studio.Handler
 
 
 def _stop(signum, frame):
@@ -79,8 +85,10 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _stop)
     print("Raspberry Pi: camera in its own process + faster live preview + touch layout", flush=True)
     print(f"Pause button GPIO{PAUSE_BUTTON.state['pin']}: {PAUSE_BUTTON.start()}", flush=True)
+    print(f"Paste output {PASTE.name}: {PASTE.start()}", flush=True)
     try:
         studio.main()
     finally:
+        PASTE.close()
         PAUSE_BUTTON.close()
         studio.v10.camera.close()

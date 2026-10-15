@@ -98,3 +98,12 @@ RECALIBRATE (height, tilt, sideways shift, same camera) or UNCLEAR (something on
   **Pause btn OFF** (red: not working - use the screen). Code: `henna_preview/pause_button.py`.
 - **STOP** (red, latching mushroom, normally-closed): in the **+ wire from the power supply to the DLC32**. It cuts
   the motors whatever the software does; home again after releasing it. Not connected to the Pi.
+
+## Paste SSR on the Pi (Studio v29, 2026-10-15)
+- SSR input **+ (terminal 3)** to **pin 13 (GPIO27)**, input **- (terminal 4)** to **pin 14 (GND)** - never to the
+  5 V pins 2 / 4 (always on). GPIO27 is OFF from power-on until Studio switches it.
+- Program step -> **Paste: Servo dispenser (SSR)** or Pneumatic -> **Test dispenser (1 s)**: the SSR's input LED
+  lights for about 1 s, the machine does not move. In a run: ON after each drop, OFF before each lift, OFF at once
+  on Pause / STOP / errors / closing Studio. Code: `henna_preview/paste_gpio.py`.
+- The SSR-25DA switches **AC loads only** (24-480 V AC); a DC valve or a low-voltage trigger needs a DC SSR or a
+  relay module.
