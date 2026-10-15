@@ -83,3 +83,14 @@ dialog{width:calc(100vw - 12px);max-height:calc(100vh - 12px);overflow:auto}
   .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
   .head h1{font-size:18px}
 }
+
+/* ---- bottom bar in two rows (2026-10-15): the Pause-button chip made one row wider than the screen and pushed
+   STOP off the right edge. Row 1 = the state chips, row 2 = Connect, Home, Jog, STOP - always all four visible. ---- */
+@media (orientation:portrait){
+  .machine:not([hidden]){flex-wrap:wrap;row-gap:6px;column-gap:6px}
+  .machine:not([hidden])::before{content:"";order:1;flex-basis:100%;height:0}
+  .machine .chip{order:0;flex:0 0 auto}
+  .machine .btn.small{order:2;min-width:0;padding:4px 6px;font-size:13px}
+  #mstop{order:3}
+  body{padding-bottom:140px}
+}
