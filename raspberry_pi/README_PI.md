@@ -99,7 +99,13 @@ RECALIBRATE (height, tilt, sideways shift, same camera) or UNCLEAR (something on
 - **STOP** (red, latching mushroom, normally-closed): in the **+ wire from the power supply to the DLC32**. It cuts
   the motors whatever the software does; home again after releasing it. Not connected to the Pi.
 
-## Paste SSR on the Pi (Studio v29, 2026-10-15)
+## Paste SSR on the DLC32 (default, 2026-10-15)
+- SSR input **+ (terminal 3)** to the DLC32 laser connector's **TTL / PWM** pin, input **- (terminal 4)** to its
+  **GND** - never to its 12 / 24 V pin (always on). Studio switches it with M3 / M5.
+- Once, with Studio closed: `~/henna-venv/bin/python machine_laser_mode_set.py --value 0 --port /dev/ttyUSB0`
+  (laser mode off, $32=0; nothing moves). Studio refuses paste runs and the dispenser test until $32=0.
+
+## Paste SSR on the Pi (only when started with HENNA_PASTE=pi)
 - SSR input **+ (terminal 3)** to **pin 13 (GPIO27)**, input **- (terminal 4)** to **pin 14 (GND)** - never to the
   5 V pins 2 / 4 (always on). GPIO27 is OFF from power-on until Studio switches it.
 - Program step -> **Paste: Servo dispenser (SSR)** or Pneumatic -> **Test dispenser (1 s)**: the SSR's input LED

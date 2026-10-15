@@ -1,5 +1,5 @@
 """Paste SSR on the Pi pin (henna_preview/paste_gpio.py): starts OFF, on/off, no GPIO -> not ready (paste refused),
-and webui_server_pi hands it to Studio v29's link."""
+and webui_server_pi uses it only with HENNA_PASTE=pi (default: the DLC32's TTL output)."""
 import os
 import sys
 import unittest
@@ -53,15 +53,23 @@ class PastePinTests(unittest.TestCase):
         import webui_server_v10 as v10
         original = v10.camera
         try:
+            os.environ.pop("HENNA_PASTE", None)
+            import webui_server_pi as pi
+            self.assertIsNone(pi.studio.machine.paste_output)            # default: the DLC32's TTL output
+            self.assertEqual(pi.PiHandler.GET_API["/api/pi/paste_output"]()["output"], "controller")
+            sys.modules.pop("webui_server_pi", None)
+            os.environ["HENNA_PASTE"] = "pi"
             import webui_server_pi as pi
             self.assertIs(pi.studio.machine.paste_output, pi.PASTE)
-            self.assertIs(pi.PiHandler.GET_API["/api/pi/paste_output"].__self__, pi.PASTE)
             self.assertEqual(pi.PASTE.name, "GPIO27")
             with open(pi.__file__, encoding="utf-8") as f:
                 src = f.read()
             self.assertIn("PASTE.start()", src)
             self.assertIn("PASTE.close()", src)
         finally:
+            os.environ.pop("HENNA_PASTE", None)
+            if "webui_server_pi" in sys.modules:
+                sys.modules["webui_server_pi"].studio.machine.paste_output = None
             v10.camera = original
             sys.modules.pop("webui_server_pi", None)
 

@@ -11,8 +11,10 @@ touch layout for the 5" display.
 - henna_preview/pause_button.py (2026-10-15): a hardware PAUSE push button on GPIO17 (pin 11) to GND (pin 9) - Pause
   while a program runs, STOP while anything else moves; GET /api/pi/pause_button, shown in the machine bar. The STOP
   button is a latching emergency stop in the controller's power wire, outside the software.
-- henna_preview/paste_gpio.py (2026-10-15, user: "B"): the paste SSR on GPIO27 (pin 13) to GND (pin 14) - Studio
-  v29's paste ON / OFF switch this pin instead of the controller's output; GET /api/pi/paste_output.
+- Paste SSR (2026-10-15): on the DLC32's laser TTL output, the same as the laptop (user: "ssr not working fine on
+  pi, move it to dlc32") - Studio v29 switches it with M3 / M5 and checks $32=0 and $30=1000 before every paste run.
+  The Pi pin (henna_preview/paste_gpio.py, GPIO27 pin 13 to GND pin 14) is used only when started with
+  HENNA_PASTE=pi; GET /api/pi/paste_output says which.
 Everything else - page, machine link, checks, recordings and their verification - is v29 unchanged (machine profiles,
 per-machine calibration in Studio, travel clearance over the hand, real-hand hover runs watched by the camera - the
 child camera process also makes the watch's depth samples). The laptop runs webui_server_v29.py. Started on
@@ -36,8 +38,16 @@ PAGES = ("/", "/index.html", "/studio")
 # Every v10-v29 route looks v10.camera up at call time, so this one swap reaches all of them.
 studio.v10.camera = ProcessCameraService()
 PAUSE_BUTTON = PauseButton(studio.machine, studio._log)
+PASTE_ON_PI = os.environ.get("HENNA_PASTE", "controller") == "pi"
 PASTE = GpioPasteOutput()
-studio.machine.paste_output = PASTE                         # not ready until started: paste refused until then
+if PASTE_ON_PI:
+    studio.machine.paste_output = PASTE                     # not ready until started: paste refused until then
+
+
+def paste_view(_=None):
+    if not PASTE_ON_PI:
+        return {"output": "controller", "ready": True, "note": "SSR on the DLC32 laser TTL output (M3/M5)"}
+    return dict(PASTE.view(), output=PASTE.name)
 
 
 def pi_page():
@@ -59,7 +69,7 @@ def pi_page():
 class PiHandler(studio.Handler):
     server_version = studio.Handler.server_version + "-pi"
     GET_API = dict(studio.Handler.GET_API, **{"/api/pi/pause_button": PAUSE_BUTTON.view,
-                                              "/api/pi/paste_output": PASTE.view})
+                                              "/api/pi/paste_output": paste_view})
 
     def do_GET(self):
         if urlparse(self.path).path in PAGES:
@@ -85,7 +95,10 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _stop)
     print("Raspberry Pi: camera in its own process + faster live preview + touch layout", flush=True)
     print(f"Pause button GPIO{PAUSE_BUTTON.state['pin']}: {PAUSE_BUTTON.start()}", flush=True)
-    print(f"Paste output {PASTE.name}: {PASTE.start()}", flush=True)
+    if PASTE_ON_PI:
+        print(f"Paste output {PASTE.name}: {PASTE.start()}", flush=True)
+    else:
+        print("Paste output: the controller's laser TTL output (M3/M5)", flush=True)
     try:
         studio.main()
     finally:
