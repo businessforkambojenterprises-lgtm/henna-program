@@ -8,6 +8,9 @@ touch layout for the 5" display.
 - webui/pi_touch.css (2026-10-14): added to the page after its own styles - one column, steps as tabs, larger buttons
   and tick boxes for the Touch Display 2 (5", 1280 x 720); raspberry_pi/henna_studio.sh zooms the window x2.
   Layout and sizes only: the same page, routes and checks.
+- henna_preview/pause_button.py (2026-10-15): a hardware PAUSE push button on GPIO17 (pin 11) to GND (pin 9) - Pause
+  while a program runs, STOP while anything else moves; GET /api/pi/pause_button, shown in the machine bar. The STOP
+  button is a latching emergency stop in the controller's power wire, outside the software.
 Everything else - page, machine link, checks, recordings and their verification - is v28 unchanged (machine profiles,
 per-machine calibration in Studio, travel clearance over the hand, real-hand hover runs watched by the camera - the
 child camera process also makes the watch's depth samples). The laptop runs webui_server_v28.py. Started on
@@ -21,6 +24,7 @@ from urllib.parse import urlparse
 
 import webui_server_v28 as studio
 from henna_preview.camera_process import ProcessCameraService
+from henna_preview.pause_button import PauseButton
 
 PI_CSS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webui", "pi_touch.css")
 PI_JS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webui", "pi_touch.js")
@@ -28,6 +32,7 @@ PAGES = ("/", "/index.html", "/studio")
 
 # Every v10-v28 route looks v10.camera up at call time, so this one swap reaches all of them.
 studio.v10.camera = ProcessCameraService()
+PAUSE_BUTTON = PauseButton(studio.machine, studio._log)
 
 
 def pi_page():
@@ -48,6 +53,7 @@ def pi_page():
 
 class PiHandler(studio.Handler):
     server_version = studio.Handler.server_version + "-pi"
+    GET_API = dict(studio.Handler.GET_API, **{"/api/pi/pause_button": PAUSE_BUTTON.view})
 
     def do_GET(self):
         if urlparse(self.path).path in PAGES:
@@ -72,7 +78,9 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, _stop)
     signal.signal(signal.SIGTERM, _stop)
     print("Raspberry Pi: camera in its own process + faster live preview + touch layout", flush=True)
+    print(f"Pause button GPIO{PAUSE_BUTTON.state['pin']}: {PAUSE_BUTTON.start()}", flush=True)
     try:
         studio.main()
     finally:
+        PAUSE_BUTTON.close()
         studio.v10.camera.close()

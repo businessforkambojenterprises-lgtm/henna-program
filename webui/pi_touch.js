@@ -143,3 +143,31 @@
       .catch(function (err) { alert(err.message); });
   }, true);
 })();
+
+/* Hardware PAUSE button state in the machine bar (2026-10-15, henna_preview/pause_button.py): green "Pause btn" when
+   GPIO17 is being watched, red "Pause btn OFF" when it is not (then the push button does nothing - use the screen).
+   Checked every 3 s; the server not answering also shows OFF. */
+(function () {
+  'use strict';
+  var chip = document.createElement('span');
+  chip.id = 'pibtn';
+  chip.className = 'chip c-warn';
+  chip.textContent = 'Pause btn ?';
+  function place() {
+    var st = document.getElementById('mstate');
+    if (st && !chip.parentNode) st.parentNode.insertBefore(chip, st.nextSibling);
+  }
+  function show(ok, why) {
+    place();
+    chip.className = 'chip ' + (ok ? 'c-ok' : 'c-bad');
+    chip.textContent = ok ? 'Pause btn' : 'Pause btn OFF';
+    chip.title = why;
+  }
+  function poll() {
+    fetch('/api/pi/pause_button').then(function (r) { return r.json(); }).then(function (j) {
+      show(!!j.ready, j.ready ? 'GPIO' + j.pin + ' watched' : 'not working: ' + (j.error || 'not started'));
+    }).catch(function () { show(false, 'Studio server not answering'); });
+  }
+  poll();
+  setInterval(poll, 3000);
+})();

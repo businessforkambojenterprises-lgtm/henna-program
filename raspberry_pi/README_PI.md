@@ -89,3 +89,12 @@ Top bar **Calibration**. Status = the approved calibration in use (read-only). D
 tick the boxes, **Move to scan position**, tick "bed empty", **Run daily check** (about 30 s) -> OK / CHECK /
 RECALIBRATE (height, tilt, sideways shift, same camera) or UNCLEAR (something on the bed). First time only:
 **Set the reference** right after a known-good calibration. Results: `outputs/calibration/`, one log row per check.
+
+## Push buttons - PAUSE and STOP (2026-10-15)
+- **PAUSE** (yellow, momentary, normally-open): Pi header **pin 11 (GPIO17)** and **pin 9 (GND)**, no resistor.
+  A press **pauses a running program** (feed hold, position kept; Resume on the screen, which re-checks a real hand)
+  and **stops any other motion** (jog, homing, move to scan: feed hold + reset, home again). Idle: nothing. Every
+  press is a log row. Works only while Studio runs on the Pi. The machine bar shows **Pause btn** (green, watched) or
+  **Pause btn OFF** (red: not working - use the screen). Code: `henna_preview/pause_button.py`.
+- **STOP** (red, latching mushroom, normally-closed): in the **+ wire from the power supply to the DLC32**. It cuts
+  the motors whatever the software does; home again after releasing it. Not connected to the Pi.
