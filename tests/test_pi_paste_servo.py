@@ -74,6 +74,45 @@ class ServoOutputTests(unittest.TestCase):
         self.assertTrue(ps.wants_servo(self.path))
 
 
+class HardwareSignalTests(unittest.TestCase):
+    """dtoverlay=pwm-pio,gpio=18: the servo pulses come from a sysfs PWM channel (hardware-timed, no twitching)."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+        self.chip = os.path.join(self.root, "pwmchip1")
+        os.makedirs(os.path.join(self.chip, "pwm0"))
+        for name in ("export", "pwm0/period", "pwm0/duty_cycle", "pwm0/enable"):
+            open(os.path.join(self.chip, name), "w").close()
+
+    def read(self, name):
+        with open(os.path.join(self.chip, "pwm0", name)) as f:
+            return f.read()
+
+    def test_pulse_widths_and_enable(self):
+        servo = ps.SysfsServo(self.chip, 90)
+        self.assertEqual((self.read("period"), self.read("duty_cycle"), self.read("enable")), ("20000000", "1500000", "1"))
+        servo.angle = 0
+        self.assertEqual(self.read("duty_cycle"), "500000")
+        servo.angle = 180
+        self.assertEqual(self.read("duty_cycle"), "2500000")
+        self.assertEqual(servo.angle, 180.0)
+        servo.close()
+        self.assertEqual(self.read("enable"), "0")
+        self.assertEqual(ps.signal_kind(servo), "hardware (pwm-pio)")
+        self.assertEqual(ps.signal_kind(FakeServo(18, 0)), "software (twitches)")
+
+    def test_finds_only_the_pio_chip(self):
+        self.assertIsNone(ps.find_pio_chip(self.root))
+        target = os.path.join(self.root, "1f00098000.pwm-pio")
+        os.makedirs(target)
+        try:
+            os.symlink(target, os.path.join(self.chip, "device"), target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("no symlinks on this system")
+        self.assertEqual(ps.find_pio_chip(self.root), self.chip)
+
+
 class AngleToolTests(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()

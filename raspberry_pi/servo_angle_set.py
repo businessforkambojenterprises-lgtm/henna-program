@@ -73,7 +73,8 @@ def main(argv=None, make_servo=ps.gpio_servo, sleep=time.sleep, path=ps.CONFIG):
         return 1
     servo = make_servo(pin, angle)
     try:
-        print(f"Servo on GPIO{pin} at {angle:g} deg for {HOLD_S:g} s - is the tube pinched shut or open?")
+        print(f"Servo on GPIO{pin} at {angle:g} deg for {HOLD_S:g} s, {ps.signal_kind(servo)} signal - is the tube "
+              "pinched shut or open?")
         sleep(HOLD_S)
     finally:
         servo.close()

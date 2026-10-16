@@ -66,8 +66,69 @@ def wants_servo(path=CONFIG):
         return False
 
 
+PWM_ROOT = "/sys/class/pwm"
+PERIOD_NS = 20_000_000                          # 50 Hz servo frame
+
+
+def find_pio_chip(root=PWM_ROOT):
+    """The pwmchip made by 'dtoverlay=pwm-pio,gpio=18' in /boot/firmware/config.txt (Pi 5: the RP1's PIO times the
+    pulses in hardware - no twitching, user 2026-10-16), or None."""
+    import glob
+    for chip in sorted(glob.glob(os.path.join(root, "pwmchip*"))):
+        for link in ("device/driver", "device"):
+            try:
+                if "pio" in os.path.basename(os.path.realpath(os.path.join(chip, link))).lower():
+                    return chip
+            except OSError:
+                pass
+    return None
+
+
+def _write(path, value, tries=40, wait_s=0.05):
+    """sysfs write; a just-exported pwm0 needs a moment before udev gives the gpio group write access."""
+    import time
+    for i in range(tries):
+        try:
+            with open(path, "w") as f:
+                f.write(str(value))
+            return
+        except (FileNotFoundError, PermissionError):
+            if i == tries - 1:
+                raise
+            time.sleep(wait_s)
+
+
+class SysfsServo:
+    """A servo on a hardware-timed sysfs PWM channel (same angle scale as gpio_servo)."""
+
+    def __init__(self, chip, angle):
+        self.chip, self.dir, self._angle = chip, os.path.join(chip, "pwm0"), None
+        if not os.path.isdir(self.dir):
+            _write(os.path.join(chip, "export"), 0)
+        _write(os.path.join(self.dir, "period"), PERIOD_NS)
+        self.angle = angle
+        _write(os.path.join(self.dir, "enable"), 1)
+
+    @property
+    def angle(self):
+        return self._angle
+
+    @angle.setter
+    def angle(self, deg):
+        pulse_s = MIN_PULSE_S + (MAX_PULSE_S - MIN_PULSE_S) * float(deg) / 180.0
+        _write(os.path.join(self.dir, "duty_cycle"), int(round(pulse_s * 1e9)))
+        self._angle = float(deg)
+
+    def close(self):
+        _write(os.path.join(self.dir, "enable"), 0)
+
+
 def gpio_servo(pin, angle):
-    """gpiozero.AngularServo on pin, starting at angle (same import route as pause_button.py)."""
+    """The hardware-timed pwm-pio channel when config.txt has it (GPIO18), else gpiozero.AngularServo on pin
+    (software-timed: works, but the servo twitches)."""
+    chip = find_pio_chip() if pin == PIN else None
+    if chip:
+        return SysfsServo(chip, angle)
     try:
         from gpiozero import AngularServo
     except ImportError:
@@ -76,6 +137,12 @@ def gpio_servo(pin, angle):
         from gpiozero import AngularServo
     return AngularServo(pin, initial_angle=angle, min_angle=0, max_angle=180,
                         min_pulse_width=MIN_PULSE_S, max_pulse_width=MAX_PULSE_S)
+
+
+def signal_kind(servo):
+    if servo is None:
+        return None
+    return "hardware (pwm-pio)" if isinstance(servo, SysfsServo) else "software (twitches)"
 
 
 class ServoPasteOutput:
@@ -98,7 +165,7 @@ class ServoPasteOutput:
     def view(self, _=None):
         c = self.cfg or {}
         return {"ready": self.ready, "error": self.error, "pin": c.get("pin", PIN), "closed_deg": c.get("closed_deg"),
-                "open_deg": c.get("open_deg"), "open": self.is_open}
+                "open_deg": c.get("open_deg"), "open": self.is_open, "signal": signal_kind(self.servo)}
 
     def on(self):
         if self.servo is None:

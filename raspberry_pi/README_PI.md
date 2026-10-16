@@ -123,3 +123,7 @@ RECALIBRATE (height, tilt, sideways shift, same camera) or UNCLEAR (something on
   `~/henna-venv/bin/python raspberry_pi/servo_angle_set.py --save --closed <deg> --open <deg>`.
   From then on Studio uses the servo for paste (closed at start; open after each drop, closed before each lift and
   at once on Pause / STOP / errors). `--off` goes back to the DLC32 output.
+- **Steady signal (no twitching):** add `dtoverlay=pwm-pio,gpio=18` at the end of `/boot/firmware/config.txt` (in
+  its `[all]` section) and reboot. The RP1's PIO then times the servo pulses in hardware; `servo_angle_set.py` and
+  Studio use it by themselves and print "hardware (pwm-pio) signal". Without the line they fall back to the
+  software signal ("software (twitches)").
