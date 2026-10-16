@@ -18,7 +18,8 @@ touch layout for the 5" display.
 - Paste pinch-valve SERVO (2026-10-16, user: "gpio pin from rasp", 180 deg servo, pinch valve): signal on GPIO18
   (pin 12), its own 5-6 V supply. Used when outputs/paste_servo.json was saved by raspberry_pi/servo_angle_set.py
   (closed and open angles), or with HENNA_PASTE=servo. Choice order: HENNA_PASTE (controller / pi / servo), else the
-  saved servo file, else the DLC32's TTL output.
+  saved servo file, else the DLC32's TTL output. In Studio (Program step -> Servo angles, user 2026-10-16): try any
+  angle and save closed / open (POST /api/pi/servo/try, /api/pi/servo/save) while nothing runs.
 Everything else - page, machine link, checks, recordings and their verification - is v29 unchanged (machine profiles,
 per-machine calibration in Studio, travel clearance over the hand, real-hand hover runs watched by the camera - the
 child camera process also makes the watch's depth samples). The laptop runs webui_server_v29.py. Started on
@@ -57,6 +58,31 @@ if PASTE_ON_PI:
     studio.machine.paste_output = PASTE                     # not ready until started: paste refused until then
 
 
+def _servo_idle():
+    if not isinstance(PASTE, ServoPasteOutput) or not PASTE_ON_PI:
+        raise ValueError("the paste output is not the servo - save its angles once with raspberry_pi/servo_angle_set.py")
+    st = studio.machine.status()
+    if st.get("busy") or (st.get("program") or {}).get("state") == "running":
+        raise ValueError("wait until the machine has finished - servo angles are set only while nothing runs")
+
+
+def servo_try(params):
+    _servo_idle()
+    v = PASTE.try_angle((params or {}).get("angle"))
+    studio._log("Paste servo: try angle", None, f"{PASTE.name} {float(params['angle']):g} deg", "operator looks at the tube",
+                "-", "moved", "", "Studio Pi servo angles")
+    return v
+
+
+def servo_save(params):
+    _servo_idle()
+    p = params or {}
+    v = PASTE.set_angles(p.get("closed_deg"), p.get("open_deg"))
+    studio._log("Paste servo: angles saved", None, f"{PASTE.name} closed {v['closed_deg']:g} open {v['open_deg']:g}",
+                "closed = tube shut, open = tube open", "-", "saved, servo closed", "", "Studio Pi servo angles")
+    return v
+
+
 def paste_view(_=None):
     if not PASTE_ON_PI:
         return {"output": "controller", "ready": True, "note": "SSR on the DLC32 laser TTL output (M3/M5)"}
@@ -83,6 +109,8 @@ class PiHandler(studio.Handler):
     server_version = studio.Handler.server_version + "-pi"
     GET_API = dict(studio.Handler.GET_API, **{"/api/pi/pause_button": PAUSE_BUTTON.view,
                                               "/api/pi/paste_output": paste_view})
+    POST_API = dict(studio.Handler.POST_API, **{"/api/pi/servo/try": (servo_try, False),
+                                                "/api/pi/servo/save": (servo_save, False)})
 
     def do_GET(self):
         if urlparse(self.path).path in PAGES:

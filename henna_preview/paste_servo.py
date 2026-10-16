@@ -178,6 +178,28 @@ class ServoPasteOutput:
             self.servo.angle = self.cfg["closed_deg"]
         self.is_open = False
 
+    # ---- angle setup from Studio (user 2026-10-16: "add a option for set servo angle in henna studio") ----
+    def try_angle(self, deg):
+        """Move to any angle to see where the tube is shut or open; the next run starts closed again (the link)."""
+        deg = float(deg)
+        if not 0.0 <= deg <= 180.0:
+            raise ServoConfigError("the angle must be 0 to 180 degrees")
+        if self.servo is None:
+            raise RuntimeError(f"paste servo is not working: {self.error}")
+        self.servo.angle = deg
+        self.is_open = self.cfg is None or deg != self.cfg["closed_deg"]
+        return self.view()
+
+    def set_angles(self, closed_deg, open_deg):
+        """Save new closed / open angles (same rules as the tool), use them now and go to closed."""
+        pin = (self.cfg or {}).get("pin", PIN)
+        self.cfg = save_config({"pin": pin, "closed_deg": closed_deg, "open_deg": open_deg}, self._path)
+        if self.servo is None:
+            return self.start()
+        self.off()
+        self.ready, self.error = True, None
+        return self.view()
+
     def close(self):
         if self.servo is not None:
             try:

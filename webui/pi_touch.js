@@ -171,3 +171,67 @@
   poll();
   setInterval(poll, 3000);
 })();
+
+/* Servo angles in Studio (2026-10-16, user: "add a option for set servo angle in henna studio"). Shown in the
+   Program step under Paste when the Pi's paste output is the pinch-valve servo. Try moves the servo to any angle
+   (only while nothing runs - the server checks); Save keeps closed / open and returns the servo to closed. Every
+   program starts with the servo closed, whatever angle was tried last. */
+(function () {
+  'use strict';
+  function $id(id) { return document.getElementById(id); }
+  function say(kind, text) {
+    if (typeof msg === 'function') { msg('piservomsg', kind, text); return; }
+    $id('piservomsg').textContent = text;
+  }
+  function post(url, body) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) {
+        return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j; });
+      });
+  }
+  function show(v) {
+    if (v.closed_deg != null) $id('piservoclosed').value = v.closed_deg;
+    if (v.open_deg != null) $id('piservoopen').value = v.open_deg;
+    $id('piservonow').textContent = v.ready
+      ? 'Saved: closed ' + v.closed_deg + '\u00b0, open ' + v.open_deg + '\u00b0 \u00b7 ' + (v.signal || '')
+      : 'Servo not working: ' + (v.error || 'not started');
+  }
+  function build(v) {
+    var anchor = $id('pgdisphint');
+    if (!anchor || $id('piservo')) return;
+    anchor.textContent = 'Paste ON after the drop to the skin, OFF before every lift; the start delay lets the paste ' +
+      'reach the nozzle before it moves. On this Pi the paste is the pinch-valve servo (open / closed angles below).';
+    var d = document.createElement('details');
+    d.className = 'card'; d.id = 'piservo'; d.style.marginTop = '10px';
+    d.innerHTML = '<summary style="cursor:pointer;font-weight:650">Servo angles</summary>' +
+      '<p class="hint" id="piservonow"></p>' +
+      '<div class="row" style="gap:8px;align-items:flex-end"><label class="f" style="flex:1">Closed - tube shut' +
+      '<input id="piservoclosed" type="number" min="0" max="180" step="1"></label>' +
+      '<button class="btn small" type="button" data-try="piservoclosed">Try</button></div>' +
+      '<div class="row" style="gap:8px;align-items:flex-end"><label class="f" style="flex:1">Open - paste flows' +
+      '<input id="piservoopen" type="number" min="0" max="180" step="1"></label>' +
+      '<button class="btn small" type="button" data-try="piservoopen">Try</button></div>' +
+      '<button class="btn primary block" id="piservosave" type="button" style="margin-top:8px">Save angles</button>' +
+      '<div class="msg" id="piservomsg"></div>';
+    anchor.parentNode.insertBefore(d, anchor.nextSibling);
+    d.addEventListener('click', function (e) {
+      var t = e.target.closest && e.target.closest('[data-try]');
+      if (!t) return;
+      var a = +$id(t.getAttribute('data-try')).value;
+      say('info', 'Moving to ' + a + '\u00b0\u2026');
+      post('/api/pi/servo/try', { angle: a })
+        .then(function () { say('good', 'Servo at ' + a + '\u00b0 - is the tube shut or open?'); })
+        .catch(function (err) { say('err', err.message); });
+    });
+    $id('piservosave').onclick = function () {
+      var c = +$id('piservoclosed').value, o = +$id('piservoopen').value;
+      say('info', 'Saving\u2026');
+      post('/api/pi/servo/save', { closed_deg: c, open_deg: o })
+        .then(function (v) { show(v); say('good', 'Saved. Servo closed at ' + v.closed_deg + '\u00b0.'); })
+        .catch(function (err) { say('err', err.message); });
+    };
+    show(v);
+  }
+  fetch('/api/pi/paste_output').then(function (r) { return r.json(); })
+    .then(function (v) { if (v.mode === 'servo') build(v); }).catch(function () {});
+})();

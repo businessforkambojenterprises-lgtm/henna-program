@@ -74,6 +74,67 @@ class ServoOutputTests(unittest.TestCase):
         self.assertTrue(ps.wants_servo(self.path))
 
 
+class StudioAngleSetupTests(unittest.TestCase):
+    """Program step -> Servo angles: try any angle, save closed / open (then closed), only while nothing runs."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.path = os.path.join(self.dir, "paste_servo.json")
+        self.addCleanup(shutil.rmtree, self.dir)
+        ps.save_config({"closed_deg": 60, "open_deg": 40}, self.path)
+        self.out = ps.ServoPasteOutput(self.path, make_servo=FakeServo)
+        self.out.start()
+
+    def test_try_and_save(self):
+        self.out.try_angle(75)
+        self.assertEqual(self.out.servo.angle, 75)
+        with self.assertRaises(ps.ServoConfigError):
+            self.out.try_angle(200)
+        v = self.out.set_angles(90, 60)
+        self.assertEqual((v["closed_deg"], v["open_deg"], self.out.servo.angle), (90.0, 60.0, 90.0))
+        self.assertEqual(ps.load_config(self.path)["closed_deg"], 90.0)
+        with self.assertRaises(ps.ServoConfigError):
+            self.out.set_angles(90, 88)                       # too close: refused, old angles kept
+        self.assertEqual(ps.load_config(self.path)["closed_deg"], 90.0)
+
+    def test_pi_routes_refuse_while_running_or_without_the_servo(self):
+        import webui_server_v10 as v10
+        original = v10.camera
+        try:
+            os.environ["HENNA_PASTE"] = "servo"
+            import webui_server_pi as pi
+            pi.PASTE = self.out
+            for route in ("/api/pi/servo/try", "/api/pi/servo/save"):
+                self.assertIn(route, pi.PiHandler.POST_API)
+            busy = {"busy": "program", "program": {"state": "running"}}
+            saved_status = pi.studio.machine.status
+            pi.studio.machine.status = lambda: busy
+            logs = pi.studio._log
+            pi.studio._log = lambda *a, **k: None
+            try:
+                with self.assertRaisesRegex(ValueError, "wait until the machine has finished"):
+                    pi.servo_try({"angle": 70})
+                pi.studio.machine.status = lambda: {"busy": None, "program": None}
+                self.assertEqual(pi.servo_try({"angle": 70})["open"], True)
+                self.assertEqual(pi.servo_save({"closed_deg": 85, "open_deg": 55})["closed_deg"], 85.0)
+                pi.PASTE = object()
+                with self.assertRaisesRegex(ValueError, "not the servo"):
+                    pi.servo_try({"angle": 70})
+            finally:
+                pi.studio.machine.status = saved_status
+                pi.studio._log = logs
+            with open(os.path.join(ROOT, "webui", "pi_touch.js"), encoding="utf-8") as f:
+                js = f.read()
+            self.assertIn("/api/pi/servo/try", js)
+            self.assertIn("/api/pi/servo/save", js)
+        finally:
+            os.environ.pop("HENNA_PASTE", None)
+            if "webui_server_pi" in sys.modules:
+                sys.modules["webui_server_pi"].studio.machine.paste_output = None
+            v10.camera = original
+            sys.modules.pop("webui_server_pi", None)
+
+
 class HardwareSignalTests(unittest.TestCase):
     """dtoverlay=pwm-pio,gpio=18: the servo pulses come from a sysfs PWM channel (hardware-timed, no twitching)."""
 
