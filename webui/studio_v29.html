@@ -751,7 +751,7 @@ const _feedNote=feedNote;
 feedNote=function(){_feedNote();if(dispStale()){$('toRun').disabled=true;msg('msgpg','warn','The written program has a different paste setting. Press Write program to use this one.')}};
 $('pgfeed').onchange=()=>feedNote();$('pgdisp').onchange=()=>{dispDefaults();feedNote()};$('pgstart').oninput=feedNote;$('pgstop').oninput=feedNote;
 $('pgtest').onclick=async()=>{$('pgtest').disabled=true;msg('msgpgtest','info','Dispenser on for 1 s…');
- try{await api('/api/machine/dispense_test',{seconds:DISP?DISP.test_s:1});setTimeout(()=>msg('msgpgtest','good','Done. Did the valve or relay switch for about 1 s?'),1500)}
+ try{await api('/api/machine/dispense_test',{seconds:DISP?DISP.test_s:1,dispenser:$('pgdisp').value});setTimeout(()=>msg('msgpgtest','good','Done. Did the valve or relay switch for about 1 s?'),1500)}
  catch(e){msg('msgpgtest','err',e.message)}finally{setTimeout(()=>{$('pgtest').disabled=false},1500)}};
 async function showProgram(){const s=JOB.steps;try{await loadFeeds()}catch(e){}try{await loadDisp()}catch(e){}
  $('pgsum').innerHTML=[['Hand','Prosthetic (no person)'],['Scan',s.scan.name],['Design',`${DES?DES.name:s.design.svg} · ${s.design.fit_mm} mm · ${s.design.rotation_deg}°`],

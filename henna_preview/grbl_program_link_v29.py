@@ -17,6 +17,10 @@ object with on(), off() and name. The program file is the same; the link does no
 so the paste still switches exactly at the drop's end and the stroke's end; the start and stop delays (G4) go to the
 controller as before. Pause switches the pin OFF at once; Resume switches it ON, waits the start delay, then sends
 cycle start. The pin goes OFF at the end of every operation, on every error, stop, reset and disconnect.
+WHICH OUTPUT A RUN USES (user 2026-10-16: "when using pneumatic valve, it giving command through gpio pin instead of
+dlc32?"): the paste settings armed for the run say it - cfg["output"] "pi" = the Pi output above, "controller" = the
+DLC32's TTL with M3 / M5. Studio v29 sets it from the Paste choice (Pneumatic -> controller, Servo -> the Pi's servo).
+Settings without "output" keep the earlier rule: the Pi output whenever one is set.
 """
 import re
 import threading
@@ -60,8 +64,18 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
         self._pin_off()
         return super().disconnect()
 
+    def _run_pin_locked(self):
+        """The Pi output this run's paste uses, or None for the controller's output."""
+        return self._pin_for(self._paste_cfg_locked())
+
+    def _pin_for(self, cfg):
+        if not cfg or self.paste_output is None:
+            return None
+        return self.paste_output if cfg.get("output", "pi") == "pi" else None
+
     def _send_line(self, owner, line):
-        out = self.paste_output
+        with self._lock:
+            out = self._run_pin_locked()
         if out is None or line not in (dispense.PASTE_ON, dispense.PASTE_OFF):
             return super()._send_line(owner, line)
         super()._send_line(owner, SYNC)                  # every earlier move has finished
@@ -141,14 +155,15 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
             if out.get("program") is not None and cfg:
                 out["program"]["paste"] = {"dispenser": cfg["dispenser"], "label": cfg["label"],
                                            "stopped_in_pause": bool(self._run.get("paste_stopped")),
-                                           "output": self.paste_output.name if self.paste_output else "controller"}
+                                           "output": (self._run_pin_locked().name if self._run_pin_locked()
+                                                      else "controller")}
         return out
 
     def pause(self):
         out = super().pause()
         with self._lock:
             cfg, run, generation = self._paste_cfg_locked(), self._run, self._generation
-            if cfg and self.paste_output is not None:
+            if cfg and self._pin_for(cfg) is not None:
                 self._pin_off()
                 run["paste_stopped"] = bool(run.get("paste_on"))
                 cfg = None                               # nothing to send to the controller
@@ -179,7 +194,8 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
 
     def resume(self):
         with self._lock:
-            cfg, run, pin = self._paste_cfg_locked(), self._run, self.paste_output
+            cfg, run = self._paste_cfg_locked(), self._run
+            pin = self._pin_for(cfg)
             restore = bool(cfg and run is not None and run.get("paused") and run.get("paste_stopped"))
             if restore:
                 self._fresh_locked(("Hold",))
@@ -206,13 +222,14 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
             raise
 
     # ---- dispenser test (machine still) ----
-    def start_dispense_test(self, seconds, on_done=None):
+    def start_dispense_test(self, seconds, on_done=None, output=None):
+        """output "pi" / "controller"; None = the Pi output when one is set (the earlier rule)."""
         seconds = float(seconds)
         if not TEST_MIN_S <= seconds <= TEST_MAX_S:
             raise MachineError(f"Dispenser test: {TEST_MIN_S:g} to {TEST_MAX_S:g} s")
         owner = self._new_operation("dispense_test")
         lines = (dispense.PASTE_ON, dispense.dwell(seconds), dispense.PASTE_OFF)
-        pin = self.paste_output
+        pin = self.paste_output if output in (None, "pi") else None
 
         def pin_action(token):
             with self._lock:
