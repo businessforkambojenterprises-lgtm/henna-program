@@ -94,3 +94,21 @@ dialog{width:calc(100vw - 12px);max-height:calc(100vh - 12px);overflow:auto}
   #mstop{order:3}
   body{padding-bottom:140px}
 }
+
+/* ---- Pi home + Admin (2026-10-16) ---- */
+#btnmachine,#btncal{display:none!important}               /* machine and calibration live in Admin */
+#v-welcome > .head, #v-welcome .cols > .card:first-child{display:none}
+#pihome .pih{font-size:22px;margin:4px 0 8px}
+.pichips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.pitiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.pitile{display:flex;flex-direction:column;justify-content:flex-end;gap:4px;min-height:96px;padding:14px;border-radius:14px;
+  border:1px solid var(--line);background:var(--panel);color:inherit;text-align:left;font:inherit;cursor:pointer}
+.pitile b{font-size:17px}
+.pitile span{font-size:13px;opacity:.75}
+.pitile.big{grid-column:span 2;min-height:120px;background:var(--accent-bg);border-color:var(--accent)}
+.pi-hide{display:none!important}
+.pistep{display:flex;gap:6px;align-items:center;flex:1}
+.pistep .btn{min-width:48px;min-height:48px;font-size:22px;padding:0}
+.pistep input{flex:1;min-height:48px;text-align:center;font-size:18px}
+#piadmin .check{min-height:44px}
+#pipause{flex:1 1 0;min-height:48px}

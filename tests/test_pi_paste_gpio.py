@@ -1,5 +1,5 @@
 """Paste SSR on the Pi pin (henna_preview/paste_gpio.py): starts OFF, on/off, no GPIO -> not ready (paste refused),
-and webui_server_pi uses it only with HENNA_PASTE=pi (default: the DLC32's TTL output)."""
+and webui_server_pi uses it only with HENNA_PASTE=pi (default: the servo; controller with HENNA_PASTE=controller)."""
 import os
 import sys
 import unittest
@@ -55,7 +55,13 @@ class PastePinTests(unittest.TestCase):
         try:
             os.environ.pop("HENNA_PASTE", None)
             import webui_server_pi as pi
-            self.assertIsNone(pi.studio.machine.paste_output)            # default: the DLC32's TTL output
+            from henna_preview.paste_servo import ServoPasteOutput
+            self.assertIsInstance(pi.studio.machine.paste_output, ServoPasteOutput)   # default since 2026-10-16
+            sys.modules.pop("webui_server_pi", None)
+            pi.studio.machine.paste_output = None
+            os.environ["HENNA_PASTE"] = "controller"
+            import webui_server_pi as pi
+            self.assertIsNone(pi.studio.machine.paste_output)                         # only the DLC32's TTL output
             self.assertEqual(pi.PiHandler.GET_API["/api/pi/paste_output"]()["output"], "controller")
             sys.modules.pop("webui_server_pi", None)
             os.environ["HENNA_PASTE"] = "pi"

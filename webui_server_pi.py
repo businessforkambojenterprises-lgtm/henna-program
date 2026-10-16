@@ -15,6 +15,10 @@ touch layout for the 5" display.
   pi, move it to dlc32") - Studio v29 switches it with M3 / M5 and checks $32=0 and $30=1000 before every paste run.
   The Pi pin (henna_preview/paste_gpio.py, GPIO27 pin 13 to GND pin 14) is used only when started with
   HENNA_PASTE=pi; GET /api/pi/paste_output says which.
+- ADMIN (2026-10-16, user: "all the calibration, machine selection and valve selection option should come under
+  admin panel", 4-digit PIN): henna_preview/admin_lock.py; every /api/calibration/*, /api/machines/* change, the
+  servo angles and the paste setup (henna_preview/paste_setup.py, applied to every program) need an unlocked
+  session (X-Admin-Token). Forgotten PIN: raspberry_pi/admin_pin_reset.py on the Pi.
 - Paste pinch-valve SERVO (2026-10-16, user: "gpio pin from rasp", 180 deg servo, pinch valve): signal on GPIO18
   (pin 12), its own 5-6 V supply. Used when outputs/paste_servo.json was saved by raspberry_pi/servo_angle_set.py
   (closed and open angles), or with HENNA_PASTE=servo. Choice order: HENNA_PASTE (controller / pi / servo), else the
@@ -32,6 +36,8 @@ import os
 from urllib.parse import urlparse
 
 import webui_server_v29 as studio
+from henna_preview import paste_setup
+from henna_preview.admin_lock import AdminLock
 from henna_preview.camera_process import ProcessCameraService
 from henna_preview.paste_gpio import GpioPasteOutput
 from henna_preview.paste_servo import ServoPasteOutput, wants_servo
@@ -48,7 +54,8 @@ def paste_choice():
     env = os.environ.get("HENNA_PASTE", "").strip().lower()
     if env in ("controller", "pi", "servo"):
         return env
-    return "servo" if wants_servo() else "controller"
+    return "servo"          # 2026-10-16: the servo output always exists (ready once its angles are saved in Admin);
+                            # the Paste choice in Admin decides per run: Pneumatic -> DLC32 TTL, Servo -> this servo
 
 
 PASTE_MODE = paste_choice()
@@ -60,7 +67,7 @@ if PASTE_ON_PI:
 
 def _servo_idle():
     if not isinstance(PASTE, ServoPasteOutput) or not PASTE_ON_PI:
-        raise ValueError("the paste output is not the servo - save its angles once with raspberry_pi/servo_angle_set.py")
+        raise ValueError("this Pi was started without the servo output (HENNA_PASTE) - restart Studio from the icon")
     st = studio.machine.status()
     if st.get("busy") or (st.get("program") or {}).get("state") == "running":
         raise ValueError("wait until the machine has finished - servo angles are set only while nothing runs")
@@ -81,6 +88,71 @@ def servo_save(params):
     studio._log("Paste servo: angles saved", None, f"{PASTE.name} closed {v['closed_deg']:g} open {v['open_deg']:g}",
                 "closed = tube shut, open = tube open", "-", "saved, servo closed", "", "Studio Pi servo angles")
     return v
+
+
+# ---------- Admin (user 2026-10-16: calibration, machine selection and valve selection under a PIN-locked admin) ----
+ADMIN = AdminLock()
+ADMIN_PATHS = {"/api/machines/select", "/api/machines/add", "/api/machines/recalibrate", "/api/machines/setup_area",
+               "/api/machines/setup_scan", "/api/pi/servo/try", "/api/pi/servo/save", "/api/pi/paste_setup"}
+ADMIN_PREFIXES = ("/api/calibration/",)
+# The daily check stays with the operator (user 2026-10-16: "operator should run"): moving to its scan position and
+# running it. Setting the reference, calibrating and choosing the machine stay under Admin.
+OPERATOR_PATHS = {"/api/calibration/scan_position", "/api/calibration/check"}
+
+
+def needs_admin(path):
+    if path in OPERATOR_PATHS:
+        return False
+    return path in ADMIN_PATHS or path.startswith(ADMIN_PREFIXES)
+
+
+def admin_status(params):
+    return ADMIN.status((params or {}).get("token"))
+
+
+def admin_unlock(params):
+    try:
+        token = ADMIN.unlock((params or {}).get("pin"))
+    except ValueError as e:
+        studio._log("Admin: unlock refused", None, "Admin PIN", "correct PIN", str(e), "refused", "", "Studio Pi admin")
+        raise
+    studio._log("Admin: unlocked", None, "Admin PIN", "correct PIN", "ok", "unlocked", "", "Studio Pi admin")
+    return {"token": token}
+
+
+def admin_set_pin(params):
+    p = params or {}
+    first = not ADMIN.pin_set()
+    token = ADMIN.set_pin(p.get("pin"), current=p.get("current"), token=p.get("token"))
+    studio._log("Admin: PIN set" if first else "Admin: PIN changed", None, "Admin PIN", "4 digits", "-", "saved", "",
+                "Studio Pi admin")
+    return {"token": token}
+
+
+def admin_lock(params):
+    ADMIN.lock_now((params or {}).get("token"))
+    return {"unlocked": False}
+
+
+def paste_setup_view(_=None):
+    return {"setup": paste_setup.load(), "dispensers": studio.dispense.DISPENSERS}
+
+
+def paste_setup_save(params):
+    p = params or {}
+    v = paste_setup.save(p.get("dispenser"), p.get("start_s"), p.get("stop_s"))
+    studio._log("Admin: paste setup saved", None, "Admin -> Paste", "dispenser and delays",
+                f"{v.get('label')}" + (f", start {v['start_s']:g} s, stop {v['stop_s']:g} s" if v.get("start_s") is not None else ""),
+                "saved", "", "Studio Pi admin")
+    return {"setup": v}
+
+
+_PROGRAM = studio.Handler.POST_API["/api/studio/program"]
+
+
+def pi_program(params):
+    """Every program uses the Admin's paste setup (the operator's Program step cannot change it)."""
+    return _PROGRAM[0](paste_setup.apply(params, paste_setup.load()))
 
 
 def paste_view(_=None):
@@ -108,9 +180,24 @@ def pi_page():
 class PiHandler(studio.Handler):
     server_version = studio.Handler.server_version + "-pi"
     GET_API = dict(studio.Handler.GET_API, **{"/api/pi/pause_button": PAUSE_BUTTON.view,
-                                              "/api/pi/paste_output": paste_view})
+                                              "/api/pi/paste_output": paste_view,
+                                              "/api/pi/paste_setup": paste_setup_view})
     POST_API = dict(studio.Handler.POST_API, **{"/api/pi/servo/try": (servo_try, False),
-                                                "/api/pi/servo/save": (servo_save, False)})
+                                                "/api/pi/servo/save": (servo_save, False),
+                                                "/api/pi/paste_setup": (paste_setup_save, False),
+                                                "/api/pi/admin/status": (admin_status, False),
+                                                "/api/pi/admin/unlock": (admin_unlock, False),
+                                                "/api/pi/admin/set_pin": (admin_set_pin, False),
+                                                "/api/pi/admin/lock": (admin_lock, False),
+                                                "/api/studio/program": (pi_program, _PROGRAM[1])})
+
+    def do_POST(self):
+        path = urlparse(self.path).path
+        if needs_admin(path) and not ADMIN.valid(self.headers.get("X-Admin-Token", "")):
+            if self._host_ok():
+                self._send(403, {"error": "Admin is locked - open Admin and enter the PIN"})
+            return
+        return super().do_POST()
 
     def do_GET(self):
         if urlparse(self.path).path in PAGES:

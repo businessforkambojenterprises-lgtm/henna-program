@@ -118,7 +118,7 @@ class StudioAngleSetupTests(unittest.TestCase):
                 self.assertEqual(pi.servo_try({"angle": 70})["open"], True)
                 self.assertEqual(pi.servo_save({"closed_deg": 85, "open_deg": 55})["closed_deg"], 85.0)
                 pi.PASTE = object()
-                with self.assertRaisesRegex(ValueError, "not the servo"):
+                with self.assertRaisesRegex(ValueError, "without the servo output"):
                     pi.servo_try({"angle": 70})
             finally:
                 pi.studio.machine.status = saved_status

@@ -172,67 +172,300 @@
   setInterval(poll, 3000);
 })();
 
-/* Servo angles in Studio (2026-10-16, user: "add a option for set servo angle in henna studio"). Shown in the
-   Program step under Paste when the Pi's paste output is the pinch-valve servo. Try moves the servo to any angle
-   (only while nothing runs - the server checks); Save keeps closed / open and returns the servo to closed. Every
-   program starts with the servo closed, whatever angle was tried last. */
+
+/* Pi home, Admin and the run bar (2026-10-16, user: "redesign it for more pi focused" + "all the calibration,
+   machine selection and valve selection option should come under admin panel", 4-digit PIN).
+   - Home: chips (machine, paste) and big tiles - New henna job, Saved jobs, Admin.
+   - Admin (PIN; the Pi server refuses admin routes without the session token): Machine and calibration, Paste
+     setup (dispenser + delays, test), Servo angles, Change PIN, Lock. Forgotten PIN: raspberry_pi/admin_pin_reset.py.
+   - Program step: shows the Admin's paste setup; the server applies it to every program.
+   - Bottom bar: Pause / Resume next to STOP while a program runs.
+   The same Studio routes and checks as before - nothing here moves the machine on its own. */
 (function () {
   'use strict';
+  var ADMIN_TOKEN = null, SETUP = null, DISP = null;
+  var ADMIN_RE = /^\/api\/(calibration\/|machines\/(select|add|recalibrate|setup_area|setup_scan)$|pi\/servo\/|pi\/paste_setup$)/;
   function $id(id) { return document.getElementById(id); }
-  function say(kind, text) {
-    if (typeof msg === 'function') { msg('piservomsg', kind, text); return; }
-    $id('piservomsg').textContent = text;
-  }
+  function esc2(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  /* every admin request carries the session token */
+  var realFetch = window.fetch.bind(window);
+  window.fetch = function (url, opts) {
+    try {
+      var path = new URL(String(url), location.href).pathname;
+      if (ADMIN_TOKEN && opts && opts.method === 'POST' && ADMIN_RE.test(path)) {
+        var h = {};
+        Object.keys(opts.headers || {}).forEach(function (k) { h[k] = opts.headers[k]; });
+        h['X-Admin-Token'] = ADMIN_TOKEN;
+        opts = Object.assign({}, opts, { headers: h });
+      }
+    } catch (e) { /* not a URL we know */ }
+    return realFetch(url, opts);
+  };
   function post(url, body) {
-    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
       .then(function (r) {
         return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j; });
       });
   }
-  function show(v) {
-    if (v.closed_deg != null) $id('piservoclosed').value = v.closed_deg;
-    if (v.open_deg != null) $id('piservoopen').value = v.open_deg;
-    $id('piservonow').textContent = v.ready
-      ? 'Saved: closed ' + v.closed_deg + '\u00b0, open ' + v.open_deg + '\u00b0 \u00b7 ' + (v.signal || '')
-      : 'Servo not working: ' + (v.error || 'not started');
+  function getj(url) { return fetch(url).then(function (r) { return r.json(); }); }
+  function loadSetup() {
+    return getj('/api/pi/paste_setup').then(function (j) { SETUP = j.setup; DISP = j.dispensers; applySetup(); renderChips(); return j; })
+      .catch(function () {});
   }
-  function build(v) {
-    var anchor = $id('pgdisphint');
-    if (!anchor || $id('piservo')) return;
-    anchor.textContent = 'Paste ON after the drop to the skin, OFF before every lift; the start delay lets the paste ' +
-      'reach the nozzle before it moves. Pneumatic: the DLC32 TTL output (SSR, laser mode off). Servo dispenser: the ' +
-      'pinch-valve servo on this Pi (open / closed angles below).';
-    var d = document.createElement('details');
-    d.className = 'card'; d.id = 'piservo'; d.style.marginTop = '10px';
-    d.innerHTML = '<summary style="cursor:pointer;font-weight:650">Servo angles</summary>' +
-      '<p class="hint" id="piservonow"></p>' +
-      '<div class="row" style="gap:8px;align-items:flex-end"><label class="f" style="flex:1">Closed - tube shut' +
-      '<input id="piservoclosed" type="number" min="0" max="180" step="1"></label>' +
-      '<button class="btn small" type="button" data-try="piservoclosed">Try</button></div>' +
-      '<div class="row" style="gap:8px;align-items:flex-end"><label class="f" style="flex:1">Open - paste flows' +
-      '<input id="piservoopen" type="number" min="0" max="180" step="1"></label>' +
-      '<button class="btn small" type="button" data-try="piservoopen">Try</button></div>' +
-      '<button class="btn primary block" id="piservosave" type="button" style="margin-top:8px">Save angles</button>' +
-      '<div class="msg" id="piservomsg"></div>';
-    anchor.parentNode.insertBefore(d, anchor.nextSibling);
-    d.addEventListener('click', function (e) {
-      var t = e.target.closest && e.target.closest('[data-try]');
-      if (!t) return;
-      var a = +$id(t.getAttribute('data-try')).value;
-      say('info', 'Moving to ' + a + '\u00b0\u2026');
-      post('/api/pi/servo/try', { angle: a })
-        .then(function () { say('good', 'Servo at ' + a + '\u00b0 - is the tube shut or open?'); })
-        .catch(function (err) { say('err', err.message); });
-    });
-    $id('piservosave').onclick = function () {
-      var c = +$id('piservoclosed').value, o = +$id('piservoopen').value;
-      say('info', 'Saving\u2026');
-      post('/api/pi/servo/save', { closed_deg: c, open_deg: o })
-        .then(function (v) { show(v); say('good', 'Saved. Servo closed at ' + v.closed_deg + '\u00b0.'); })
-        .catch(function (err) { say('err', err.message); });
+
+  /* ---------- home ---------- */
+  function buildHome() {
+    var w = $id('v-welcome');
+    if (!w || $id('pihome')) return;
+    var h = document.createElement('div');
+    h.id = 'pihome';
+    h.innerHTML = '<h1 class="pih">Henna Studio</h1><div class="pichips" id="pichips"></div>' +
+      '<div class="pitiles">' +
+      '<button type="button" class="pitile big" id="pinew"><b>New henna job</b><span>Scan, design, run</span></button>' +
+      '<button type="button" class="pitile" id="pijobs"><b>Saved jobs</b><span>Continue a job</span></button>' +
+      '<button type="button" class="pitile" id="pidaily"><b>Daily check</b><span>Camera and machine check</span></button>' +
+      '<button type="button" class="pitile" id="piadminbtn"><b>Admin</b><span>Machine, calibration, paste</span></button>' +
+      '</div>';
+    w.insertBefore(h, w.firstChild);
+    $id('pinew').onclick = function () { $id('btnnew').click(); };
+    $id('pijobs').onclick = function () { $id('btnjobs').click(); };
+    $id('piadminbtn').onclick = openAdmin;
+    $id('pidaily').onclick = function () {                  /* operators run it; the reference stays under Admin */
+      if (typeof machineBusy === 'function' && machineBusy()) return;
+      go('calib');
+      var b = $id('calcheck');
+      if (b && b.scrollIntoView) setTimeout(function () { b.scrollIntoView({ block: 'center' }); }, 300);
     };
-    show(v);
+    var top = $id('btnjobs');
+    if (top && !$id('pihomebtn')) {
+      var b = document.createElement('button');
+      b.className = 'btn small'; b.id = 'pihomebtn'; b.type = 'button'; b.textContent = 'Home';
+      b.onclick = function () { if (typeof machineBusy === 'function' && machineBusy()) return; go('welcome'); };
+      top.parentNode.insertBefore(b, top);
+    }
   }
-  fetch('/api/pi/paste_output').then(function (r) { return r.json(); })
-    .then(function (v) { if (v.mode === 'servo') build(v); }).catch(function () {});
+  function chip(kind, text) { return '<span class="chip c-' + kind + '">' + esc2(text) + '</span>'; }
+  function renderChips() {
+    var c = $id('pichips');
+    if (!c) return;
+    var m = (typeof MACH !== 'undefined') ? MACH : null, out = '';
+    if (!m || !m.connected) out += chip('warn', 'Machine off');
+    else if (!m.homed) out += chip('warn', 'Not homed');
+    else out += chip('ok', 'Homed - ' + (m.state || ''));
+    if (!SETUP) out += chip('warn', 'Paste: not set (Admin)');
+    else out += chip(SETUP.dispenser === 'none' ? 'info' : 'ok', 'Paste: ' + (SETUP.dispenser === 'none' ? 'none' : SETUP.label));
+    c.innerHTML = out;
+  }
+
+  /* ---------- Pause / Resume in the bottom bar ---------- */
+  function buildRunBar() {
+    var stop = $id('mstop');
+    if (!stop || $id('pipause')) return;
+    var b = document.createElement('button');
+    b.className = 'btn small'; b.id = 'pipause'; b.type = 'button'; b.hidden = true; b.textContent = 'Pause';
+    stop.parentNode.insertBefore(b, stop);
+    b.onclick = function () {
+      var p = (typeof prog === 'function') ? prog() : null;
+      if (!p) return;
+      b.disabled = true;
+      api(p.paused ? '/api/machine/resume' : '/api/machine/pause', {})
+        .then(function (m) { if (typeof machineAccept === 'function') machineAccept(m); })
+        .catch(function (e) { alert(e.message); })
+        .then(function () { b.disabled = false; });
+    };
+  }
+  function tick() {
+    var b = $id('pipause');
+    if (b) {
+      var run = (typeof running === 'function') && running();
+      var p = run && (typeof prog === 'function') ? prog() : null;
+      b.hidden = !run;
+      b.textContent = p && p.paused ? 'Resume' : 'Pause';
+    }
+    renderChips();
+  }
+
+  /* ---------- Program step: the Admin's paste setup ---------- */
+  function applySetup() {
+    var sel = $id('pgdisp');
+    if (!sel) return;
+    var line = $id('pipasteline');
+    if (!line) {
+      line = document.createElement('div');
+      line.id = 'pipasteline'; line.className = 'hint';
+      sel.parentNode.insertBefore(line, sel);
+    }
+    ['pgdisp', 'pgdelays', 'pgdisphint', 'pgtest', 'msgpgtest'].forEach(function (id) { var e = $id(id); if (e) e.classList.add('pi-hide'); });
+    var lab = document.querySelector('label[for="pgdisp"]');
+    if (lab) lab.classList.add('pi-hide');
+    var s = SETUP;
+    if (!s || s.dispenser === 'none') {
+      sel.value = 'none';
+      line.textContent = s ? 'Paste: none - hover only (set in Admin).' : 'Paste: not set - choose the dispenser in Admin, Paste.';
+    } else {
+      sel.value = s.dispenser;
+      if ($id('pgstart')) $id('pgstart').value = s.start_s;
+      if ($id('pgstop')) $id('pgstop').value = s.stop_s;
+      line.textContent = 'Paste: ' + s.label + ', start ' + s.start_s + ' s, stop ' + s.stop_s + ' s (set in Admin).';
+    }
+    if (typeof feedNote === 'function') { try { feedNote(); } catch (e) { /* program view not open */ } }
+  }
+  if (typeof showProgram === 'function') {
+    var origShowProgram = showProgram;
+    showProgram = async function () { await origShowProgram.apply(this, arguments); applySetup(); };
+  }
+
+  /* ---------- Admin ---------- */
+  var dlg = null;
+  function stepper(id, value, step, min, max) {
+    return '<div class="pistep" data-id="' + id + '" data-step="' + step + '" data-min="' + min + '" data-max="' + max + '">' +
+      '<button type="button" class="btn" data-d="-1" aria-label="Less">-</button>' +
+      '<input id="' + id + '" type="number" inputmode="decimal" value="' + value + '" step="' + step + '" min="' + min + '" max="' + max + '">' +
+      '<button type="button" class="btn" data-d="1" aria-label="More">+</button></div>';
+  }
+  function say(kind, text) { var m = $id('piadminmsg'); if (m && typeof msg === 'function') msg('piadminmsg', kind, text); }
+  function openAdmin() {
+    if (!dlg) {
+      dlg = document.createElement('dialog');
+      dlg.id = 'piadmin';
+      dlg.innerHTML = '<div class="dlg"><div class="row" style="justify-content:space-between;align-items:center">' +
+        '<h2>Admin</h2><button class="btn small" type="button" id="piadminclose">Close</button></div>' +
+        '<div id="piadminbody"></div><div class="msg" id="piadminmsg"></div></div>';
+      document.body.appendChild(dlg);
+      $id('piadminclose').onclick = function () { dlg.close(); };
+      dlg.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('.pistep [data-d]');
+        if (!b) return;
+        var box = b.parentNode, inp = $id(box.getAttribute('data-id'));
+        var st = +box.getAttribute('data-step'), v = (+inp.value || 0) + st * (+b.getAttribute('data-d'));
+        v = Math.min(+box.getAttribute('data-max'), Math.max(+box.getAttribute('data-min'), v));
+        inp.value = st < 1 ? v.toFixed(2) : Math.round(v);
+      });
+    }
+    say('', '');
+    if (!dlg.open) dlg.showModal();
+    post('/api/pi/admin/status', { token: ADMIN_TOKEN }).then(function (st) {
+      if (!st.unlocked) ADMIN_TOKEN = null;
+      if (!st.pin_set) showSetPin(true);
+      else if (!st.unlocked) showUnlock(st);
+      else showPanel();
+    }).catch(function (e) { say('err', e.message); });
+  }
+  function pinInput(id, label) {
+    return '<label class="f" for="' + id + '">' + label + '</label>' +
+      '<input id="' + id + '" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">';
+  }
+  function showSetPin(first) {
+    $id('piadminbody').innerHTML = '<p class="sub">' + (first ? 'Set a 4-digit admin PIN for this machine. Keep it safe: '
+      + 'a forgotten PIN can only be reset at the Pi itself.' : 'Choose a new 4-digit PIN.') + '</p>' +
+      pinInput('pipin1', 'New PIN') + pinInput('pipin2', 'Repeat the PIN') +
+      '<button class="btn primary block" type="button" id="pipinsave" style="margin-top:10px">Save PIN</button>' +
+      (first ? '' : '<button class="btn block" type="button" id="pipinback" style="margin-top:6px">Back</button>');
+    $id('pipinsave').onclick = function () {
+      var a = $id('pipin1').value, b = $id('pipin2').value;
+      if (!/^\d{4}$/.test(a)) { say('err', 'The PIN must be 4 digits.'); return; }
+      if (a !== b) { say('err', 'The two PINs are different.'); return; }
+      post('/api/pi/admin/set_pin', { pin: a, token: ADMIN_TOKEN }).then(function (j) {
+        ADMIN_TOKEN = j.token; say('good', 'PIN saved.'); showPanel();
+      }).catch(function (e) { say('err', e.message); });
+    };
+    if (!first) $id('pipinback').onclick = showPanel;
+    $id('pipin1').focus();
+  }
+  function showUnlock(st) {
+    $id('piadminbody').innerHTML = '<p class="sub">Enter the admin PIN.</p>' + pinInput('pipin', 'PIN') +
+      '<button class="btn primary block" type="button" id="piunlock" style="margin-top:10px">Unlock</button>';
+    if (st && st.blocked_s) say('err', 'Too many wrong PINs - wait ' + st.blocked_s + ' s.');
+    $id('piunlock').onclick = function () {
+      post('/api/pi/admin/unlock', { pin: $id('pipin').value }).then(function (j) {
+        ADMIN_TOKEN = j.token; say('', ''); showPanel();
+      }).catch(function (e) { say('err', e.message); $id('pipin').value = ''; });
+    };
+    $id('pipin').focus();
+  }
+  function showPanel() {
+    var s = SETUP || { dispenser: 'none' };
+    var d = (DISP && DISP[s.dispenser]) || { start_s: 0.3, stop_s: 0.2 };
+    var start = s.start_s != null ? s.start_s : d.start_s, stop = s.stop_s != null ? s.stop_s : d.stop_s;
+    function radio(v, label) {
+      return '<label class="check"><input type="radio" name="pidisp" value="' + v + '"' + (s.dispenser === v ? ' checked' : '') +
+        '><span>' + label + '</span></label>';
+    }
+    $id('piadminbody').innerHTML =
+      '<button class="btn block" type="button" id="pimachine">Machine and calibration</button>' +
+      '<h3 style="margin-top:14px">Paste</h3>' + radio('none', 'None - hover only') +
+      radio('pneumatic', 'Pneumatic air valve (DLC32 TTL)') + radio('servo_ssr', 'Servo pinch valve (this Pi)') +
+      '<label class="f">Start delay (s)</label>' + stepper('pistart', start, 0.05, 0, 3) +
+      '<label class="f">Stop delay (s)</label>' + stepper('pistop', stop, 0.05, 0, 3) +
+      '<div class="row" style="gap:8px;margin-top:8px"><button class="btn primary" type="button" id="pisetupsave" style="flex:1">Save paste</button>' +
+      '<button class="btn" type="button" id="pitest" style="flex:1">Test 1 s</button></div>' +
+      '<div id="piservobox"></div>' +
+      '<div class="row" style="gap:8px;margin-top:14px"><button class="btn" type="button" id="pipinchange" style="flex:1">Change PIN</button>' +
+      '<button class="btn" type="button" id="pilock" style="flex:1">Lock</button></div>';
+    $id('pimachine').onclick = function () {
+      if (typeof machineBusy === 'function' && machineBusy()) { say('err', 'Wait until the machine has finished.'); return; }
+      dlg.close(); go('calib');
+    };
+    function chosen() { var r = document.querySelector('input[name="pidisp"]:checked'); return r ? r.value : 'none'; }
+    $id('pisetupsave').onclick = function () {
+      post('/api/pi/paste_setup', { dispenser: chosen(), start_s: +$id('pistart').value, stop_s: +$id('pistop').value })
+        .then(function (j) { SETUP = j.setup; applySetup(); renderChips(); say('good', 'Paste saved: ' + (SETUP.label || 'none') + '.'); renderServo(); })
+        .catch(function (e) { say('err', e.message); });
+    };
+    $id('pitest').onclick = function () {
+      var dsp = chosen();
+      if (dsp === 'none') { say('err', 'Choose a dispenser first.'); return; }
+      say('info', 'Dispenser on for 1 s');
+      api('/api/machine/dispense_test', { seconds: 1, dispenser: dsp })
+        .then(function () { setTimeout(function () { say('good', 'Done - did it switch for about 1 s?'); }, 1500); })
+        .catch(function (e) { say('err', e.message); });
+    };
+    document.querySelectorAll('input[name="pidisp"]').forEach(function (r) {
+      r.onchange = function () {
+        var x = DISP && DISP[chosen()];
+        if (x) { $id('pistart').value = x.start_s; $id('pistop').value = x.stop_s; }
+        renderServo();
+      };
+    });
+    $id('pipinchange').onclick = function () { showSetPin(false); };
+    $id('pilock').onclick = function () {
+      post('/api/pi/admin/lock', { token: ADMIN_TOKEN }).catch(function () {});
+      ADMIN_TOKEN = null; dlg.close();
+    };
+    renderServo();
+  }
+  function renderServo() {
+    var box = $id('piservobox');
+    if (!box) return;
+    var r = document.querySelector('input[name="pidisp"]:checked');
+    if (!r || r.value !== 'servo_ssr') { box.innerHTML = ''; return; }
+    getj('/api/pi/paste_output').then(function (v) {
+      box.innerHTML = '<h3 style="margin-top:14px">Servo angles</h3><p class="hint">' + (v.ready
+        ? 'Saved: closed ' + v.closed_deg + ' deg, open ' + v.open_deg + ' deg - ' + esc2(v.signal || '')
+        : 'Not set yet - find the angles below and save them.') + '</p>' +
+        '<label class="f">Closed - tube shut</label><div class="row" style="gap:8px">' + stepper('piclosed', v.closed_deg != null ? v.closed_deg : 90, 1, 0, 180) +
+        '<button class="btn" type="button" data-try="piclosed">Try</button></div>' +
+        '<label class="f">Open - paste flows</label><div class="row" style="gap:8px">' + stepper('piopen', v.open_deg != null ? v.open_deg : 60, 1, 0, 180) +
+        '<button class="btn" type="button" data-try="piopen">Try</button></div>' +
+        '<button class="btn primary block" type="button" id="piservosave" style="margin-top:8px">Save angles</button>';
+      box.querySelectorAll('[data-try]').forEach(function (b) {
+        b.onclick = function () {
+          var a = +$id(b.getAttribute('data-try')).value;
+          post('/api/pi/servo/try', { angle: a }).then(function () { say('good', 'Servo at ' + a + ' deg - is the tube shut or open?'); })
+            .catch(function (e) { say('err', e.message); });
+        };
+      });
+      $id('piservosave').onclick = function () {
+        post('/api/pi/servo/save', { closed_deg: +$id('piclosed').value, open_deg: +$id('piopen').value })
+          .then(function (w) { say('good', 'Angles saved - servo closed at ' + w.closed_deg + ' deg.'); renderServo(); })
+          .catch(function (e) { say('err', e.message); });
+      };
+    }).catch(function (e) { box.innerHTML = '<p class="hint">' + esc2(e.message) + '</p>'; });
+  }
+
+  buildHome();
+  buildRunBar();
+  loadSetup();
+  setInterval(tick, 500);
 })();
