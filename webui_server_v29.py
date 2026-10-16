@@ -20,7 +20,9 @@ Servo dispenser (its driver started by an SSR). For the controller both are M3 S
 v1-v28 files are unchanged; the laptop runs this file, the Pi's webui_server_pi.py switches to it at the next merge.
 """
 import datetime as dt
+import glob
 import hashlib
+import json
 import os
 import re
 from urllib.parse import unquote, urlparse
@@ -178,6 +180,63 @@ def dispense_test(params):
     return v14.machine_status()
 
 
+# ---------- an existing recording: the status Studio saved with it (user 2026-10-16: "remove this status line") ----
+_SCAN_ROUTE = v28.Handler.POST_API["/api/studio/scan"]
+_USE_REC_ROUTE = v28.Handler.POST_API["/api/studio/use_recording"]
+
+
+def _note(path):
+    return path + ".machine.json"                         # written by every Studio scan since v24 (machine, job)
+
+
+def saved_status_line(path):
+    """The controller status Studio saved when it recorded this file: in its note (from v29 scans), else in the scan
+    step of the job that recorded it (the note names it), else in any job whose scan is this recording. None if
+    Studio never saved one - such a recording cannot be placed on the machine."""
+    try:
+        with open(_note(path), encoding="utf-8") as f:
+            note = json.load(f)
+    except (OSError, ValueError):
+        note = {}
+    if note.get("status_line"):
+        return note["status_line"]
+    ids = [note["job"]] if note.get("job") else []
+    ids += [os.path.basename(os.path.dirname(p)) for p in sorted(glob.glob(os.path.join(base.OUT_ROOT, "*-job", "job.json")))]
+    for job_id in ids:
+        try:
+            sc = v11.job_load(job_id)["steps"].get("scan") or {}
+        except (OSError, ValueError, KeyError):
+            continue
+        if sc.get("status_line") and sc.get("recording") and _same(sc["recording"], path):
+            return sc["status_line"]
+    return None
+
+
+def scan(params):
+    out = _SCAN_ROUTE[0](params)
+    sc = out["job"]["steps"]["scan"]
+    try:
+        with open(_note(sc["recording"]), encoding="utf-8") as f:
+            note = json.load(f)
+        note["status_line"] = sc["status_line"]
+        with open(_note(sc["recording"]), "w", encoding="utf-8") as f:
+            json.dump(note, f)
+    except (OSError, ValueError, KeyError):
+        pass                                              # the job still has it; saved_status_line finds it there
+    return out
+
+
+def use_recording(params):
+    params = dict(params or {})
+    if not str(params.get("status_line") or "").strip():
+        from webui_server_v2 import resolve_recording
+        line = saved_status_line(resolve_recording(params.get("path")))
+        if not line:
+            raise ValueError("Studio has no saved machine position for this recording - record a new scan")
+        params["status_line"] = line
+    return _USE_REC_ROUTE[0](params)
+
+
 def dispensers(_=None):
     return {"dispensers": dispense.DISPENSERS, "delay_range_s": [dispense.DELAY_MIN_S, dispense.DELAY_MAX_S],
             "test_s": TEST_S, "s_full": dispense.S_FULL}
@@ -190,6 +249,8 @@ class Handler(v28.Handler):
         "/api/studio/program": (program, v28.Handler.POST_API["/api/studio/program"][1]),
         "/api/machine/run": (run, v28.Handler.POST_API["/api/machine/run"][1]),
         "/api/machine/dispense_test": (dispense_test, False),
+        "/api/studio/scan": (scan, _SCAN_ROUTE[1]),
+        "/api/studio/use_recording": (use_recording, _USE_REC_ROUTE[1]),
     })
 
     def do_GET(self):
