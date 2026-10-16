@@ -113,3 +113,13 @@ RECALIBRATE (height, tilt, sideways shift, same camera) or UNCLEAR (something on
   on Pause / STOP / errors / closing Studio. Code: `henna_preview/paste_gpio.py`.
 - The SSR-25DA switches **AC loads only** (24-480 V AC); a DC valve or a low-voltage trigger needs a DC SSR or a
   relay module.
+
+## Paste pinch-valve servo on the Pi (2026-10-16)
+- Servo **signal** (orange / yellow) to **pin 12 (GPIO18)**. Servo **+** (red) and **-** (brown / black) to their own
+  **5-6 V, 2 A or more** supply - not the Pi's or the DLC32's 5 V pins. That supply's **-** also to a Pi **GND**
+  (pin 14) for a common ground. The servo tester is not needed.
+- Once, with Studio closed: `~/henna-venv/bin/python raspberry_pi/servo_angle_set.py --angle 90` (holds 5 s) - try
+  angles to find CLOSED (tube pinched) and OPEN; then
+  `~/henna-venv/bin/python raspberry_pi/servo_angle_set.py --save --closed <deg> --open <deg>`.
+  From then on Studio uses the servo for paste (closed at start; open after each drop, closed before each lift and
+  at once on Pause / STOP / errors). `--off` goes back to the DLC32 output.

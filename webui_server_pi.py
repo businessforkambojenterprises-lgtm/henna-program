@@ -15,6 +15,10 @@ touch layout for the 5" display.
   pi, move it to dlc32") - Studio v29 switches it with M3 / M5 and checks $32=0 and $30=1000 before every paste run.
   The Pi pin (henna_preview/paste_gpio.py, GPIO27 pin 13 to GND pin 14) is used only when started with
   HENNA_PASTE=pi; GET /api/pi/paste_output says which.
+- Paste pinch-valve SERVO (2026-10-16, user: "gpio pin from rasp", 180 deg servo, pinch valve): signal on GPIO18
+  (pin 12), its own 5-6 V supply. Used when outputs/paste_servo.json was saved by raspberry_pi/servo_angle_set.py
+  (closed and open angles), or with HENNA_PASTE=servo. Choice order: HENNA_PASTE (controller / pi / servo), else the
+  saved servo file, else the DLC32's TTL output.
 Everything else - page, machine link, checks, recordings and their verification - is v29 unchanged (machine profiles,
 per-machine calibration in Studio, travel clearance over the hand, real-hand hover runs watched by the camera - the
 child camera process also makes the watch's depth samples). The laptop runs webui_server_v29.py. Started on
@@ -29,6 +33,7 @@ from urllib.parse import urlparse
 import webui_server_v29 as studio
 from henna_preview.camera_process import ProcessCameraService
 from henna_preview.paste_gpio import GpioPasteOutput
+from henna_preview.paste_servo import ServoPasteOutput, wants_servo
 from henna_preview.pause_button import PauseButton
 
 PI_CSS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webui", "pi_touch.css")
@@ -38,8 +43,16 @@ PAGES = ("/", "/index.html", "/studio")
 # Every v10-v29 route looks v10.camera up at call time, so this one swap reaches all of them.
 studio.v10.camera = ProcessCameraService()
 PAUSE_BUTTON = PauseButton(studio.machine, studio._log)
-PASTE_ON_PI = os.environ.get("HENNA_PASTE", "controller") == "pi"
-PASTE = GpioPasteOutput()
+def paste_choice():
+    env = os.environ.get("HENNA_PASTE", "").strip().lower()
+    if env in ("controller", "pi", "servo"):
+        return env
+    return "servo" if wants_servo() else "controller"
+
+
+PASTE_MODE = paste_choice()
+PASTE_ON_PI = PASTE_MODE != "controller"
+PASTE = ServoPasteOutput() if PASTE_MODE == "servo" else GpioPasteOutput()
 if PASTE_ON_PI:
     studio.machine.paste_output = PASTE                     # not ready until started: paste refused until then
 
@@ -47,7 +60,7 @@ if PASTE_ON_PI:
 def paste_view(_=None):
     if not PASTE_ON_PI:
         return {"output": "controller", "ready": True, "note": "SSR on the DLC32 laser TTL output (M3/M5)"}
-    return dict(PASTE.view(), output=PASTE.name)
+    return dict(PASTE.view(), output=PASTE.name, mode=PASTE_MODE)
 
 
 def pi_page():
