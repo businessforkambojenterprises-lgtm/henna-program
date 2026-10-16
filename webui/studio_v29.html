@@ -324,8 +324,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
      </div>
      <details class="card"><summary style="cursor:pointer;font-weight:650">Use an existing recording instead</summary>
       <label class="f" for="exrec">Recording</label><select id="exrec"></select>
-      <label class="f" for="exline">Status line sent before that recording</label><textarea id="exline" rows="2"></textarea>
-      <div class="hint">Use the status saved with this recording, from when it was captured.</div>
+      <div class="hint">Studio uses the machine position it saved when it recorded this scan.</div>
       <button class="btn block" id="exuse" type="button" style="margin-top:12px">Use this recording</button>
       <div class="msg" id="msgex"></div>
      </details>
@@ -605,7 +604,7 @@ $('scanrec').onclick=async()=>{if(!scanReady()){scanPositionShow();msg('msgscan'
   $('scanchecks').innerHTML=scanChecks(JOB.steps.scan);msg('msgscan','good','Scan saved and checked.');$('toHand').disabled=false;go('region',true)}
  catch(e){msg('msgscan','err',e.message)}finally{recBusy=false;machSeen=0;machGeneration++;machShow(MACH);machPoll()}};
 $('exuse').onclick=async()=>{const r=recs[$('exrec').value];if(!r)return;$('exuse').disabled=true;msg('msgex','info','Checking…');
- try{const j=await api('/api/studio/use_recording',{job:JOB.id,path:r.path,status_line:$('exline').value});setJob(j.job);
+ try{const j=await api('/api/studio/use_recording',{job:JOB.id,path:r.path});setJob(j.job);
   $('scanchecks').innerHTML=scanChecks(JOB.steps.scan);msg('msgex','good','Recording selected.');$('toHand').disabled=false}
  catch(e){msg('msgex','err',e.message)}finally{$('exuse').disabled=false}};
 $('toHand').onclick=()=>go('region');
