@@ -115,6 +115,7 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
             self._dispense_next = dict(cfg) if cfg else None
 
     def start_program(self, name, lines, end_mpos, on_done=None):
+        self._pin_off()                                  # a Pi output left at a test angle starts every run closed
         with self._lock:
             cfg, self._dispense_next = getattr(self, "_dispense_next", None), None
             self._dispense_starting = cfg
