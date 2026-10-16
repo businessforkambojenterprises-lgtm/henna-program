@@ -35,6 +35,7 @@ import webui_server_v17 as v17
 import webui_server_v27 as v27
 import webui_server_v28 as v28
 from henna_preview import dispense, dispense_check
+from henna_preview.grbl_program_link import MachineError
 from henna_preview.grbl_program_link_v29 import GrblProgramLinkV29
 
 STUDIO_HTML = os.path.join(base.WEB_DIR, "studio_v29.html")
@@ -150,6 +151,30 @@ def _where(found):
     return f"Pi pin {found['output']}" if "output" in found else f"controller $32={found.get(32)} $30={found.get(30)}"
 
 
+def _prosthetic_start(job, params):
+    """v28's run for a prosthetic job, with the hand check before Start as a WARNING only (owner 2026-10-16: "yes do
+    2"): a moved prosthetic can only touch plastic. The numbers are logged and shown; Start goes ahead. Real-hand
+    jobs keep v28's refusal (and the live watch)."""
+    v28.machine_job_only(job)
+    if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
+        raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
+    warning = None
+    try:
+        res = v28.hand_check(job)
+        measured = (f"prosthetic: median {res['median_dz_mm']} mm, {100 * res['share_off']:.0f} % off, "
+                    f"{100 * res['seen_share']:.0f} % seen")
+    except MachineError:
+        raise                                               # not connected: nothing is started
+    except Exception as e:                                  # noqa: BLE001 - moved / unseen / no picture: warn only
+        warning = str(e).replace("Hand check:", "Hand check (warning only, prosthetic):", 1)
+        measured = str(e)
+    out = v28._INNER["/api/machine/run"](dict(params, confirm_prosthetic=True, confirm_unmoved=True))
+    _log("Hand check before Start", (machine.status() or {}).get("mpos"), "camera, 3 pictures",
+         "hand where it was scanned", measured, "ok" if warning is None else "WARNING - started anyway (prosthetic)",
+         job["steps"]["scan"]["name"], f"Studio v29; job {job['id']}; prosthetic: warning only (owner 2026-10-16)")
+    return dict(out, hand_check_warning=warning) if warning else out
+
+
 def run(params):
     job = v11.job_load(params.get("job"))
     d = (job["steps"].get("program") or {}).get("dispense")
@@ -157,7 +182,7 @@ def run(params):
         found = controller_ready()
         machine.arm_dispense(dispense.settings(d["dispenser"], d["start_s"], d["stop_s"]))
     try:
-        out = v28.run(params)
+        out = _prosthetic_start(job, params) if job.get("subject") == "prosthetic" else v28.run(params)
     finally:
         machine.arm_dispense(None)                           # start_program took it, or the run was refused
     if d:

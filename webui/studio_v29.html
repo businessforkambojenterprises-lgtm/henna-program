@@ -837,7 +837,7 @@ $('runstart').onclick=()=>{if(!canStart())return;RUN_TICKS.forEach(id=>$(id).che
 RUN_TICKS.forEach(id=>$(id).onchange=runShow);
 $('rungo').onclick=async()=>{if($('rungo').disabled)return;runAction='start';runShow();msg('msgrundlg','info','Checking the program file and starting…');
  try{const r=await api('/api/machine/run',{job:JOB.id,confirm_prosthetic:true,confirm_unmoved:true,confirm_clear:true,confirm_estop:true});
-  const {job,...m}=r;lastRunJob=job.id;lastRunState='running';setJob(job);machineAccept(m);$('dlgrun').close();msg('msgrun','','');renderRunHist()}
+  const {job,hand_check_warning,...m}=r;lastRunJob=job.id;lastRunState='running';setJob(job);machineAccept(m);$('dlgrun').close();msg('msgrun',hand_check_warning?'warn':'',hand_check_warning||'');renderRunHist()}
  catch(e){msg('msgrundlg','err',e.message)}finally{runAction='';runShow()}};
 $('runpause').onclick=async()=>{const p=prog();if(!running()||!p)return;runAction='pause';runShow();
  try{machineAccept(await api(p.paused?'/api/machine/resume':'/api/machine/pause',{}))}catch(e){msg('msgrun','err',e.message)}finally{runAction='';runShow()}};
