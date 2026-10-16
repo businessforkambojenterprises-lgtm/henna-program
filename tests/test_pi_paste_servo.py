@@ -174,6 +174,39 @@ class HardwareSignalTests(unittest.TestCase):
         self.assertEqual(ps.find_pio_chip(self.root), self.chip)
 
 
+class PiModelChipTests(unittest.TestCase):
+    """Pi 4: the BCM PWM chip (dtoverlay=pwm,pin=18,func=2); Pi 5: the pwm-pio chip, never its fan chip."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+
+    def chip(self, name, driver):
+        chip = os.path.join(self.root, name)
+        os.makedirs(os.path.join(chip, "device"))
+        target = os.path.join(self.root, "drivers", driver)
+        os.makedirs(target, exist_ok=True)
+        try:
+            os.symlink(target, os.path.join(chip, "device", "driver"), target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("no symlinks on this system")
+        return chip
+
+    def test_pi4_uses_the_bcm_chip_and_pi5_never_its_fan_chip(self):
+        bcm = self.chip("pwmchip0", "bcm2835-pwm")
+        self.assertEqual(ps.find_servo_chip(self.root, "Raspberry Pi 4 Model B Rev 1.4"), (bcm, "pwm"))
+        self.assertEqual(ps.find_servo_chip(self.root, "Raspberry Pi 5 Model B Rev 1.1"), (None, None))
+        pio = self.chip("pwmchip1", "pwm-pio-rp1")
+        self.assertEqual(ps.find_servo_chip(self.root, "Raspberry Pi 5 Model B Rev 1.1"), (pio, "pwm-pio"))
+
+    def test_kind_is_shown(self):
+        chip = os.path.join(self.root, "pwmchip0")
+        os.makedirs(os.path.join(chip, "pwm0"))
+        for name in ("export", "pwm0/period", "pwm0/duty_cycle", "pwm0/enable"):
+            open(os.path.join(chip, name), "w").close()
+        self.assertEqual(ps.signal_kind(ps.SysfsServo(chip, 90, "pwm")), "hardware (pwm)")
+
+
 class AngleToolTests(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()

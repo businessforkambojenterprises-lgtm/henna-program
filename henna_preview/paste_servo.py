@@ -84,6 +84,37 @@ def find_pio_chip(root=PWM_ROOT):
     return None
 
 
+def find_bcm_chip(root=PWM_ROOT):
+    """Pi 4: the pwmchip made by 'dtoverlay=pwm,pin=18,func=2' (the BCM2711's own PWM0 - channel 0 is GPIO18), or
+    None. Only on a Pi 4: a Pi 5's pwmchip0 is its fan output and must never be used for the servo."""
+    import glob
+    for chip in sorted(glob.glob(os.path.join(root, "pwmchip*"))):
+        try:
+            if "bcm2835" in os.path.basename(os.path.realpath(os.path.join(chip, "device", "driver"))).lower():
+                return chip
+        except OSError:
+            pass
+    return None
+
+
+def pi_model(path="/proc/device-tree/model"):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return f.read().replace(chr(0), "")
+    except OSError:
+        return ""
+
+
+def find_servo_chip(root=PWM_ROOT, model=None):
+    """(chip, kind) of the hardware servo channel for this Pi model, or (None, None)."""
+    model = pi_model() if model is None else model
+    if "Raspberry Pi 4" in model:
+        chip = find_bcm_chip(root)
+        return (chip, "pwm") if chip else (None, None)
+    chip = find_pio_chip(root)
+    return (chip, "pwm-pio") if chip else (None, None)
+
+
 def _write(path, value, tries=40, wait_s=0.05):
     """sysfs write; a just-exported pwm0 needs a moment before udev gives the gpio group write access."""
     import time
@@ -101,8 +132,8 @@ def _write(path, value, tries=40, wait_s=0.05):
 class SysfsServo:
     """A servo on a hardware-timed sysfs PWM channel (same angle scale as gpio_servo)."""
 
-    def __init__(self, chip, angle):
-        self.chip, self.dir, self._angle = chip, os.path.join(chip, "pwm0"), None
+    def __init__(self, chip, angle, kind="pwm-pio"):
+        self.chip, self.dir, self._angle, self.kind = chip, os.path.join(chip, "pwm0"), None, kind
         if not os.path.isdir(self.dir):
             _write(os.path.join(chip, "export"), 0)
         _write(os.path.join(self.dir, "period"), PERIOD_NS)
@@ -124,11 +155,11 @@ class SysfsServo:
 
 
 def gpio_servo(pin, angle):
-    """The hardware-timed pwm-pio channel when config.txt has it (GPIO18), else gpiozero.AngularServo on pin
-    (software-timed: works, but the servo twitches)."""
-    chip = find_pio_chip() if pin == PIN else None
+    """The hardware-timed channel when config.txt has it for GPIO18 (Pi 5: pwm-pio; Pi 4: pwm, user 2026-10-16), else
+    gpiozero.AngularServo on pin (software-timed: works, but the servo twitches)."""
+    chip, kind = find_servo_chip() if pin == PIN else (None, None)
     if chip:
-        return SysfsServo(chip, angle)
+        return SysfsServo(chip, angle, kind)
     try:
         from gpiozero import AngularServo
     except ImportError:
@@ -142,7 +173,7 @@ def gpio_servo(pin, angle):
 def signal_kind(servo):
     if servo is None:
         return None
-    return "hardware (pwm-pio)" if isinstance(servo, SysfsServo) else "software (twitches)"
+    return f"hardware ({servo.kind})" if isinstance(servo, SysfsServo) else "software (twitches)"
 
 
 class ServoPasteOutput:

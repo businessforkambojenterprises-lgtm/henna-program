@@ -127,3 +127,15 @@ RECALIBRATE (height, tilt, sideways shift, same camera) or UNCLEAR (something on
   its `[all]` section) and reboot. The RP1's PIO then times the servo pulses in hardware; `servo_angle_set.py` and
   Studio use it by themselves and print "hardware (pwm-pio) signal". Without the line they fall back to the
   software signal ("software (twitches)").
+
+## Install stick - Pi 5 or Pi 4 without the 1-2 h build (2026-10-16)
+Every Pi must run the **same 64-bit Raspberry Pi OS release** as the Pi that made the stick (`target.txt`).
+- **Make it once** on the working Pi 5 (stick plugged in, about 1-1.5 GB, internet):
+  `bash ~/henna-program/raspberry_pi/make_install_stick.sh /media/$USER/<stick name>`
+- **Install on a new Pi** (internet, about 10-15 min): `bash /media/$USER/<stick name>/henna_installer/install.sh`
+  - choose **1 (Pi 5)** or **2 (Pi 4)**; the detected model is the default. It checks the stick's checksums, the OS
+    release and Python version, and that Studio is not installed yet - before changing anything.
+  - servo signal: Pi 5 `dtoverlay=pwm-pio,gpio=18`; Pi 4 `dtoverlay=pwm,pin=18,func=2` + `dtparam=audio=off`
+    (config.txt backed up as `config.txt.before-henna`).
+  - ends with the tests and **PASS**, then `sudo reboot`. Then per machine: choose the machine, calibrate it,
+    daily-check reference, servo angles.
