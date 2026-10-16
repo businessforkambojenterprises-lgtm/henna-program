@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100mm" height="100mm">
+  <title>Peacock feather - line art</title>
+  <desc>Feather eye of three ovals, a curved shaft, six pairs of barbs, dots.</desc>
+  <g fill="none" stroke="#7a3b10" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="50" cy="30" rx="14" ry="20"/>
+    <ellipse cx="50" cy="32" rx="8" ry="12"/>
+    <ellipse cx="50" cy="34" rx="3.5" ry="5.5"/>
+    <path id="s3" d="M 50 50 C 50 66 48 82 44 96"/>
+    <path id="s4" d="M 49.76 54 q -12 -2 -20 -12"/>
+    <path id="s5" d="M 49.76 54 q 12 -2 20 -12"/>
+    <path id="s6" d="M 49.34 61 q -12 -2 -20 -12"/>
+    <path id="s7" d="M 49.34 61 q 12 -2 20 -12"/>
+    <path id="s8" d="M 48.92 68 q -12 -2 -20 -12"/>
+    <path id="s9" d="M 48.92 68 q 12 -2 20 -12"/>
+    <path id="s10" d="M 48.5 75 q -12 -2 -20 -12"/>
+    <path id="s11" d="M 48.5 75 q 12 -2 20 -12"/>
+    <path id="s12" d="M 48.08 82 q -12 -2 -20 -12"/>
+    <path id="s13" d="M 48.08 82 q 12 -2 20 -12"/>
+    <path id="s14" d="M 47.66 89 q -12 -2 -20 -12"/>
+    <path id="s15" d="M 47.66 89 q 12 -2 20 -12"/>
+    <circle cx="50" cy="5" r="1.2"/>
+    <circle cx="30" cy="16" r="1.1"/>
+    <circle cx="70" cy="16" r="1.1"/>
+  </g>
+</svg>

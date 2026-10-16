@@ -132,10 +132,17 @@ def program(params):
 
 
 # ---------- the controller ----------
-def controller_ready():
-    """The paste output is ready: a Pi pin (webui_server_pi sets machine.paste_output), or the controller's output
-    with laser mode off and full output 1000 (read with $$ right now)."""
-    pin = machine.paste_output
+def output_for(dispenser):
+    """Where this Paste choice is switched: the Pi's output (webui_server_pi sets machine.paste_output - the
+    pinch-valve servo) for the Servo dispenser, the DLC32's TTL output (M3 / M5) for Pneumatic and whenever no Pi
+    output is set (user 2026-10-16: pneumatic must go through the DLC32, not the Pi pin)."""
+    return "pi" if machine.paste_output is not None and dispenser == "servo_ssr" else "controller"
+
+
+def controller_ready(output=None):
+    """The paste output is ready: the Pi output, or the controller's output with laser mode off and full output 1000
+    (read with $$ right now). output None = the Pi output when one is set (the earlier rule)."""
+    pin = machine.paste_output if output in (None, "pi") else None
     if pin is not None:
         if not getattr(pin, "ready", True):
             raise ValueError(f"Paste refused: the Pi paste pin is not working ({getattr(pin, 'error', '')})")
@@ -179,8 +186,9 @@ def run(params):
     job = v11.job_load(params.get("job"))
     d = (job["steps"].get("program") or {}).get("dispense")
     if d:
-        found = controller_ready()
-        machine.arm_dispense(dispense.settings(d["dispenser"], d["start_s"], d["stop_s"]))
+        cfg = dict(dispense.settings(d["dispenser"], d["start_s"], d["stop_s"]), output=output_for(d["dispenser"]))
+        found = controller_ready(cfg["output"])
+        machine.arm_dispense(cfg)
     try:
         out = _prosthetic_start(job, params) if job.get("subject") == "prosthetic" else v28.run(params)
     finally:
@@ -194,14 +202,16 @@ def run(params):
 
 def dispense_test(params):
     seconds = float((params or {}).get("seconds", TEST_S))
-    found = controller_ready()
+    dispenser = (params or {}).get("dispenser")
+    output = output_for(dispenser) if dispenser in dispense.DISPENSERS else None
+    found = controller_ready(output)
     st = machine.status()
 
     def done(error):
         _log("Dispenser test", st.get("mpos"), f"M3 S{dispense.S_FULL}; G4 P{seconds:.3f}; M5",
              f"paste {seconds:g} s, machine still", "ok" if error is None else error,
              "done" if error is None else "stopped", "", f"Studio v29; {_where(found)}")
-    machine.start_dispense_test(seconds, on_done=done)
+    machine.start_dispense_test(seconds, on_done=done, output=output)
     return v14.machine_status()
 
 

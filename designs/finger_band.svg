@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30" width="100mm" height="30mm">
+  <title>Finger band - line art</title>
+  <desc>Five diamonds on a line with a dot above and below each - for a finger.</desc>
+  <g fill="none" stroke="#7a3b10" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round">
+    <path id="s0" d="M 4 15 L 96 15"/>
+    <path id="s1" d="M 8 15 L 14 8 L 20 15 L 14 22 Z"/>
+    <circle cx="14" cy="3.5" r="1"/>
+    <circle cx="14" cy="26.5" r="1"/>
+    <path id="s4" d="M 26 15 L 32 8 L 38 15 L 32 22 Z"/>
+    <circle cx="32" cy="3.5" r="1"/>
+    <circle cx="32" cy="26.5" r="1"/>
+    <path id="s7" d="M 44 15 L 50 8 L 56 15 L 50 22 Z"/>
+    <circle cx="50" cy="3.5" r="1"/>
+    <circle cx="50" cy="26.5" r="1"/>
+    <path id="s10" d="M 62 15 L 68 8 L 74 15 L 68 22 Z"/>
+    <circle cx="68" cy="3.5" r="1"/>
+    <circle cx="68" cy="26.5" r="1"/>
+    <path id="s13" d="M 80 15 L 86 8 L 92 15 L 86 22 Z"/>
+    <circle cx="86" cy="3.5" r="1"/>
+    <circle cx="86" cy="26.5" r="1"/>
+  </g>
+</svg>

@@ -280,6 +280,26 @@ class PinLinkTests(LinkTests):
         self.assertEqual(len(ons), 2)
         self.assertEqual(self.pin.log[-1], "off")
 
+    def test_pneumatic_run_uses_the_controller_even_with_a_pi_servo(self):
+        link, fake = self.make()
+        send, end = lines_and_end()
+        link.arm_dispense(dict(CFG, output="controller"))
+        done = threading.Event()
+        link.start_program("T.gcode", dispense.add(send, CFG), end, on_done=lambda e, *a: done.set())
+        self.assertTrue(done.wait(6))
+        sent = fake.lines()
+        self.assertEqual(sent.count("M3 S1000"), 2)                     # M3 / M5 to the DLC32
+        self.assertNotIn("G4 P0", sent)
+        self.assertEqual([x for x in self.pin.log if x == "on"], [])    # the Pi servo never opened
+
+    def test_dispenser_test_can_use_the_controller(self):
+        link, fake = self.make()
+        done = threading.Event()
+        link.start_dispense_test(0.2, on_done=lambda e: done.set(), output="controller")
+        self.assertTrue(done.wait(3))
+        self.assertEqual(fake.lines()[-3:], ["M3 S1000", "G4 P0.200", "M5"])
+        self.assertNotIn("on", self.pin.log)
+
     def test_a_run_starts_with_the_pin_off(self):
         link, fake = self.make()
         self.pin.on()                                                   # left open by a test or angle check
@@ -310,6 +330,21 @@ class PinLinkTests(LinkTests):
 
 
 class ServerTests(unittest.TestCase):
+    def test_paste_choice_picks_the_output(self):
+        import webui_server_v29 as v29
+
+        class M:
+            paste_output = FakePin()
+        saved = v29.machine
+        v29.machine = M()
+        try:
+            self.assertEqual(v29.output_for("pneumatic"), "controller")
+            self.assertEqual(v29.output_for("servo_ssr"), "pi")
+            M.paste_output = None
+            self.assertEqual(v29.output_for("servo_ssr"), "controller")
+        finally:
+            v29.machine = saved
+
     def test_pin_output_needs_no_controller_settings(self):
         import webui_server_v29 as v29
 
