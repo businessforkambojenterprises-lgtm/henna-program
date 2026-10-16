@@ -200,8 +200,8 @@
     var anchor = $id('pgdisphint');
     if (!anchor || $id('piservo')) return;
     anchor.textContent = 'Paste ON after the drop to the skin, OFF before every lift; the start delay lets the paste ' +
-      'reach the nozzle before it moves. Pneumatic: the DLC32 TTL output (SSR, laser mode off). Servo dispenser: this ' +
-      'Pi's pinch-valve servo (open / closed angles below).';
+      'reach the nozzle before it moves. Pneumatic: the DLC32 TTL output (SSR, laser mode off). Servo dispenser: the ' +
+      'pinch-valve servo on this Pi (open / closed angles below).';
     var d = document.createElement('details');
     d.className = 'card'; d.id = 'piservo'; d.style.marginTop = '10px';
     d.innerHTML = '<summary style="cursor:pointer;font-weight:650">Servo angles</summary>' +
