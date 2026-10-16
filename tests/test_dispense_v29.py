@@ -280,6 +280,13 @@ class PinLinkTests(LinkTests):
         self.assertEqual(len(ons), 2)
         self.assertEqual(self.pin.log[-1], "off")
 
+    def test_a_run_starts_with_the_pin_off(self):
+        link, fake = self.make()
+        self.pin.on()                                                   # left open by a test or angle check
+        done, _ = self.start(link, armed=False)
+        self.assertFalse(self.pin.value)
+        self.assertTrue(done.wait(6))
+
     def test_stop_switches_the_pin_off(self):
         link, fake = self.make(capacity=2, move_s=0.08)
         self.start(link, armed=True)
