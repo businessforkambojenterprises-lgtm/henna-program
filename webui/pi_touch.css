@@ -112,3 +112,16 @@ dialog{width:calc(100vw - 12px);max-height:calc(100vh - 12px);overflow:auto}
 .pistep input{flex:1;min-height:48px;text-align:center;font-size:18px}
 #piadmin .check{min-height:44px}
 #pipause{flex:1 1 0;min-height:48px}
+
+/* ---- daily check without Admin, short machine list, no overlapping buttons (2026-10-17) ---- */
+body.pi-daily #v-calib > .card, body.pi-daily #v-calib .cols > .card:first-child,
+body.pi-daily #calrefcard{display:none!important}           /* the operator sees only the daily check */
+#mlist .hint, #mlist br{display:none}                      /* machine name + calibrated chip only */
+#piadmin .btn{white-space:normal}
+
+/* ---- full-screen region editor (2026-10-17): above the page, below the bottom bar with STOP ---- */
+#pifull{position:fixed;left:0;right:0;top:0;bottom:0;z-index:25;background:var(--bg);display:flex;flex-direction:column}
+.pifullbar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;font-size:13px}
+.pifullarea{position:relative;flex:1;overflow:hidden}
+.media.piturned{position:absolute;transform:rotate(90deg);transform-origin:center;border-radius:8px}
+#pifullbtn{margin-top:8px}

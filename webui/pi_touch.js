@@ -236,6 +236,7 @@
     $id('piadminbtn').onclick = openAdmin;
     $id('pidaily').onclick = function () {                  /* operators run it; the reference stays under Admin */
       if (typeof machineBusy === 'function' && machineBusy()) return;
+      document.body.classList.add('pi-daily');              /* only the daily check - no machine list, no calibration */
       go('calib');
       var b = $id('calcheck');
       if (b && b.scrollIntoView) setTimeout(function () { b.scrollIntoView({ block: 'center' }); }, 300);
@@ -244,7 +245,11 @@
     if (top && !$id('pihomebtn')) {
       var b = document.createElement('button');
       b.className = 'btn small'; b.id = 'pihomebtn'; b.type = 'button'; b.textContent = 'Home';
-      b.onclick = function () { if (typeof machineBusy === 'function' && machineBusy()) return; go('welcome'); };
+      b.onclick = function () {
+        if (typeof machineBusy === 'function' && machineBusy()) return;
+        document.body.classList.remove('pi-daily');
+        go('welcome');
+      };
       top.parentNode.insertBefore(b, top);
     }
   }
@@ -411,12 +416,13 @@
       '<label class="check"><input type="checkbox" id="piauto"' + (!STORE || STORE.auto ? ' checked' : '') +
       '><span>Clean up automatically when Studio starts</span></label>' +
       '<button class="btn block" type="button" id="pistoresave">Save storage settings</button>' +
-      '<div class="row" style="gap:8px;margin-top:8px"><button class="btn" type="button" id="piclean" style="flex:1">Clean up now</button>' +
-      '<button class="btn" type="button" id="piexport" style="flex:1">Copy to USB, then delete</button></div>' +
+      '<button class="btn block" type="button" id="piclean" style="margin-top:8px">Clean up now</button>' +
+      '<button class="btn block" type="button" id="piexport" style="margin-top:8px">Copy to USB, then delete</button>' +
       '<div class="row" style="gap:8px;margin-top:14px"><button class="btn" type="button" id="pipinchange" style="flex:1">Change PIN</button>' +
       '<button class="btn" type="button" id="pilock" style="flex:1">Lock</button></div>';
     $id('pimachine').onclick = function () {
       if (typeof machineBusy === 'function' && machineBusy()) { say('err', 'Wait until the machine has finished.'); return; }
+      document.body.classList.remove('pi-daily');
       dlg.close(); go('calib');
     };
     function chosen() { var r = document.querySelector('input[name="pidisp"]:checked'); return r ? r.value : 'none'; }
@@ -510,4 +516,84 @@
   loadStorage();
   setInterval(loadStorage, 30000);
   setInterval(tick, 500);
+})();
+
+/* Full-screen region editor (2026-10-17, user: "this open should come on whole screen for better selection").
+   Hand & region step: "Full screen" shows the outline picture turned sideways over the whole portrait screen (the
+   picture is wide, the screen is tall - about twice the size). The editor maps a touch through the picture's on-screen
+   box, so while turned every touch on it is re-sent with the position the editor expects; corners land exactly where
+   the finger is. "Done" puts the picture back. Nothing else changes: the same outline, the same checks. */
+(function () {
+  'use strict';
+  var ed = document.getElementById('ed');
+  if (!ed) return;
+  var media = ed.closest('.media'), home = null, next = null, turned = false, over = null;
+  var TYPES = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'dblclick', 'contextmenu'];
+
+  function build() {
+    over = document.createElement('div');
+    over.id = 'pifull';
+    over.innerHTML = '<div class="pifullbar"><span>Drag the corners. Double-tap the line to add a corner.</span>' +
+      '<button class="btn primary small" type="button" id="pifulldone">Done</button></div><div class="pifullarea" id="pifullarea"></div>';
+    document.body.appendChild(over);
+    document.getElementById('pifulldone').onclick = close;
+  }
+  function open() {
+    if (turned || !media) return;
+    if (!over) build();
+    home = media.parentNode; next = media.nextSibling;
+    var area = document.getElementById('pifullarea');
+    area.appendChild(media);
+    var mach = document.getElementById('mach');                          /* STOP stays visible below */
+    over.style.bottom = (mach && !mach.hidden ? mach.getBoundingClientRect().height : 0) + 'px';
+    over.hidden = false;
+    var r = area.getBoundingClientRect();
+    var w = Math.min(r.height - 8, (r.width - 8) * ed.width / ed.height);     /* turned: width runs down the screen */
+    var h = w * ed.height / ed.width;
+    media.classList.add('piturned');
+    media.style.width = w + 'px'; media.style.height = h + 'px';
+    media.style.left = (r.width - w) / 2 + 'px'; media.style.top = (r.height - h) / 2 + 'px';
+    turned = true;
+  }
+  function close() {
+    if (!turned) return;
+    media.classList.remove('piturned');
+    media.style.width = media.style.height = media.style.left = media.style.top = '';
+    home.insertBefore(media, next);
+    over.hidden = true;
+    turned = false;
+  }
+  /* turned clockwise by 90 deg: a touch at (vx, vy) inside the picture's on-screen box is the picture point
+     (x, y) = (vy, Hc - vx) in its own CSS size Wc x Hc; the editor reads (clientX - left) / boxWidth etc., so send it
+     the client position that gives exactly that point. */
+  function remap(e) {
+    var r = ed.getBoundingClientRect();
+    var Wc = r.height, Hc = r.width;                                         /* the box of the turned picture */
+    var vx = e.clientX - r.left, vy = e.clientY - r.top;
+    var x = vy, y = Hc - vx;                                                 /* picture point, CSS px */
+    return { clientX: r.left + x / Wc * r.width, clientY: r.top + y / Hc * r.height };
+  }
+  TYPES.forEach(function (type) {
+    window.addEventListener(type, function (e) {
+      if (!turned || e.target !== ed || e.piRemapped) return;
+      e.stopImmediatePropagation();
+      if (type === 'contextmenu') e.preventDefault();
+      var p = remap(e), init = {
+        bubbles: true, cancelable: true, clientX: p.clientX, clientY: p.clientY, button: e.button, buttons: e.buttons,
+        pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: e.isPrimary
+      };
+      var ev = (type.indexOf('pointer') === 0) ? new PointerEvent(type, init) : new MouseEvent(type, init);
+      Object.defineProperty(ev, 'piRemapped', { value: true });
+      ed.dispatchEvent(ev);
+    }, true);
+  });
+  var b = document.createElement('button');
+  b.className = 'btn small'; b.type = 'button'; b.id = 'pifullbtn'; b.textContent = 'Full screen';
+  if (media && media.parentNode) media.parentNode.insertBefore(b, media.nextSibling);
+  b.onclick = open;
+  window.addEventListener('keydown', function (e) { if (turned && e.key === 'Escape') close(); });
+  if (typeof go === 'function') {                                            /* leaving the step puts it back */
+    var origGo = go;
+    go = function () { close(); return origGo.apply(this, arguments); };
+  }
 })();
