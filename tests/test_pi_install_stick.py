@@ -32,8 +32,9 @@ class StickScriptTests(unittest.TestCase):
 
     def test_checks_come_before_any_change(self):
         s = read(INSTALL)
-        first_change = s.index("sudo apt-get update")
-        for check in ("sha256sum -c --quiet SHA256SUMS", 'val os_codename', 'val python', '[ -e "$REPO" ] && stop'):
+        first_change = s.index('sudo apt-get "${APTOPT[@]}" update')
+        for check in ("sha256sum -c --quiet SHA256SUMS", 'val os_codename', 'val python', '[ -e "$REPO" ] && stop',
+                      "grep -qw aes /proc/cpuinfo"):
             self.assertLess(s.index(check), first_change, check)
 
     def test_stick_has_what_the_installer_needs(self):
@@ -44,6 +45,11 @@ class StickScriptTests(unittest.TestCase):
             self.assertIn(item.split("/")[-1], i, item)
         self.assertIn('cp "$HERE/install_from_stick.sh" "$DEST/install.sh"', m)
         self.assertIn("--no-index --find-links", i)                     # Python packages only from the stick
+        self.assertIn('deb [trusted=yes] file:$SRC/debs ./', i)        # system packages only from the stick
+        self.assertIn("Dir::Etc::SourceParts=/dev/null", i)            # ... and not from the internet
+        self.assertNotIn("sudo apt-get update" + chr(10), i)           # no plain internet update
+        self.assertIn("dpkg-scanpackages", m)
+        self.assertIn("wanted.txt", m)
         self.assertIn("git clone --branch raspberry-pi", i)
 
 

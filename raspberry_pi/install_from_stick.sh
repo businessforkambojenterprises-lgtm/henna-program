@@ -50,14 +50,26 @@ PYV=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')
   Raspberry Pi OS '$VERSION_CODENAME' with Python $PYV; the stick was made on '$(val os_codename)' with Python $(val python).
   Write the same 64-bit Raspberry Pi OS release to this Pi's SD card (Raspberry Pi Imager) and run this again."
 [ -e "$REPO" ] && stop "$REPO already exists - Studio is installed here; update it with: cd $REPO && git pull"
-echo "OS $VERSION_CODENAME, Python $PYV, $(uname -m): OK"
+# MediaPipe (hand detection) needs the processor's AES instructions: the Pi 5 has them, the Pi 4's chip does not
+# (found 2026-10-16: "This binary was compiled with aes enabled, but this feature is not available on this processor").
+grep -qw aes /proc/cpuinfo || stop "this processor has no AES instructions, which Studio's hand detection (MediaPipe)
+  needs - a Raspberry Pi 4 cannot run it. Use a Raspberry Pi 5."
+echo "OS $VERSION_CODENAME, Python $PYV, $(uname -m), AES: OK"
 
-echo "--- 4/9 system packages (internet)"
-sudo apt-get update
-sudo apt-get install -y git python3-venv libusb-1.0-0 libportaudio2 fonts-urw-base35 fonts-comic-neue curl \
-  python3-gpiozero python3-lgpio
-if ! command -v chromium-browser >/dev/null && ! command -v chromium >/dev/null; then
-  sudo apt-get install -y chromium-browser || sudo apt-get install -y chromium
+echo "--- 4/9 system packages (from the stick - no internet needed)"
+[ -f "$SRC/debs/wanted.txt" ] && [ -f "$SRC/debs/Packages.gz" ] || stop "this stick has no system packages - make it again"
+NEED=""
+for p in $(cat "$SRC/debs/wanted.txt"); do dpkg -s "$p" >/dev/null 2>&1 || NEED="$NEED $p"; done
+if [ -z "$NEED" ]; then
+  echo "All system packages are already on this Pi."
+else
+  echo "Installing from the stick:$NEED"
+  LIST=$(mktemp)
+  echo "deb [trusted=yes] file:$SRC/debs ./" > "$LIST"
+  APTOPT=(-o Dir::Etc::SourceList="$LIST" -o Dir::Etc::SourceParts=/dev/null -o APT::Get::List-Cleanup=0)
+  sudo apt-get "${APTOPT[@]}" update
+  sudo apt-get "${APTOPT[@]}" install -y --no-install-recommends $NEED
+  rm -f "$LIST"
 fi
 
 echo "--- 5/9 Studio -> $REPO"

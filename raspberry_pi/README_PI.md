@@ -130,9 +130,10 @@ RECALIBRATE (height, tilt, sideways shift, same camera) or UNCLEAR (something on
 
 ## Install stick - Pi 5 or Pi 4 without the 1-2 h build (2026-10-16)
 Every Pi must run the **same 64-bit Raspberry Pi OS release** as the Pi that made the stick (`target.txt`).
-- **Make it once** on the working Pi 5 (stick plugged in, about 1-1.5 GB, internet):
+- **Make it once** on the working Pi 5 (stick plugged in, internet here only; it also carries the system packages):
   `bash ~/henna-program/raspberry_pi/make_install_stick.sh /media/$USER/<stick name>`
-- **Install on a new Pi** (internet, about 10-15 min): `bash /media/$USER/<stick name>/henna_installer/install.sh`
+- **Install on a new Pi** (no internet needed - everything comes from the stick, about 10-15 min; Pi 5 only - a Pi 4
+  lacks the AES instructions MediaPipe needs): `bash /media/$USER/<stick name>/henna_installer/install.sh`
   - choose **1 (Pi 5)** or **2 (Pi 4)**; the detected model is the default. It checks the stick's checksums, the OS
     release and Python version, and that Studio is not installed yet - before changing anything.
   - servo signal: Pi 5 `dtoverlay=pwm-pio,gpio=18`; Pi 4 `dtoverlay=pwm,pin=18,func=2` + `dtparam=audio=off`
