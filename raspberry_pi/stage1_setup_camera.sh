@@ -59,7 +59,10 @@ echo "--- 5/6 build (about 45-60 min; RSUSB backend = no kernel patches)"
 mkdir -p build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release -DFORCE_RSUSB_BACKEND=ON -DBUILD_PYTHON_BINDINGS=ON \
   -DPYTHON_EXECUTABLE="$VENV/bin/python" -DPYTHON_INSTALL_DIR="$SITE" \
-  -DBUILD_EXAMPLES=OFF -DBUILD_GRAPHICAL_EXAMPLES=OFF -DBUILD_UNIT_TESTS=OFF -DBUILD_WITH_OPENMP=OFF
+  -DBUILD_EXAMPLES=OFF -DBUILD_GRAPHICAL_EXAMPLES=OFF -DBUILD_UNIT_TESTS=OFF -DBUILD_WITH_OPENMP=OFF \
+  -DBUILD_TOOLS=OFF
+# BUILD_TOOLS=OFF (2026-10-17): Intel's command-line tools (rs-convert ...) are not used by Studio, and rs-convert
+# failed to compile on a fresh Raspberry Pi OS trixie - which stopped the whole build before 'make install'.
 make -j3
 sudo make install
 sudo ldconfig
