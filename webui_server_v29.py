@@ -46,6 +46,30 @@ machine = v28.machine
 machine.__class__ = GrblProgramLinkV29          # adds $$ read, paste stop in pauses, the dispenser test
 HOVER_CHECKED = v17.checked_program             # v17's checks of the hover file, unchanged
 
+# Closer nozzle heights for PROSTHETIC jobs (user 2026-10-17: "give option for 1 and 2 mm", step 1 of 3 - measure on the
+# prosthetic first). 1.0 to 6.0 mm in the Design step; the program floor "never below skin + 1 mm" is unchanged.
+# Real-hand jobs keep v28's 6 mm minimum (checked at Design, Program and Run) and 300 mm/min. The approved
+# calibration files are not changed: only the lower end of their nozzle-height range is lowered here.
+PROSTHETIC_MIN_STANDOFF_MM = 1.0
+_CAL = None
+
+
+def cal():
+    c = dict(_CAL())
+    lo, hi = c["standoff_mm_allowed"]
+    c["standoff_mm_allowed"] = [min(float(lo), PROSTHETIC_MIN_STANDOFF_MM), float(hi)]
+    return c
+
+
+def install_close_heights():
+    """Applied when Studio v29 starts (main(), also on the Pi and in the desktop app) - not on import, so the v14 to
+    v28 files and their tests keep their own 4 mm rule."""
+    global _CAL
+    v14.MIN_STANDOFF_MM = PROSTHETIC_MIN_STANDOFF_MM
+    if v10.cal is not cal:
+        _CAL = v10.cal
+        v10.cal = cal
+
 
 def _log(step, mpos, command, expected, measured, result, recording="", notes="Studio v29"):
     v10.log_row(v10.LOG_FILE, 0, step, mpos, command, expected, measured, result, recording, notes)
@@ -321,6 +345,7 @@ class Handler(v28.Handler):
 
 def main():
     v27.Handler = Handler                                   # v27.main serves v27.Handler (-> v26.main)
+    install_close_heights()
     print("Henna Studio v29 - paste dispensing (pneumatic / servo SSR on the controller output)", flush=True)
     try:
         v27.main()
