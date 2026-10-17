@@ -697,13 +697,13 @@ function drawDes(){if(!FR)return;const W=dc.width,H=dc.height,pl=FR.polygon_px;d
 function invalidateDes(){$('desres').hidden=true;$('toSurface').disabled=true;msg('msgdes','','')}
 async function showDesign(){msg('msgdes','','');$('toSurface').disabled=!(JOB.steps.plan||(JOB.subject==='person'&&JOB.steps.design));
  $('toSurface').textContent=JOB.subject==='person'?'Finish (camera only) →':'Continue to program →';
- await loadCal();const st=$('dstand');if(!st.options.length){const[a,b]=STAND;for(let v=a;v<=b+1e-9;v+=0.5){const o=document.createElement('option');o.value=v;o.textContent=v.toFixed(1)+' mm';st.appendChild(o)}}
+ await loadCal();const st=$('dstand');if(!st.options.length){const[a,b]=STAND;for(let v=a;v<=b+1e-9;v+=0.5){const o=document.createElement('option');o.value=v;o.textContent=v.toFixed(1)+' mm'+(v<4?' (close - prosthetic)':'');st.appendChild(o)}}
  [...st.options].forEach(o=>{o.disabled=JOB.subject==='realhand'&&+o.value<6});if(JOB.subject==='realhand'&&+st.value<6)st.value=[...st.options].find(o=>!o.disabled).value;
  $('dsize').min=CAL.fit_mm_allowed[0];$('dsize').max=CAL.fit_mm_allowed[1];
  try{const[d,f]=await Promise.all([api('/api/studio/designs'),api('/api/studio/design_frame?job='+encodeURIComponent(JOB.id))]);DESIGNS=d.designs;FR=f;
   dc.width=f.width;dc.height=f.height;await Promise.all([new Promise(ok=>{dImgC.onload=ok;dImgC.src=f.colour}),new Promise(ok=>{dImgH.onload=ok;dImgH.src=f.holes})]);$('dcph').hidden=true;
   const sd=JOB.steps.design;if(sd){DES=DESIGNS.find(x=>x.svg===sd.svg)||null;$('dsize').value=sd.fit_mm;$('drot').value=sd.rotation_deg;st.value=sd.standoff_mm;centre=sd.centre_machine_xy.slice()}
-  else{DES=DES&&DESIGNS.find(x=>x.svg===DES.svg)||DESIGNS.find(x=>x.usable)||null;centre=f.centre_machine_xy.slice();st.value=STAND[0]}
+  else{DES=DES&&DESIGNS.find(x=>x.svg===DES.svg)||DESIGNS.find(x=>x.usable)||null;centre=f.centre_machine_xy.slice();st.value=JOB.subject==='realhand'?6:Math.max(STAND[0],4)}
   $('dsize').oninput();$('drot').oninput();renderGallery();if(DES)$('desname').textContent=DES.name+` · ${DES.strokes} strokes`;drawDes();
   if(sd&&sd.verdict)showDesResult({verdict:sd.verdict,preview:sd.preview,problems:[]},true);
   if(sd&&sd.standoff_mm<STAND[0]){st.value=STAND[0];
