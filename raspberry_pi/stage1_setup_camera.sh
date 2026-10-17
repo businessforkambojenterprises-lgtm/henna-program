@@ -55,17 +55,28 @@ if [ "$have" != "$LRS_TAG" ]; then
 fi
 echo "Source version: $(git describe --tags 2>/dev/null || echo unknown)"
 
-echo "--- 5/6 build (about 45-60 min; RSUSB backend = no kernel patches)"
+echo "--- 5/6 build (about 45-75 min; RSUSB backend = no kernel patches)"
+# Found 2026-10-17 on a fresh trixie Pi 5 (4 GB RAM, 2 GB swap - trixie has no dphys-swapfile, so step 2 adds none):
+# with 3 jobs the compiler ran out of memory and was killed mid-write, leaving EMPTY object files (bag.cpp.o: 0 bytes)
+# that make then treated as done -> librealsense2.so without the bag / .db3 code ("undefined symbol ...
+# rosbag2_storage_plugins::SqliteStorage"). So: a build that did not finish (no .henna_build_ok) is redone from clean,
+# and Pis under 6 GB build with 2 jobs. BUILD_TOOLS=OFF: Intel's command-line tools are not used by Studio.
+if [ -d "$SRC/build" ] && [ ! -f "$SRC/build/.henna_build_ok" ]; then
+  echo "The last build did not finish - building from clean"
+  rm -rf "$SRC/build"
+fi
+MEM_KB=$(awk '/MemTotal/{print $2}' /proc/meminfo)
+JOBS=3; [ "$MEM_KB" -lt 6000000 ] && JOBS=2
+echo "Building with $JOBS jobs (memory $((MEM_KB / 1024)) MB)"
 mkdir -p build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release -DFORCE_RSUSB_BACKEND=ON -DBUILD_PYTHON_BINDINGS=ON \
   -DPYTHON_EXECUTABLE="$VENV/bin/python" -DPYTHON_INSTALL_DIR="$SITE" \
   -DBUILD_EXAMPLES=OFF -DBUILD_GRAPHICAL_EXAMPLES=OFF -DBUILD_UNIT_TESTS=OFF -DBUILD_WITH_OPENMP=OFF \
   -DBUILD_TOOLS=OFF
-# BUILD_TOOLS=OFF (2026-10-17): Intel's command-line tools (rs-convert ...) are not used by Studio, and rs-convert
-# failed to compile on a fresh Raspberry Pi OS trixie - which stopped the whole build before 'make install'.
-make -j3
+make -j"$JOBS"
 sudo make install
 sudo ldconfig
+touch "$SRC/build/.henna_build_ok"
 
 echo "--- 6/6 USB permission rules + Python module"
 sudo cp "$SRC/config/99-realsense-libusb.rules" /etc/udev/rules.d/
