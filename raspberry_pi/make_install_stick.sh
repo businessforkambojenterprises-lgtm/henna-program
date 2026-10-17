@@ -69,7 +69,11 @@ tar -czf "$DEST/lib/librealsense.tar.gz" -C / -T "$DEST/lib/files_rel.txt"
 SITE=$("$VENV/bin/python" -c 'import site; print(site.getsitepackages()[0])')
 cp -v "$SITE"/pyrealsense2.cpython-*.so "$SITE"/pyrealsense2*.so.2.58* "$DEST/lib/python/"   # not old 2.55 leftovers
 cp "$SITE"/pybackend2*.so* "$DEST/lib/python/" 2>/dev/null || true
-cp -v "$HOME/librealsense/config/99-realsense-libusb.rules" "$DEST/lib/"
+# the camera's USB rules: from the build folder, or - on a Pi that was itself installed from a stick - from udev
+RULES="$HOME/librealsense/config/99-realsense-libusb.rules"
+[ -f "$RULES" ] || RULES=/etc/udev/rules.d/99-realsense-libusb.rules
+[ -f "$RULES" ] || { echo "STOP: no 99-realsense-libusb.rules found on this Pi"; exit 1; }
+cp -v "$RULES" "$DEST/lib/"
 
 echo "--- 4/7 Python packages (exact versions of $VENV)"
 "$VENV/bin/pip" freeze --exclude-editable | grep -viE '^(pyrealsense2|pkg[-_]resources)' | grep -v ' @ ' \
