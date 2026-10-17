@@ -45,7 +45,8 @@ class StickScriptTests(unittest.TestCase):
             self.assertIn(item.split("/")[-1], i, item)
         self.assertIn('cp "$HERE/install_from_stick.sh" "$DEST/install.sh"', m)
         self.assertIn("--no-index --find-links", i)                     # Python packages only from the stick
-        self.assertIn('deb [trusted=yes] file:$SRC/debs ./', i)        # system packages only from the stick
+        self.assertIn('deb [trusted=yes] file:$DEBS ./', i)            # system packages only from the stick's copy
+        self.assertIn('sudo chmod -R a+rX "$DEBS"', i)                # readable by apt's own user _apt
         self.assertIn("Dir::Etc::SourceParts=/dev/null", i)            # ... and not from the internet
         self.assertNotIn("sudo apt-get update" + chr(10), i)           # no plain internet update
         self.assertIn("dpkg-scanpackages", m)

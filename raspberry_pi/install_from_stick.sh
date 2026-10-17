@@ -64,12 +64,20 @@ if [ -z "$NEED" ]; then
   echo "All system packages are already on this Pi."
 else
   echo "Installing from the stick:$NEED"
+  # apt reads package sources as its own user _apt, which may not enter /media/$USER (found 2026-10-17: "Could not
+  # open file /var/lib/apt/lists/partial/... (13: Permission denied)") - so the packages go to a folder it can read.
+  DEBS=/var/tmp/henna_debs
+  sudo rm -rf "$DEBS" && sudo mkdir -p "$DEBS"
+  sudo cp "$SRC"/debs/*.deb "$SRC/debs/Packages.gz" "$DEBS/"
+  sudo chmod -R a+rX "$DEBS"
   LIST=$(mktemp)
-  echo "deb [trusted=yes] file:$SRC/debs ./" > "$LIST"
+  echo "deb [trusted=yes] file:$DEBS ./" > "$LIST"
+  chmod a+r "$LIST"
   APTOPT=(-o Dir::Etc::SourceList="$LIST" -o Dir::Etc::SourceParts=/dev/null -o APT::Get::List-Cleanup=0)
   sudo apt-get "${APTOPT[@]}" update
   sudo apt-get "${APTOPT[@]}" install -y --no-install-recommends $NEED
   rm -f "$LIST"
+  sudo rm -rf "$DEBS"
 fi
 
 echo "--- 5/9 Studio -> $REPO"
