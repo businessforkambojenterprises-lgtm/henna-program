@@ -183,8 +183,8 @@
    The same Studio routes and checks as before - nothing here moves the machine on its own. */
 (function () {
   'use strict';
-  var ADMIN_TOKEN = null, SETUP = null, DISP = null;
-  var ADMIN_RE = /^\/api\/(calibration\/|machines\/(select|add|recalibrate|setup_area|setup_scan)$|pi\/servo\/|pi\/paste_setup$)/;
+  var ADMIN_TOKEN = null, SETUP = null, DISP = null, STORE = null;
+  var ADMIN_RE = /^\/api\/(calibration\/|machines\/(select|add|recalibrate|setup_area|setup_scan)$|pi\/servo\/|pi\/paste_setup$|pi\/storage\/)/;
   function $id(id) { return document.getElementById(id); }
   function esc2(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
@@ -209,6 +209,9 @@
       });
   }
   function getj(url) { return fetch(url).then(function (r) { return r.json(); }); }
+  function loadStorage() {
+    return getj('/api/pi/storage').then(function (j) { STORE = j; renderChips(); return j; }).catch(function () {});
+  }
   function loadSetup() {
     return getj('/api/pi/paste_setup').then(function (j) { SETUP = j.setup; DISP = j.dispensers; applySetup(); renderChips(); return j; })
       .catch(function () {});
@@ -253,6 +256,8 @@
     if (!m || !m.connected) out += chip('warn', 'Machine off');
     else if (!m.homed) out += chip('warn', 'Not homed');
     else out += chip('ok', 'Homed - ' + (m.state || ''));
+    if (STORE) out += chip(STORE.free_gb < STORE.min_free_gb ? 'bad' : STORE.free_gb < 2 * STORE.min_free_gb ? 'warn' : 'ok',
+      'Storage: ' + STORE.free_gb + ' GB free');
     if (!SETUP) out += chip('warn', 'Paste: not set (Admin)');
     else out += chip(SETUP.dispenser === 'none' ? 'info' : 'ok', 'Paste: ' + (SETUP.dispenser === 'none' ? 'none' : SETUP.label));
     c.innerHTML = out;
@@ -401,6 +406,13 @@
       '<div class="row" style="gap:8px;margin-top:8px"><button class="btn primary" type="button" id="pisetupsave" style="flex:1">Save paste</button>' +
       '<button class="btn" type="button" id="pitest" style="flex:1">Test 1 s</button></div>' +
       '<div id="piservobox"></div>' +
+      '<h3 style="margin-top:14px">Storage</h3><p class="hint" id="pistore"></p>' +
+      '<label class="f">Keep finished recordings (days)</label>' + stepper('pikeep', (STORE && STORE.keep_days) || 14, 1, 1, 365) +
+      '<label class="check"><input type="checkbox" id="piauto"' + (!STORE || STORE.auto ? ' checked' : '') +
+      '><span>Clean up automatically when Studio starts</span></label>' +
+      '<button class="btn block" type="button" id="pistoresave">Save storage settings</button>' +
+      '<div class="row" style="gap:8px;margin-top:8px"><button class="btn" type="button" id="piclean" style="flex:1">Clean up now</button>' +
+      '<button class="btn" type="button" id="piexport" style="flex:1">Copy to USB, then delete</button></div>' +
       '<div class="row" style="gap:8px;margin-top:14px"><button class="btn" type="button" id="pipinchange" style="flex:1">Change PIN</button>' +
       '<button class="btn" type="button" id="pilock" style="flex:1">Lock</button></div>';
     $id('pimachine').onclick = function () {
@@ -428,6 +440,34 @@
         renderServo();
       };
     });
+    function showStore(j) {
+      STORE = j; renderChips();
+      $id('pistore').textContent = j.free_gb + ' GB free of ' + j.total_gb + ' GB. Recordings: ' + j.recordings + ' (' +
+        j.recordings_gb + ' GB); can be removed now: ' + j.deletable + ' (' + j.deletable_gb + ' GB); kept for unfinished jobs: ' +
+        j.kept_for_unfinished_jobs + '. New scans need ' + j.min_free_gb + ' GB free.';
+    }
+    loadStorage().then(function (j) { if (j) showStore(j); });
+    $id('pistoresave').onclick = function () {
+      post('/api/pi/storage/settings', { keep_days: +$id('pikeep').value, auto: $id('piauto').checked })
+        .then(function (j) { showStore(j); say('good', 'Storage settings saved.'); })
+        .catch(function (e) { say('err', e.message); });
+    };
+    function clean(exp) {
+      var n = STORE ? STORE.deletable : 0;
+      if (!n) { say('info', 'Nothing to remove - no finished recordings older than ' + (STORE ? STORE.keep_days : 14) + ' days.'); return; }
+      if (!confirm('Delete ' + n + ' old recordings (' + STORE.deletable_gb + ' GB)' + (exp ? ' after copying them to the USB stick' : '') +
+        '? Jobs, programs, logs and calibration are kept.')) return;
+      say('info', exp ? 'Copying to the USB stick, then deleting' : 'Deleting old recordings');
+      post('/api/pi/storage/cleanup', { export: exp })
+        .then(function (j) {
+          showStore(j.storage);
+          say('good', j.deleted + ' recordings removed, ' + j.freed_gb + ' GB freed' + (j.exported ? ', ' + j.exported + ' copied to ' + j.export_dir : '') +
+            (j.skipped.length ? ' (' + j.skipped.length + ' skipped)' : '') + '.');
+        })
+        .catch(function (e) { say('err', e.message); });
+    }
+    $id('piclean').onclick = function () { clean(false); };
+    $id('piexport').onclick = function () { clean(true); };
     $id('pipinchange').onclick = function () { showSetPin(false); };
     $id('pilock').onclick = function () {
       post('/api/pi/admin/lock', { token: ADMIN_TOKEN }).catch(function () {});
@@ -467,5 +507,7 @@
   buildHome();
   buildRunBar();
   loadSetup();
+  loadStorage();
+  setInterval(loadStorage, 30000);
   setInterval(tick, 500);
 })();

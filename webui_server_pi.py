@@ -19,6 +19,8 @@ touch layout for the 5" display.
   admin panel", 4-digit PIN): henna_preview/admin_lock.py; every /api/calibration/*, /api/machines/* change, the
   servo angles and the paste setup (henna_preview/paste_setup.py, applied to every program) need an unlocked
   session (X-Admin-Token). Forgotten PIN: raspberry_pi/admin_pin_reset.py on the Pi.
+- STORAGE (2026-10-17): henna_preview/storage.py - every recording route is refused below 3 GB free; Admin, Storage
+  deletes old recordings (default 14 days) of finished jobs, optionally after a copy to a USB stick; automatic at start.
 - Paste pinch-valve SERVO (2026-10-16, user: "gpio pin from rasp", 180 deg servo, pinch valve): signal on GPIO18
   (pin 12), its own 5-6 V supply. Used when outputs/paste_servo.json was saved by raspberry_pi/servo_angle_set.py
   (closed and open angles), or with HENNA_PASTE=servo. Choice order: HENNA_PASTE (controller / pi / servo), else the
@@ -36,11 +38,11 @@ import os
 from urllib.parse import urlparse
 
 import webui_server_v29 as studio
-from henna_preview import paste_setup
+from henna_preview import paste_setup, storage
 from henna_preview.admin_lock import AdminLock
 from henna_preview.camera_process import ProcessCameraService
 from henna_preview.paste_gpio import GpioPasteOutput
-from henna_preview.paste_servo import ServoPasteOutput, wants_servo
+from henna_preview.paste_servo import ServoPasteOutput, pi_model, wants_servo
 from henna_preview.pause_button import PauseButton
 
 PI_CSS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webui", "pi_touch.css")
@@ -93,7 +95,8 @@ def servo_save(params):
 # ---------- Admin (user 2026-10-16: calibration, machine selection and valve selection under a PIN-locked admin) ----
 ADMIN = AdminLock()
 ADMIN_PATHS = {"/api/machines/select", "/api/machines/add", "/api/machines/recalibrate", "/api/machines/setup_area",
-               "/api/machines/setup_scan", "/api/pi/servo/try", "/api/pi/servo/save", "/api/pi/paste_setup"}
+               "/api/machines/setup_scan", "/api/pi/servo/try", "/api/pi/servo/save", "/api/pi/paste_setup",
+               "/api/pi/storage/settings", "/api/pi/storage/cleanup"}
 ADMIN_PREFIXES = ("/api/calibration/",)
 # The daily check stays with the operator (user 2026-10-16: "operator should run"): moving to its scan position and
 # running it. Setting the reference, calibrating and choosing the machine stay under Admin.
@@ -147,6 +150,52 @@ def paste_setup_save(params):
     return {"setup": v}
 
 
+# ---------- storage (user 2026-10-17: guard + cleanup) ----------
+RECORDING_PATHS = {"/api/studio/scan", "/api/cam/record", "/api/calibration/check", "/api/calibration/reference",
+                   "/api/calibration/xy_scan", "/api/calibration/z_scan", "/api/machines/setup_scan"}
+
+
+def job_done(job):
+    return studio.v14.status_of(job) == "done"
+
+
+def storage_view(_=None):
+    return storage.summary(studio.base.OUT_ROOT, job_done)
+
+
+def storage_settings(params):
+    p = params or {}
+    v = storage.save_settings(p.get("keep_days", 14), p.get("auto", True))
+    studio._log("Admin: storage settings", None, "Admin -> Storage", "keep days, automatic cleanup",
+                f"keep {v['keep_days']} days, auto {v['auto']}", "saved", "", "Studio Pi storage")
+    return storage_view()
+
+
+def on_pi():
+    return "Raspberry Pi" in pi_model()
+
+
+def run_cleanup(export=False, who="Admin"):
+    if not on_pi():                                         # never delete a laptop's recordings by mistake
+        raise ValueError("recording cleanup runs only on the Raspberry Pi")
+    s = storage.load_settings()
+    stick = None
+    if export:
+        stick = storage.usb_stick()
+        if not stick:
+            raise ValueError("no USB stick found - plug one in and try again")
+    r = storage.cleanup(studio.base.OUT_ROOT, job_done, s["keep_days"], export_to=stick)
+    studio._log(f"Storage cleanup ({who})", None, f"recordings older than {s['keep_days']} days, not used by unfinished jobs",
+                "only recordings deleted", f"{r['deleted']} deleted, {r['freed_gb']} GB freed, {r['exported']} exported"
+                + (f" to {r['export_dir']}" if r["export_dir"] else "") + (f", {len(r['skipped'])} skipped" if r["skipped"] else ""),
+                "done", "", "Studio Pi storage")
+    return r
+
+
+def storage_cleanup(params):
+    return dict(run_cleanup(bool((params or {}).get("export"))), storage=storage_view())
+
+
 _PROGRAM = studio.Handler.POST_API["/api/studio/program"]
 
 
@@ -181,7 +230,8 @@ class PiHandler(studio.Handler):
     server_version = studio.Handler.server_version + "-pi"
     GET_API = dict(studio.Handler.GET_API, **{"/api/pi/pause_button": PAUSE_BUTTON.view,
                                               "/api/pi/paste_output": paste_view,
-                                              "/api/pi/paste_setup": paste_setup_view})
+                                              "/api/pi/paste_setup": paste_setup_view,
+                                              "/api/pi/storage": storage_view})
     POST_API = dict(studio.Handler.POST_API, **{"/api/pi/servo/try": (servo_try, False),
                                                 "/api/pi/servo/save": (servo_save, False),
                                                 "/api/pi/paste_setup": (paste_setup_save, False),
@@ -189,6 +239,8 @@ class PiHandler(studio.Handler):
                                                 "/api/pi/admin/unlock": (admin_unlock, False),
                                                 "/api/pi/admin/set_pin": (admin_set_pin, False),
                                                 "/api/pi/admin/lock": (admin_lock, False),
+                                                "/api/pi/storage/settings": (storage_settings, False),
+                                                "/api/pi/storage/cleanup": (storage_cleanup, True),
                                                 "/api/studio/program": (pi_program, _PROGRAM[1])})
 
     def do_POST(self):
@@ -197,6 +249,13 @@ class PiHandler(studio.Handler):
             if self._host_ok():
                 self._send(403, {"error": "Admin is locked - open Admin and enter the PIN"})
             return
+        if path in RECORDING_PATHS:
+            try:
+                storage.guard()
+            except storage.StorageError as e:
+                if self._host_ok():
+                    self._send(400, {"error": str(e)})
+                return
         return super().do_POST()
 
     def do_GET(self):
@@ -227,6 +286,13 @@ if __name__ == "__main__":
         print(f"Paste output {PASTE.name}: {PASTE.start()}", flush=True)
     else:
         print("Paste output: the controller's laser TTL output (M3/M5)", flush=True)
+    st = storage.load_settings()
+    if st["auto"] and on_pi():                                          # old recordings of finished jobs, before anything runs
+        try:
+            r = run_cleanup(who="automatic, Studio start")
+            print(f"Storage cleanup: {r['deleted']} old recordings deleted, {r['freed_gb']} GB freed", flush=True)
+        except Exception as e:                              # noqa: BLE001 - never stop Studio for a cleanup
+            print(f"Storage cleanup skipped: {e}", flush=True)
     try:
         studio.main()
     finally:
