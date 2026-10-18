@@ -143,5 +143,36 @@ class PiServerAdminTests(unittest.TestCase):
             sys.modules.pop("webui_server_pi", None)
 
 
+class AdminPageTests(unittest.TestCase):
+    """One Admin page (2026-10-18): pi_touch.js rearranges Studio's Calibration view by element id, sets Studio's own
+    safety and approval boxes from one tick each, and moves to the scan position with the calibration route (allowed
+    in calibration mode, and for operators). A Studio page that renames one of these ids would break it silently."""
+
+    STUDIO_IDS = ("v-calib", "mlist", "setupcard", "calstatus", "calibcard", "calmove", "calrefcard", "calcheck",
+                  "calhist", "calclear", "calestop", "calempty", "ctargets", "capdots", "captouch", "capair", "capgo",
+                  "calposhelp", "calposstate", "cxyscan", "czscan", "czhelp", "mhome", "mjog")
+
+    def read(self, *parts):
+        with open(os.path.join(ROOT, *parts), encoding="utf-8") as f:
+            return f.read()
+
+    def test_studio_page_has_every_id_the_admin_page_uses(self):
+        import webui_server_pi as pi_mod  # noqa: F401 - the page the Pi serves
+        page, js = self.read("webui", "studio_v29.html"), self.read("webui", "pi_touch.js")
+        for i in self.STUDIO_IDS:
+            self.assertTrue(f'id="{i}"' in page, i)
+            self.assertTrue(f"'{i}'" in js, i)
+
+    def test_one_tick_per_tab_and_the_calibration_route(self):
+        js = self.read("webui", "pi_touch.js")
+        self.assertIn("machineCommand('/api/calibration/scan_position', { confirm_clear: true, confirm_estop: true }", js)
+        self.assertIn("calibrate: ['Only the dot sheet or the block is on the bed", js)
+        self.assertIn("['ctargets', 'calclear', 'calestop']", js)
+        self.assertIn("['calclear', 'calestop', 'calempty']", js)
+        self.assertIn("APPROVE = ['capdots', 'captouch', 'capair']", js)
+        for tab in ("machine", "calibrate", "daily", "paste", "storage", "pin"):
+            self.assertIn(f"['{tab}', ", js, tab)
+
+
 if __name__ == "__main__":
     unittest.main()

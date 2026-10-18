@@ -113,9 +113,7 @@ dialog{width:calc(100vw - 12px);max-height:calc(100vh - 12px);overflow:auto}
 #piadmin .check{min-height:44px}
 #pipause{flex:1 1 0;min-height:48px}
 
-/* ---- daily check without Admin, short machine list, no overlapping buttons (2026-10-17) ---- */
-body.pi-daily #v-calib > .card, body.pi-daily #v-calib .cols > .card:first-child,
-body.pi-daily #calrefcard{display:none!important}           /* the operator sees only the daily check */
+/* ---- short machine list, no overlapping buttons (2026-10-17) ---- */
 #mlist .hint, #mlist br{display:none}                      /* machine name + calibrated chip only */
 #piadmin .btn{white-space:normal}
 
@@ -125,3 +123,43 @@ body.pi-daily #calrefcard{display:none!important}           /* the operator sees
 .pifullarea{position:relative;flex:1;overflow:hidden}
 .media.piturned{position:absolute;transform:rotate(90deg);transform-origin:center;border-radius:8px}
 #pifullbtn{margin-top:8px}
+
+/* ---- one Admin page (2026-10-18, user: rules and ticks "so clustered into each other", "admin panel should have all
+   options in one"): tabs in a 3 x 2 grid, the Position card (state, X Y Z, what is needed, one tick, Home / Move /
+   Jog), calibration buttons in even rows. The daily check (operators) shows only the Position card and the check. ---- */
+.pihead{display:flex;justify-content:space-between;align-items:center;margin:2px 0 8px}
+.pihead h1{font-size:20px;margin:0}
+.pitabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.pitab{min-height:46px;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:inherit;
+  font:inherit;font-size:14px;font-weight:650;cursor:pointer}
+.pitab.on{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+#pipagemsg:empty{display:none}
+#pipos{margin-bottom:10px;border:2px solid var(--accent)}
+.pipostop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pipostop b{font-size:16px}
+#piposxyz{font-size:14px;margin-top:6px;letter-spacing:.2px}
+.pineed{margin:8px 0;font-size:14px;line-height:1.45}
+.pi-ok{color:var(--ok,#2e7d32);font-weight:650}
+.pisafe{margin:4px 0 8px;padding:8px;border-radius:10px;background:var(--accent-bg)}
+.pisafe span{font-size:14px;line-height:1.35}
+.pibtns{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:6px}
+.pibtns .btn{padding:8px 6px;font-size:14px;white-space:normal;line-height:1.2}
+.pipane > .card{margin-bottom:10px}
+.pineedline{margin:6px 0 0;font-weight:600}
+.pineedline.pi-okline{color:var(--ok,#2e7d32)}
+#calibcard .hint b{font-weight:700}
+#calibcard .row{gap:6px!important}
+#calibcard .row > b{flex-basis:100%}
+#calibcard .row > .mono{flex-basis:100%;font-size:13px}
+#calibcard [data-cz]{flex:1 1 calc(33.3% - 6px);min-height:44px}
+#calibcard [data-cxy]{flex:1 1 calc(25% - 6px);min-height:44px;padding:4px}
+#calibcard .row > span[style*="width:12px"]{display:none}
+#picaljog{flex-basis:100%;min-height:44px}
+#calibcard .row:has(#cxysel){flex-wrap:wrap}
+#cxysel,#cxysave{flex:1 1 100%}
+#cxysave{white-space:normal}
+#calibcard table{display:block;overflow-x:auto}
+body.pi-daily #pitabs,body.pi-daily #pilockbtn,body.pi-daily #calrefcard{display:none!important}
+.pipane[data-pane=paste]:not([hidden]),.pipane[data-pane=storage]:not([hidden]),.pipane[data-pane=pin]:not([hidden]){
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:12px;margin-bottom:10px}
+.pipane h2{font-size:16px;margin:0 0 4px}
