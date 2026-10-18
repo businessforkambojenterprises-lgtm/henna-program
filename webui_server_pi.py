@@ -38,8 +38,9 @@ import os
 import threading
 from urllib.parse import urlparse
 
+import webui_server_v26 as v26
 import webui_server_v29 as studio
-from henna_preview import paste_setup, storage
+from henna_preview import admin_jog, paste_setup, storage
 from henna_preview.admin_lock import AdminLock
 from henna_preview.camera_process import ProcessCameraService
 from henna_preview.paste_gpio import GpioPasteOutput
@@ -209,14 +210,36 @@ def pi_program(params):
 # last job opened is a real-hand job; in Admin (a valid session - calibrating, nothing under the machine but the dot
 # sheet or block) the jog goes to the v28 route below that rule. Every other jog check stays: no-person tick, travel
 # height, the machine box, homed, not busy. Without a valid session the v29 rule applies as before.
+# Z in Admin (user 2026-10-18: "i want z to move freely under admin panel"): straight up or down by the slider's
+# distance between Z 0 and the machine's Z floor, not only down to travel height (henna_preview/admin_jog.py).
 _REQ = threading.local()
 _JOG = studio.Handler.POST_API["/api/machine/jog"]
 
 
+def z_floor():
+    m = v26.profiles.active()
+    return float(v26.profiles.motion(m)["firmware_z_floor"])
+
+
 def pi_jog(params):
-    if getattr(_REQ, "admin", False):
+    if not getattr(_REQ, "admin", False):
+        return _JOG[0](params)
+    if params.get("axis") != "Z":
         return studio._JOG[0](params)
-    return _JOG[0](params)
+    if params.get("confirm_no_person") is not True:
+        raise ValueError("Confirm that no person's hand is under the machine before jogging")
+    if studio.v10.camera.status()["state"] == "recording":
+        raise studio.MachineError("Finish recording before jogging")
+    return admin_jog.start_admin_z(studio.machine, params.get("direction"), params.get("step_mm"), z_floor(),
+                                   studio.free_jog_step)
+
+
+def jog_limits(_=None):
+    """For the Admin Jog window: how far Z may go down there."""
+    try:
+        return {"z_floor": z_floor(), "z_top": 0.0}
+    except Exception as e:                              # noqa: BLE001 - no machine chosen / not set up yet
+        return {"z_floor": None, "z_top": 0.0, "error": str(e)}
 
 
 def paste_view(_=None):
@@ -246,7 +269,8 @@ class PiHandler(studio.Handler):
     GET_API = dict(studio.Handler.GET_API, **{"/api/pi/pause_button": PAUSE_BUTTON.view,
                                               "/api/pi/paste_output": paste_view,
                                               "/api/pi/paste_setup": paste_setup_view,
-                                              "/api/pi/storage": storage_view})
+                                              "/api/pi/storage": storage_view,
+                                              "/api/pi/jog_limits": jog_limits})
     POST_API = dict(studio.Handler.POST_API, **{"/api/pi/servo/try": (servo_try, False),
                                                 "/api/pi/servo/save": (servo_save, False),
                                                 "/api/pi/paste_setup": (paste_setup_save, False),

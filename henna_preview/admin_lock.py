@@ -18,7 +18,7 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PIN_FILE = os.path.join(ROOT, "outputs", "admin_pin.json")
-SESSION_S = 600.0
+SESSION_S = 1800.0           # 30 min after the last admin action (2026-10-18: 10 min ran out while aligning dots)
 MAX_TRIES, LOCKOUT_S = 5, 60.0
 ITERATIONS = 200_000
 PIN_RE = re.compile(r"^\d{4}$")

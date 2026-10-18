@@ -390,7 +390,7 @@
     if (typeof machineBusy === 'function' && machineBusy()) return;
     post('/api/pi/admin/status', { token: ADMIN_TOKEN }).then(function (st) {
       if (!st.unlocked) ADMIN_TOKEN = null;
-      if (st.unlocked) { showAdminPage(); return; }
+      if (st.unlocked) { if (!(admin() && inPage())) showAdminPage(); return; }
       openDlg();
       if (!st.pin_set) showSetPin(true); else showUnlock(st);
     }).catch(function (e) { openDlg(); say('err', e.message); });
@@ -423,7 +423,8 @@
     if (st && st.blocked_s) say('err', 'Too many wrong PINs - wait ' + st.blocked_s + ' s.');
     $id('piunlock').onclick = function () {
       post('/api/pi/admin/unlock', { pin: $id('pipin').value }).then(function (j) {
-        ADMIN_TOKEN = j.token; dlg.close(); showAdminPage();
+        ADMIN_TOKEN = j.token; dlg.close();
+        if (admin() && inPage()) say('good', 'Unlocked again - repeat the last step.'); else showAdminPage();
       }).catch(function (e) { say('err', e.message); $id('pipin').value = ''; });
     };
     $id('pipin').focus();
@@ -439,9 +440,7 @@
     post('/api/pi/admin/status', { token: ADMIN_TOKEN }).then(function (st) {
       if (st.unlocked || !admin()) return;
       ADMIN_TOKEN = null;
-      document.body.classList.remove('pi-admin');
-      go('welcome');
-      openAdmin();
+      openAdmin();                                         /* the PIN box over the page; the page stays */
     }).catch(function () {});
   }
 
@@ -500,6 +499,9 @@
       n.className = 'hint pineedline'; n.id = x[1];
       $id(x[0]).parentNode.insertBefore(n, $id(x[0]).nextSibling);
     });
+    var cm = document.createElement('div');                /* calibration messages next to the jog buttons too -  */
+    cm.className = 'msg'; cm.id = 'picalmsg';              /* Studio's own box is at the bottom of the card        */
+    $id('czhelp').parentNode.insertBefore(cm, $id('czhelp'));
     var jogrow = cc.querySelector('[data-cxy]');
     if (jogrow) {
       var jb = document.createElement('button');
@@ -766,13 +768,38 @@
   }
 
   /* Jog in Admin: X/Y shown even when the last job opened was a real-hand job (the Pi server allows them with the
-     Admin session - see pi_jog). Runs after the page's own Jog button handler, which hides them. */
+     Admin session - see pi_jog), and Z free between Z 0 and the machine's Z floor (user 2026-10-18: "i want z to move
+     freely under admin panel"; the server checks it again - henna_preview/admin_jog.py). Runs after the page's own
+     Jog button handler, which hides X/Y. */
+  var ZLIM = null;
   document.addEventListener('click', function (e) {
     if (!(e.target.closest && e.target.closest('#mjog')) || !admin()) return;
     document.querySelectorAll('#dlgjog [data-jog^="X"],#dlgjog [data-jog^="Y"]').forEach(function (b) { b.hidden = false; });
     if (typeof msg === 'function') msg('msgjog', '', '');
+    getj('/api/pi/jog_limits').then(function (j) { ZLIM = j; if (typeof jogShow === 'function') jogShow(); })
+      .catch(function () { ZLIM = null; });
     if (typeof jogShow === 'function') jogShow();
   });
+  function adminZ() {
+    var d = $id('dlgjog');
+    if (!d || !d.open || !admin() || !ZLIM || ZLIM.z_floor == null) return;
+    var m = (typeof MACH !== 'undefined' && MACH) || {}, busy = typeof machineBusy === 'function' && machineBusy();
+    var z = m.mpos ? m.mpos[2] : null, step = typeof jogStep !== 'undefined' ? jogStep : 1;
+    var ok = typeof machFresh === 'function' && machFresh() && m.connected && m.homed === true && m.state === 'Idle' &&
+      !busy && $id('jnoperson').checked && z != null;
+    var dn = document.querySelector('#dlgjog [data-jog="Z,-1"]'), up = document.querySelector('#dlgjog [data-jog="Z,1"]');
+    if (dn) dn.disabled = !(ok && +(z - step).toFixed(3) >= ZLIM.z_floor - 1e-9);
+    if (up) up.disabled = !(ok && +(z + step).toFixed(3) <= ZLIM.z_top + 1e-9);
+    var tz = typeof TRAVEL_Z !== 'undefined' ? TRAVEL_Z : -5;
+    $id('jogsub').textContent = 'Admin: Z moves freely between Z ' + ZLIM.z_top + ' and the floor Z ' + ZLIM.z_floor +
+      '. X and Y move only at travel height (Z ' + tz + ') or higher - for small moves lower down use Calibrate, X/Y nudge.';
+    if (ok && z < tz - 0.05) $id('joghelp').textContent = 'Below travel height: Z only. Raise to Z ' + tz +
+      ' or higher for X and Y.';
+  }
+  if (typeof jogShow === 'function') {
+    var origJogShow = jogShow;
+    jogShow = function () { var r = origJogShow.apply(this, arguments); try { adminZ(); } catch (e) { /* no dialog */ } return r; };
+  }
 
   /* Studio's own functions, wrapped: entering the view clears the one tick (as Studio clears its boxes), each
      calibration redraw updates the Position card, and leaving the view leaves Admin / daily mode. The calibration
@@ -782,6 +809,20 @@
     showCalib = function () {
       var r = origShowCalib.apply(this, arguments);
       if (page) clearSafe();
+      return r;
+    };
+  }
+  /* Studio's messages: a calibration message is also shown next to the jog buttons; "Admin is locked" (the session
+     ended) opens the PIN box at once instead of only saying so. */
+  if (typeof msg === 'function') {
+    var origMsg = msg;
+    msg = function (id, kind, t) {
+      var r = origMsg.apply(this, arguments);
+      if (id === 'msgcalib' && $id('picalmsg')) origMsg('picalmsg', kind, t);
+      if (kind === 'err' && /Admin is locked/.test(String(t || '')) && admin()) {
+        ADMIN_TOKEN = null;
+        openAdmin();
+      }
       return r;
     };
   }
