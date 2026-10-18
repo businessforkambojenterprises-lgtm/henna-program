@@ -768,8 +768,9 @@
   }
 
   /* Jog in Admin: X/Y shown even when the last job opened was a real-hand job (the Pi server allows them with the
-     Admin session - see pi_jog), and Z free between Z 0 and the machine's Z floor (user 2026-10-18: "i want z to move
-     freely under admin panel"; the server checks it again - henna_preview/admin_jog.py). Runs after the page's own
+     Admin session - see pi_jog); Z free between Z 0 and the machine's Z floor, X/Y at any height down to it inside the
+     work area (user 2026-10-18: "i want z to move freely under admin panel", "now x and y should aslo move no
+     restriction in admin panel"; the server checks it again - henna_preview/admin_jog.py). Runs after the page's own
      Jog button handler, which hides X/Y. */
   var ZLIM = null;
   document.addEventListener('click', function (e) {
@@ -790,11 +791,16 @@
     var dn = document.querySelector('#dlgjog [data-jog="Z,-1"]'), up = document.querySelector('#dlgjog [data-jog="Z,1"]');
     if (dn) dn.disabled = !(ok && +(z - step).toFixed(3) >= ZLIM.z_floor - 1e-9);
     if (up) up.disabled = !(ok && +(z + step).toFixed(3) <= ZLIM.z_top + 1e-9);
+    var lim = typeof JOG_XY !== 'undefined' ? JOG_XY : [225, 176];
+    document.querySelectorAll('#dlgjog [data-jog^="X"],#dlgjog [data-jog^="Y"]').forEach(function (b) {
+      var p = b.getAttribute('data-jog').split(','), i = p[0] === 'X' ? 0 : 1, t = ok ? +(m.mpos[i] + (+p[1]) * step).toFixed(3) : 0;
+      b.disabled = !(ok && z >= ZLIM.z_floor - 1e-9 && t >= 0 && t <= lim[i] + 1e-9);
+    });
     var tz = typeof TRAVEL_Z !== 'undefined' ? TRAVEL_Z : -5;
-    $id('jogsub').textContent = 'Admin: Z moves freely between Z ' + ZLIM.z_top + ' and the floor Z ' + ZLIM.z_floor +
-      '. X and Y move only at travel height (Z ' + tz + ') or higher - for small moves lower down use Calibrate, X/Y nudge.';
-    if (ok && z < tz - 0.05) $id('joghelp').textContent = 'Below travel height: Z only. Raise to Z ' + tz +
-      ' or higher for X and Y.';
+    $id('jogsub').textContent = 'Admin: every axis moves freely - Z between Z ' + ZLIM.z_top + ' and the floor Z ' +
+      ZLIM.z_floor + ', X and Y at any height inside the work area (slower below travel height Z ' + tz + ').';
+    if (ok && z < tz - 0.05) $id('joghelp').textContent = 'Below travel height: X and Y move slowly (F300). ' +
+      'Keep the nozzle clear of the block and the sheet.';
   }
   if (typeof jogShow === 'function') {
     var origJogShow = jogShow;

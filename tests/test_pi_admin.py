@@ -175,8 +175,8 @@ class AdminPageTests(unittest.TestCase):
 
 
 class AdminJogTests(unittest.TestCase):
-    """Sideways jog in Admin (2026-10-18): with a valid Admin session the jog skips v29's real-hand rule (the v28
-    route with all its other checks); without one the rule refuses X/Y as before."""
+    """Sideways jog in Admin (2026-10-18): with a valid Admin session the jog skips v29's real-hand rule (the Admin
+    jog, test_pi_admin_jog.py); without one the rule refuses X/Y as before."""
 
     def test_admin_session_allows_sideways_jog(self):
         import webui_server_v10 as v10
@@ -185,8 +185,13 @@ class AdminJogTests(unittest.TestCase):
             import webui_server_pi as pi
             v29 = pi.studio
             sent = []
-            saved = (v29._JOG, dict(v29._ACTIVE))
-            v29._JOG = (lambda p: sent.append(p["axis"]) or {"busy": "jog"}, False)
+            saved = (v29._JOG, dict(v29._ACTIVE), pi.admin_jog.start_admin_xy, pi.v26.profiles.active,
+                     pi.v26.profiles.motion, v10.camera.status)
+            v29._JOG = (lambda p: sent.append("v28 " + p["axis"]) or {"busy": "jog"}, False)
+            pi.admin_jog.start_admin_xy = lambda link, a, *rest: sent.append("admin " + a) or {"busy": "jog"}
+            pi.v26.profiles.active = lambda: {"name": "Ball screw", "work_area_mm": [225, 176]}
+            pi.v26.profiles.motion = lambda m: {"travel_z": -5.0, "firmware_z_floor": -40.0}
+            v10.camera.status = lambda: {"state": "off"}
             v29._ACTIVE.update(job="20261018-084336-job", subject="realhand")
             try:
                 p = {"axis": "X", "direction": 1, "step_mm": 10, "confirm_no_person": True}
@@ -195,7 +200,7 @@ class AdminJogTests(unittest.TestCase):
                     pi.pi_jog(p)
                 pi._REQ.admin = True
                 pi.pi_jog(p)
-                self.assertEqual(sent, ["X"])
+                self.assertEqual(sent, ["admin X"])
                 self.assertIs(pi.PiHandler.POST_API["/api/machine/jog"][0], pi.pi_jog)
                 h = object.__new__(pi.PiHandler)
                 h.path, h.headers = "/api/machine/jog", FakeHeaders()
@@ -206,6 +211,7 @@ class AdminJogTests(unittest.TestCase):
                 v29._JOG = saved[0]
                 v29._ACTIVE.clear()
                 v29._ACTIVE.update(saved[1])
+                pi.admin_jog.start_admin_xy, pi.v26.profiles.active, pi.v26.profiles.motion, v10.camera.status = saved[2:]
                 pi._REQ.admin = False
         finally:
             if "webui_server_pi" in sys.modules:
