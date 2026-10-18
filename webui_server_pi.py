@@ -35,6 +35,7 @@ v23 -> v27 -> v28 on 2026-10-14, v29 (paste) on 2026-10-15 (merges of main).
 When a new Studio version comes, change the one import below to it (its tests check the swap).
 """
 import os
+import threading
 from urllib.parse import urlparse
 
 import webui_server_v29 as studio
@@ -204,6 +205,20 @@ def pi_program(params):
     return _PROGRAM[0](paste_setup.apply(params, paste_setup.load()))
 
 
+# Sideways jog in Admin (user 2026-10-18: "jog is also off in admin panel"). Studio v29 refuses X/Y jogs while the
+# last job opened is a real-hand job; in Admin (a valid session - calibrating, nothing under the machine but the dot
+# sheet or block) the jog goes to the v28 route below that rule. Every other jog check stays: no-person tick, travel
+# height, the machine box, homed, not busy. Without a valid session the v29 rule applies as before.
+_REQ = threading.local()
+_JOG = studio.Handler.POST_API["/api/machine/jog"]
+
+
+def pi_jog(params):
+    if getattr(_REQ, "admin", False):
+        return studio._JOG[0](params)
+    return _JOG[0](params)
+
+
 def paste_view(_=None):
     if not PASTE_ON_PI:
         return {"output": "controller", "ready": True, "note": "SSR on the DLC32 laser TTL output (M3/M5)"}
@@ -241,10 +256,12 @@ class PiHandler(studio.Handler):
                                                 "/api/pi/admin/lock": (admin_lock, False),
                                                 "/api/pi/storage/settings": (storage_settings, False),
                                                 "/api/pi/storage/cleanup": (storage_cleanup, True),
-                                                "/api/studio/program": (pi_program, _PROGRAM[1])})
+                                                "/api/studio/program": (pi_program, _PROGRAM[1]),
+                                                "/api/machine/jog": (pi_jog, _JOG[1])})
 
     def do_POST(self):
         path = urlparse(self.path).path
+        _REQ.admin = path == "/api/machine/jog" and ADMIN.valid(self.headers.get("X-Admin-Token", ""))
         if needs_admin(path) and not ADMIN.valid(self.headers.get("X-Admin-Token", "")):
             if self._host_ok():
                 self._send(403, {"error": "Admin is locked - open Admin and enter the PIN"})

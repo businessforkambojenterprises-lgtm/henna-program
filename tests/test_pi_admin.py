@@ -174,5 +174,45 @@ class AdminPageTests(unittest.TestCase):
             self.assertIn(f"['{tab}', ", js, tab)
 
 
+class AdminJogTests(unittest.TestCase):
+    """Sideways jog in Admin (2026-10-18): with a valid Admin session the jog skips v29's real-hand rule (the v28
+    route with all its other checks); without one the rule refuses X/Y as before."""
+
+    def test_admin_session_allows_sideways_jog(self):
+        import webui_server_v10 as v10
+        original = v10.camera
+        try:
+            import webui_server_pi as pi
+            v29 = pi.studio
+            sent = []
+            saved = (v29._JOG, dict(v29._ACTIVE))
+            v29._JOG = (lambda p: sent.append(p["axis"]) or {"busy": "jog"}, False)
+            v29._ACTIVE.update(job="20261018-084336-job", subject="realhand")
+            try:
+                p = {"axis": "X", "direction": 1, "step_mm": 10, "confirm_no_person": True}
+                pi._REQ.admin = False
+                with self.assertRaisesRegex(ValueError, "Sideways jog is off"):
+                    pi.pi_jog(p)
+                pi._REQ.admin = True
+                pi.pi_jog(p)
+                self.assertEqual(sent, ["X"])
+                self.assertIs(pi.PiHandler.POST_API["/api/machine/jog"][0], pi.pi_jog)
+                h = object.__new__(pi.PiHandler)
+                h.path, h.headers = "/api/machine/jog", FakeHeaders()
+                h._host_ok = lambda: False
+                pi.PiHandler.do_POST(h)                    # no token: the flag is cleared for this request
+                self.assertFalse(pi._REQ.admin)
+            finally:
+                v29._JOG = saved[0]
+                v29._ACTIVE.clear()
+                v29._ACTIVE.update(saved[1])
+                pi._REQ.admin = False
+        finally:
+            if "webui_server_pi" in sys.modules:
+                sys.modules["webui_server_pi"].studio.machine.paste_output = None
+            v10.camera = original
+            sys.modules.pop("webui_server_pi", None)
+
+
 if __name__ == "__main__":
     unittest.main()

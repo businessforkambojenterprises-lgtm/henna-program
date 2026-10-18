@@ -194,7 +194,8 @@
   window.fetch = function (url, opts) {
     try {
       var path = new URL(String(url), location.href).pathname;
-      if (ADMIN_TOKEN && opts && opts.method === 'POST' && ADMIN_RE.test(path)) {
+      if (ADMIN_TOKEN && opts && opts.method === 'POST' && (ADMIN_RE.test(path) ||
+          (path === '/api/machine/jog' && document.body.classList.contains('pi-admin')))) {   /* sideways jog in Admin */
         var h = {};
         Object.keys(opts.headers || {}).forEach(function (k) { h[k] = opts.headers[k]; });
         h['X-Admin-Token'] = ADMIN_TOKEN;
@@ -763,6 +764,15 @@
       };
     }).catch(function (e) { box.innerHTML = '<p class="hint">' + esc2(e.message) + '</p>'; });
   }
+
+  /* Jog in Admin: X/Y shown even when the last job opened was a real-hand job (the Pi server allows them with the
+     Admin session - see pi_jog). Runs after the page's own Jog button handler, which hides them. */
+  document.addEventListener('click', function (e) {
+    if (!(e.target.closest && e.target.closest('#mjog')) || !admin()) return;
+    document.querySelectorAll('#dlgjog [data-jog^="X"],#dlgjog [data-jog^="Y"]').forEach(function (b) { b.hidden = false; });
+    if (typeof msg === 'function') msg('msgjog', '', '');
+    if (typeof jogShow === 'function') jogShow();
+  });
 
   /* Studio's own functions, wrapped: entering the view clears the one tick (as Studio clears its boxes), each
      calibration redraw updates the Position card, and leaving the view leaves Admin / daily mode. The calibration
