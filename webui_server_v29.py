@@ -380,6 +380,41 @@ def use_recording(params):
     return _USE_REC_ROUTE[0](params)
 
 
+# ---------- no sideways jog while a real-hand job is open (user 2026-10-18: "yes hide sideways jog for real hand") ----
+# The path clearance lets a wrist / forearm beside the nozzle's path be taller than travel Z; Studio's own moves never
+# go there, but a sideways jog at travel Z could. Studio remembers the subject of the job last opened or created; while
+# it is a real hand (hover run or camera only), X/Y jogs are refused - Z+ and Home stay.
+_ACTIVE = {"job": None, "subject": None}
+NO_SIDEWAYS = ("realhand", "person")
+_GET_JOB = v28.Handler.GET_API["/api/studio/job"]
+_JOB_NEW = v28.Handler.POST_API["/api/studio/job_new"]
+_JOG = v28.Handler.POST_API["/api/machine/jog"]
+
+
+def _remember_job(job):
+    if isinstance(job, dict) and job.get("id"):
+        _ACTIVE.update(job=job["id"], subject=job.get("subject"))
+    return job
+
+
+def get_job(q):
+    return _remember_job(_GET_JOB(q))
+
+
+def job_new(params):
+    out = _JOB_NEW[0](params)
+    _remember_job(out.get("job") if isinstance(out, dict) and "job" in out else out)
+    return out
+
+
+def jog(params):
+    p = params or {}
+    if p.get("axis") in ("X", "Y") and _ACTIVE["subject"] in NO_SIDEWAYS:
+        raise ValueError("Sideways jog is off while a real-hand job is open - at travel height the nozzle could reach "
+                         "the arm. Use Z+ or Home, or open a prosthetic job.")
+    return _JOG[0](params)
+
+
 def dispensers(_=None):
     return {"dispensers": dispense.DISPENSERS, "delay_range_s": [dispense.DELAY_MIN_S, dispense.DELAY_MAX_S],
             "test_s": TEST_S, "s_full": dispense.S_FULL}
@@ -387,11 +422,14 @@ def dispensers(_=None):
 
 class Handler(v28.Handler):
     server_version = "HennaStudio/0.29"
-    GET_API = dict(v28.Handler.GET_API, **{"/api/studio/dispensers": dispensers})
+    GET_API = dict(v28.Handler.GET_API, **{"/api/studio/dispensers": dispensers, "/api/studio/job": get_job,
+                                           "/api/studio/active_job": lambda q: dict(_ACTIVE)})
     POST_API = dict(v28.Handler.POST_API, **{
         "/api/studio/program": (program, v28.Handler.POST_API["/api/studio/program"][1]),
         "/api/machine/run": (run, v28.Handler.POST_API["/api/machine/run"][1]),
         "/api/machine/dispense_test": (dispense_test, False),
+        "/api/studio/job_new": (job_new, _JOB_NEW[1]),
+        "/api/machine/jog": (jog, _JOG[1]),
         "/api/studio/scan": (scan, _SCAN_ROUTE[1]),
         "/api/studio/use_recording": (use_recording, _USE_REC_ROUTE[1]),
     })
