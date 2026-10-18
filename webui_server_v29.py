@@ -81,15 +81,15 @@ def _scan_frame(rec):
     return _frames[rec]
 
 
-def path_clearance(job, standoff_mm):
-    """v27.clearance with the nozzle's path instead of the whole hand. None before the region step (as v27)."""
+def path_measure(job):
+    """The nozzle-path corridor of a job with a scan and a region: the measured surface (sub-sampled pixels) and
+    pc.corridor_top's result. Raises tc.ClearanceError when the path cannot be measured. Also used by
+    path_clearance_picture.py, so the picture shows exactly what the design check measured."""
     import cv2
     from henna_preview import path_clearance as pc
     from henna_preview import travel_clearance as tc
     from henna_preview.head_mask import head_pixels
     s = job["steps"]
-    if not s.get("region") or not s.get("scan"):
-        return _WHOLE_HAND_CLEARANCE(job, standoff_mm)
     rec = s["scan"]["recording"]
     fr = _scan_frame(rec)
     raw, scale = fr["depth_raw_aligned"], fr["depth_scale_m_per_unit"]
@@ -110,6 +110,18 @@ def path_clearance(job, standoff_mm):
         r = pc.corridor_top(xy, z, xyb, region_ok, head[:2], blind_mask=blind_mask, mm_per_px=mm_per_px, ok_mask=ok)
     except pc.PathClearanceError as e:
         raise tc.ClearanceError(f"Nozzle path check: {e}") from None
+    return {"r": r, "frame": fr, "stride": stride, "ok": ok, "xy": xy, "z": z, "region_ok": region_ok,
+            "head": head, "parts": p, "recording": rec}
+
+
+def path_clearance(job, standoff_mm):
+    """v27.clearance with the nozzle's path instead of the whole hand. None before the region step (as v27)."""
+    from henna_preview import travel_clearance as tc
+    s = job["steps"]
+    if not s.get("region") or not s.get("scan"):
+        return _WHOLE_HAND_CLEARANCE(job, standoff_mm)
+    m = path_measure(job)
+    r, rec, p = m["r"], m["recording"], m["parts"]
     c = v10.cal()
     bed = v27._paper_z(c, p["k"])
     os.environ["HENNA_PATH_TOP"] = json.dumps({"recording": os.path.basename(rec), "top_z": r["top_z"],
