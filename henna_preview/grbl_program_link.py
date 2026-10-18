@@ -20,6 +20,14 @@ import time
 from henna_preview.grbl_scan_link import TOL_MM, TRAVEL_Z, GrblScanLink, MachineError  # noqa: F401 (re-export)
 
 JOG_STEPS = (0.1, 1.0, 10.0)
+JOG_STEP_TEXT = "step 0.1, 1 or 10 mm"
+
+
+def jog_step_ok(step_mm):
+    """The jog steps this link takes. Studio v29 replaces it (and JOG_STEP_TEXT) at start with a 0.1 to 100 mm range
+    for its distance slider; the target checks below are the same for every step."""
+    return step_mm in JOG_STEPS
+
 JOG_RE = re.compile(r"^\$J=G21 G90 G53 ([XYZ])(-?\d+\.\d{3}) F(300|1000)$")
 Z_TOP = 0.0
 _G0Z = re.compile(r"^G53 G0 Z(-?\d+\.\d+)$")
@@ -206,8 +214,8 @@ class GrblProgramLink(GrblScanLink):
     # ---- jog (always at or above travel Z) ----
     @staticmethod
     def jog_target(start, axis, direction, step_mm):
-        if axis not in ("X", "Y", "Z") or direction not in (1, -1) or step_mm not in JOG_STEPS:
-            raise MachineError("Jog refused: axis X, Y or Z; direction +1 or -1; step 0.1, 1 or 10 mm")
+        if axis not in ("X", "Y", "Z") or direction not in (1, -1) or not jog_step_ok(step_mm):
+            raise MachineError(f"Jog refused: axis X, Y or Z; direction +1 or -1; {JOG_STEP_TEXT}")
         i = "XYZ".index(axis)
         target = list(start)
         target[i] = round(start[i] + direction * step_mm, 3)

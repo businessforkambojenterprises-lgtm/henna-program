@@ -494,9 +494,11 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
  <label class="check"><input type="checkbox" id="rclear"><span>Nothing else is in the travel area, no paste in the dispenser, and I am at the emergency stop.</span></label>
  <div class="msg" id="msgrundlg"></div>
  <div class="foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="rungo" disabled>Start run</button></div></div></dialog>
-<dialog id="dlgjog"><div class="dlg"><h2>Jog</h2><p class="sub">Moves stay at travel height (Z -20) or higher, so the nozzle cannot reach a hand. Below Z -20 only Z up works. Only a checked program lowers the nozzle.</p>
+<dialog id="dlgjog"><div class="dlg"><h2>Jog</h2><p class="sub" id="jogsub">Moves stay at travel height or higher, so the nozzle cannot reach a hand. Only a checked program lowers the nozzle.</p>
  <label class="check"><input type="checkbox" id="jnoperson"><span>No person's hand is under the machine.</span></label>
- <div class="row" style="margin:6px 0 4px"><span class="hint" style="margin:0">Step</span><div class="seg" id="jstep" role="group" aria-label="Jog step"><button type="button" data-step="0.1">0.1 mm</button><button type="button" data-step="1" class="on">1 mm</button><button type="button" data-step="10">10 mm</button></div></div>
+ <div class="row" style="justify-content:space-between;align-items:baseline;margin:8px 0 0"><span class="hint" style="margin:0">Distance per press</span><b class="mono" id="jdistv" style="font-size:18px">1.0 mm</b></div>
+ <input type="range" id="jdist" min="0" max="300" step="1" value="100" aria-label="Jog distance, 0.1 to 100 mm" style="width:100%">
+ <div class="row" style="justify-content:space-between;margin:0 0 4px"><span class="hint" style="margin:0">0.1</span><span class="hint" style="margin:0">1</span><span class="hint" style="margin:0">10</span><span class="hint" style="margin:0">100 mm</span></div>
  <div class="jogwrap">
   <div class="row" style="align-items:flex-start;gap:0">
    <div class="jogpad">
@@ -910,25 +912,29 @@ $('scanmovego').onclick=async()=>{if(!scanCanMove()||!$('scanclear').checked||!$
 $('mstop').onclick=async()=>{try{await machineCommand('/api/machine/stop',{},'stop')}catch(e){alert(e.message)}};
 
 /* ---------- jog: always at or above travel Z ---------- */
-const TRAVEL_Z=-20,Z_TOP=0;let jogStep=1;
-function jogShow(){if(!$('dlgjog').open)return;const m=MACH||{},fresh=machFresh(),busy=machineBusy(),z=m.mpos?m.mpos[2]:null;
+const Z_TOP=0;let jogStep=1,TRAVEL_Z=-20,JOG_XY=[225,176];
+/* the slider is logarithmic: 0-300 -> 0.1-100 mm (0.1 mm steps below 10 mm, 1 mm above) */
+function jogFromSlider(p){const v=Math.pow(10,p/100-1);return v<10?Math.max(0.1,Math.round(v*10)/10):Math.min(100,Math.round(v))}
+function jogLimits(){const u=MACHINES&&MACHINES.motion_in_use;if(u){if(Number.isFinite(+u.travel_z))TRAVEL_Z=+u.travel_z;if(u.work_area&&u.work_area.length===2)JOG_XY=u.work_area.map(Number)}
+ $('jogsub').textContent=`Moves stay at travel height (Z ${TRAVEL_Z}) or higher, so the nozzle cannot reach a hand. Below Z ${TRAVEL_Z} only Z up works. Only a checked program lowers the nozzle.`}
+function jogShow(){if(!$('dlgjog').open)return;jogLimits();const m=MACH||{},fresh=machFresh(),busy=machineBusy(),z=m.mpos?m.mpos[2]:null;
  const ok=fresh&&m.connected&&m.homed===true&&m.state==='Idle'&&!busy&&$('jnoperson').checked&&z!=null;
  $('jogpos').innerHTML=m.mpos?`X ${fmt(m.mpos[0],2)}<br>Y ${fmt(m.mpos[1],2)}<br>Z ${fmt(z,2)}`:'–';
  document.querySelectorAll('[data-jog]').forEach(b=>{const[ax,d]=b.dataset.jog.split(','),dir=+d;let allow=ok;const AM=activeMachine();if(allow&&!(AM&&AM.work_area_mm)&&!(ax==='Z'&&dir>0))allow=false;
   if(allow&&ax==='Z'){const t=+(z+dir*jogStep).toFixed(3);if(t>Z_TOP+1e-9||(dir<0&&t<TRAVEL_Z-1e-9))allow=false}
-  else if(allow){if(z<TRAVEL_Z-0.05)allow=false;else{const i=ax==='X'?0:1,t=m.mpos[i]+dir*jogStep;if(t<0||t>(ax==='X'?225:176))allow=false}}
+  else if(allow){if(z<TRAVEL_Z-0.05)allow=false;else{const i=ax==='X'?0:1,t=m.mpos[i]+dir*jogStep;if(t<0||t>JOG_XY[i])allow=false}}
   b.disabled=!allow});
  let help;if(!fresh||!m.connected)help='Connect the machine first.';else if(!m.homed)help='Home first.';else if(busy==='jog')help='Moving…';
  else if(busy)help='Machine busy.';else if(!$('jnoperson').checked)help='Tick the box to enable the buttons.';
  else if(z!=null&&z<TRAVEL_Z-0.05)help=`The nozzle is below Z ${TRAVEL_Z}: raise Z first (Z+). X and Y unlock at Z ${TRAVEL_Z} or higher.`;
- else help='Each press moves one step and waits until the machine stops. Greyed buttons would leave the allowed area.';
+ else help='Each press moves the distance above and waits until the machine stops. Greyed buttons would leave the allowed area.';
  $('joghelp').textContent=help;$('jogstop').hidden=!(busy==='jog'||(m.connected&&m.state&&!['Idle','Alarm'].includes(m.state)));
- document.querySelectorAll('#jstep button').forEach(b=>b.classList.toggle('on',+b.dataset.step===jogStep))}
+ $('jdistv').textContent=(jogStep<10?jogStep.toFixed(1):String(jogStep))+' mm'}
 $('mjog').onclick=()=>{if(!MACH||!MACH.connected)return;loadMachines().then(jogShow).catch(()=>{});$('jnoperson').checked=false;msg('msgjog','','');
  const side=!(JOB&&(JOB.subject==='realhand'||JOB.subject==='person'));document.querySelectorAll('#dlgjog [data-jog^="X"],#dlgjog [data-jog^="Y"]').forEach(b=>b.hidden=!side);
  if(!side)msg('msgjog','warn','Sideways jog is off while a real-hand job is open - only Z (and Home) here.');$('dlgjog').showModal();jogShow()};
 $('jnoperson').onchange=jogShow;
-$('jstep').addEventListener('click',e=>{const b=e.target.closest('[data-step]');if(!b)return;jogStep=+b.dataset.step;jogShow()});
+$('jdist').addEventListener('input',()=>{jogStep=jogFromSlider(+$('jdist').value);jogShow()});
 document.querySelectorAll('[data-jog]').forEach(b=>b.onclick=async()=>{if(b.disabled)return;const[ax,d]=b.dataset.jog.split(',');msg('msgjog','','');
  try{await machineCommand('/api/machine/jog',{axis:ax,direction:+d,step_mm:jogStep,confirm_no_person:$('jnoperson').checked},'jog')}
  catch(e){msg('msgjog','err',e.message)}finally{jogShow()}});

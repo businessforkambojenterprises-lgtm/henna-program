@@ -208,6 +208,14 @@ def run_start(params):
     return dict(machine_status(), job=job_view(job))
 
 
+JOG_STEP_TEXT = "step 0.1, 1 or 10 mm"
+
+
+def jog_step_ok(step):
+    """The steps this route takes (Studio v29 replaces it with its 0.1 to 100 mm slider range at start)."""
+    return float(step) in (0.1, 1.0, 10.0)
+
+
 def jog(params):
     """Axis, direction and step only - never coordinates. The link keeps every jog at or above travel Z."""
     if params.get("confirm_no_person") is not True:
@@ -216,8 +224,8 @@ def jog(params):
         raise MachineError("Finish recording before jogging")
     axis, direction, step = params.get("axis"), params.get("direction"), params.get("step_mm")
     if axis not in ("X", "Y", "Z") or direction not in (1, -1) or type(direction) is not int \
-            or not isinstance(step, (int, float)) or isinstance(step, bool) or float(step) not in (0.1, 1.0, 10.0):
-        raise ValueError("jog: axis X/Y/Z, direction 1 or -1, step 0.1, 1 or 10 mm")
+            or not isinstance(step, (int, float)) or isinstance(step, bool) or not jog_step_ok(step):
+        raise ValueError(f"jog: axis X/Y/Z, direction 1 or -1, {JOG_STEP_TEXT}")
     return machine.start_jog(axis, direction, float(step))
 
 
