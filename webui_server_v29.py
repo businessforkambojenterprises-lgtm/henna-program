@@ -107,7 +107,7 @@ def path_clearance(job, standoff_mm):
     d_med = float(np.median(sub[keep & (sub > 0)])) * float(scale) * 1000.0
     mm_per_px = float(abs(rays[0][0, 1] - rays[0][0, 0])) * d_med
     try:
-        r = pc.corridor_top(xy, z, xyb, region_ok, head[:2], blind_mask=blind_mask, mm_per_px=mm_per_px)
+        r = pc.corridor_top(xy, z, xyb, region_ok, head[:2], blind_mask=blind_mask, mm_per_px=mm_per_px, ok_mask=ok)
     except pc.PathClearanceError as e:
         raise tc.ClearanceError(f"Nozzle path check: {e}") from None
     c = v10.cal()
@@ -122,8 +122,10 @@ def path_clearance(job, standoff_mm):
             gap = max(float(standoff_mm), float(v27.HOP_CLEARANCE_MM)) + tc.MARGIN_MM
             above = f" (about {r['top_z'] - bed:.1f} mm above the bed)" if bed is not None else ""
             msg = (f"Under the nozzle's path (the design area and the way to it from the scan position, "
-                   f"{r['margin_mm']:g} mm margin) the highest point is at Z {r['top_z']:.1f}{above}, near machine "
-                   f"X{r['top_xy'][0]:.0f} Y{r['top_xy'][1]:.0f}; travel height Z {float(c['travel_z']):g} must be at "
+                   f"{r['margin_mm']:g} mm margin) the highest point is at Z {r['top_z']:.1f}{above}"
+                   + (f", near machine X{r['top_xy'][0]:.0f} Y{r['top_xy'][1]:.0f}" if r["top_xy"] else
+                      " (the edge of a patch without depth)")
+                   + f"; travel height Z {float(c['travel_z']):g} must be at "
                    f"least {gap:g} mm above it. Choose a design area on a lower part of the hand, or move the hand so "
                    "its tall part (wrist, forearm, thumb) is away from that path.")
         raise tc.ClearanceError(msg) from None
