@@ -38,10 +38,19 @@ def scene(forearm_x=(160, 200), forearm_z=-2.0, blind_patch=False):
     return raw, rays, hand
 
 
-def run(raw, rays, region):
+def run(raw, rays, region, holes=False):
     keep = np.ones(raw.shape, bool)
     xy, z, xyb, ok = pc.surface(raw, 0.0001, rays, HEAD, I3, [0, 0], K, lambda d: d, keep)
-    return pc.corridor_top(xy, z, xyb, region[ok], HEAD[:2])
+    if not holes:
+        return pc.corridor_top(xy, z, xyb, region[ok], HEAD[:2])
+    return pc.corridor_top(xy, z, xyb, region[ok], HEAD[:2], blind_mask=keep & (raw == 0), mm_per_px=1.0, ok_mask=ok)
+
+
+def holed(raw, x0, x1, y0, y1):
+    """Blank out machine X x0..x1, Y y0..y1 (1 mm per pixel, X = col + 40, Y = row + 40)."""
+    raw = raw.copy()
+    raw[y0 - 40:y1 - 40 + 1, x0 - 40:x1 - 40 + 1] = 0
+    return raw
 
 
 class CorridorTests(unittest.TestCase):
@@ -70,6 +79,25 @@ class CorridorTests(unittest.TestCase):
         region2[40:80, 70:100] = True                                   # region still has some measured skin
         with self.assertRaisesRegex(pc.PathClearanceError, "no depth"):
             run(raw, rays, region2)
+
+    def test_a_hole_takes_the_height_of_its_edge(self):
+        raw, rays, region = scene(forearm_x=(200, 220))
+        r = run(holed(raw, 85, 100, 90, 110), rays, region, holes=True)      # plain bed around it: bed height
+        self.assertAlmostEqual(r["top_z"], -35.0, places=1)
+        self.assertEqual(r["holes"], 1)
+        raw, rays, region = scene(forearm_x=(88, 108))
+        r = run(holed(raw, 92, 104, 85, 115), rays, region, holes=True)     # a hole inside a tall forearm on the path
+        self.assertAlmostEqual(r["top_z"], -2.0, places=1)
+
+    def test_too_big_or_unbounded_holes_are_refused(self):
+        raw, rays, region = scene(forearm_x=(200, 220))
+        saved = pc.MAX_HOLE_MM2
+        pc.MAX_HOLE_MM2 = 100.0
+        try:
+            with self.assertRaisesRegex(pc.PathClearanceError, "has no depth"):
+                run(holed(raw, 85, 100, 90, 110), rays, region, holes=True)
+        finally:
+            pc.MAX_HOLE_MM2 = saved
 
     def test_too_little_region(self):
         raw, rays, region = scene()
