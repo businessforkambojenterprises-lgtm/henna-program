@@ -25,7 +25,10 @@ import hashlib
 import json
 import os
 import re
+import sys
 from urllib.parse import unquote, urlparse
+
+import numpy as np
 
 import webui_server as base
 import webui_server_v10 as v10
@@ -59,6 +62,85 @@ def cal():
     lo, hi = c["standoff_mm_allowed"]
     c["standoff_mm_allowed"] = [min(float(lo), PROSTHETIC_MIN_STANDOFF_MM), float(hi)]
     return c
+
+
+# ---------- travel clearance over the nozzle's own path (user 2026-10-18: "do 2") ----------
+# v27 checked the whole hand's highest point - on a person usually the wrist / forearm, which the tip never crosses.
+# Now: the surface under the tip's travel path (design region + way from the scan position, 8 mm margin), measured
+# with the planner's own model; refused when that path is not measured well enough (henna_preview/path_clearance.py).
+# Steps 22 / 23 get the same number (step_path_clearance.py runs the approved scripts unchanged).
+STEP22_PATH = os.path.join(base.ROOT, "step22_path_clearance.py")
+STEP23_PATH = os.path.join(base.ROOT, "step23_path_clearance.py")
+_frames = {}
+
+
+def _scan_frame(rec):
+    if rec not in _frames:
+        _frames.clear()
+        _frames[rec] = v28.v26._median_frame(rec)
+    return _frames[rec]
+
+
+def path_clearance(job, standoff_mm):
+    """v27.clearance with the nozzle's path instead of the whole hand. None before the region step (as v27)."""
+    import cv2
+    from henna_preview import path_clearance as pc
+    from henna_preview import travel_clearance as tc
+    from henna_preview.head_mask import head_pixels
+    s = job["steps"]
+    if not s.get("region") or not s.get("scan"):
+        return _WHOLE_HAND_CLEARANCE(job, standoff_mm)
+    rec = s["scan"]["recording"]
+    fr = _scan_frame(rec)
+    raw, scale = fr["depth_raw_aligned"], fr["depth_scale_m_per_unit"]
+    p = v28._parts()
+    head = [float(v) for v in s["scan"]["mpos"]]
+    stride = v28.REF_STRIDE
+    hm = head_pixels(raw, scale, p["k"], p["depth_fn"])
+    sub, keep = raw[::stride, ::stride], ~hm[::stride, ::stride]
+    rays = v28.rays_for(fr["colour_intrinsics"], sub.shape, stride)
+    xy, z, xyb, ok = pc.surface(sub, scale, rays, head, p["R"], p["t"], p["k"], p["depth_fn"], keep)
+    region = np.zeros(raw.shape, np.uint8)
+    cv2.fillPoly(region, [np.round(np.asarray(s["region"]["polygon_px"], float)).astype(np.int32)], 1)
+    region_ok = region[::stride, ::stride].astype(bool)[ok]
+    blind_mask = keep & (sub == 0)
+    d_med = float(np.median(sub[keep & (sub > 0)])) * float(scale) * 1000.0
+    mm_per_px = float(abs(rays[0][0, 1] - rays[0][0, 0])) * d_med
+    try:
+        r = pc.corridor_top(xy, z, xyb, region_ok, head[:2], blind_mask=blind_mask, mm_per_px=mm_per_px)
+    except pc.PathClearanceError as e:
+        raise tc.ClearanceError(f"Nozzle path check: {e}") from None
+    c = v10.cal()
+    bed = v27._paper_z(c, p["k"])
+    os.environ["HENNA_PATH_TOP"] = json.dumps({"recording": os.path.basename(rec), "top_z": r["top_z"],
+                                               "basis": r["basis"]})
+    try:
+        out = tc.check(r["top_z"], c["travel_z"], standoff_mm, v27.HOP_CLEARANCE_MM, bed_z=bed)
+    except tc.ClearanceError as e:
+        msg = str(e)
+        if "too tall" in msg:
+            gap = max(float(standoff_mm), float(v27.HOP_CLEARANCE_MM)) + tc.MARGIN_MM
+            above = f" (about {r['top_z'] - bed:.1f} mm above the bed)" if bed is not None else ""
+            msg = (f"Under the nozzle's path (the design area and the way to it from the scan position, "
+                   f"{r['margin_mm']:g} mm margin) the highest point is at Z {r['top_z']:.1f}{above}, near machine "
+                   f"X{r['top_xy'][0]:.0f} Y{r['top_xy'][1]:.0f}; travel height Z {float(c['travel_z']):g} must be at "
+                   f"least {gap:g} mm above it. Choose a design area on a lower part of the hand, or move the hand so "
+                   "its tall part (wrist, forearm, thumb) is away from that path.")
+        raise tc.ClearanceError(msg) from None
+    return dict(out, basis=r["basis"], path=r)
+
+
+_WHOLE_HAND_CLEARANCE = v27.clearance
+
+
+def install_path_clearance():
+    """Applied when Studio v29 starts from source (main()). Not in the packaged desktop app until it is rebuilt with
+    the new step runner (its steps 22 / 23 are frozen workers there) - it keeps the whole-hand rule."""
+    if getattr(sys, "frozen", False):
+        return False
+    v27.clearance = path_clearance
+    v10.STEP22, v17.STEP23 = STEP22_PATH, STEP23_PATH
+    return True
 
 
 def install_close_heights():
@@ -346,6 +428,7 @@ class Handler(v28.Handler):
 def main():
     v27.Handler = Handler                                   # v27.main serves v27.Handler (-> v26.main)
     install_close_heights()
+    install_path_clearance()
     print("Henna Studio v29 - paste dispensing (pneumatic / servo SSR on the controller output)", flush=True)
     try:
         v27.main()
