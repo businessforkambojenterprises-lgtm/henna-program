@@ -167,6 +167,28 @@ def install_close_heights():
         v10.cal = cal
 
 
+# ---- jog distance from a slider (user 2026-10-18: "jog should be like mks web ui fo distance there has to be a slider
+# rather than fixed numbers"): any distance from 0.1 to 100 mm in 0.1 mm. Only the step rule changes - the link still
+# refuses Z above the top or below travel height, X/Y outside the machine or below travel height, as for every step.
+JOG_MIN_MM, JOG_MAX_MM = 0.1, 100.0
+
+
+def free_jog_step(step):
+    try:
+        s = float(step)
+    except (TypeError, ValueError):
+        return False
+    return JOG_MIN_MM - 1e-9 <= s <= JOG_MAX_MM + 1e-9 and abs(s * 10 - round(s * 10)) < 1e-6
+
+
+def install_free_jog():
+    """Applied when Studio v29 starts (main()) - not on import, so the v14 to v28 files and their tests keep 0.1/1/10."""
+    from henna_preview import grbl_program_link as gl
+    text = f"step {JOG_MIN_MM:g} to {JOG_MAX_MM:g} mm in 0.1 mm steps"
+    v14.jog_step_ok = gl.jog_step_ok = free_jog_step
+    v14.JOG_STEP_TEXT = gl.JOG_STEP_TEXT = text
+
+
 def _log(step, mpos, command, expected, measured, result, recording="", notes="Studio v29"):
     v10.log_row(v10.LOG_FILE, 0, step, mpos, command, expected, measured, result, recording, notes)
 
@@ -481,6 +503,7 @@ def main():
     v27.Handler = Handler                                   # v27.main serves v27.Handler (-> v26.main)
     install_close_heights()
     install_path_clearance()
+    install_free_jog()
     print("Henna Studio v29 - paste dispensing (pneumatic / servo SSR on the controller output)", flush=True)
     try:
         v27.main()
