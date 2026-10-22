@@ -20,8 +20,8 @@ import copy
 
 import numpy as np
 
-LIMIT_MM = 2.0
-MOVED_SHARE = 0.20
+LIMIT_MM = 4.0              # user 2026-10-22: "widen tolerance" (was 2 mm / 20 %) - a hand cannot stay within 2 mm
+MOVED_SHARE = 0.40          # for minutes; the 6 mm nozzle height keeps 2 mm, and "near" (NEAR_MM) still pauses at 1.5
 NEAR_MM = 1.5
 NEAR_XY_MM = 3.0            # skin right under the tip; the planner already lifts the tip over nearby higher skin
 MIN_SEEN = 0.20
