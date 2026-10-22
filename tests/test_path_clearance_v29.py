@@ -140,5 +140,63 @@ class StudioInstallTests(unittest.TestCase):
             v29.v27.clearance, v29.v10.STEP22, v29.v17.STEP23 = saved
 
 
+class TravelLineTests(unittest.TestCase):
+    """User 2026-10-22 ("do b"): with the design's strokes known, only the travel lines (start -> first stroke, then
+    between strokes) + margin count - a tall wrist beside them no longer refuses, on them it still does."""
+
+    def test_segments_in_program_order(self):
+        segs = pc.travel_segments([(65.7, 80)], [((110, 90), (120, 90)), ((125, 95), (125, 95))])
+        self.assertEqual(segs, [((65.7, 80.0), (110.0, 90.0)), ((120.0, 90.0), (125.0, 95.0))])
+        self.assertEqual(pc.travel_segments([(0, 0)], []), [])
+
+    def test_forearm_beside_the_lines_is_ignored_on_them_counted(self):
+        raw, rays, region = scene(forearm_x=(95, 105))           # between the scan position and the design
+        keep = np.ones(raw.shape, bool)
+        xy, z, xyb, ok = pc.surface(raw, 0.0001, rays, HEAD, I3, [0, 0], K, lambda d: d, keep)
+        hull = pc.corridor_top(xy, z, xyb, region[ok], HEAD[:2])
+        self.assertAlmostEqual(hull["top_z"], -2.0, places=1)    # the triangle rule sees the forearm
+        # travel line that goes round it: scan (75, 100) -> (75, 60) -> design start (115, 85) is two lines here
+        beside = [((75, 100), (90, 50)), ((90, 50), (120, 50)), ((120, 50), (125, 100))]
+        r = pc.corridor_top(xy, z, xyb, region[ok], HEAD[:2], segments=beside)
+        self.assertLess(r["top_z"], -30)
+        self.assertIsNone(r["corridor_xy"])
+        self.assertIn("travel lines", r["basis"])
+        across = [((75, 100), (125, 100))]                       # straight through the forearm at X 95-105
+        r = pc.corridor_top(xy, z, xyb, region[ok], HEAD[:2], segments=across)
+        self.assertAlmostEqual(r["top_z"], -2.0, places=1)
+
+
+class StudioTravelLineTests(unittest.TestCase):
+    def test_design_strokes_and_the_pending_placement(self):
+        import webui_server_v29 as v29
+        d = {"svg": "designs/arabic_finger_bel.svg", "fit_mm": 30.0, "rotation_deg": 0.0, "centre_machine_xy": [120, 100]}
+        st = v29.design_strokes(d)
+        self.assertGreater(len(st), 10)
+        for a, b in st:
+            self.assertTrue(100 <= a[0] <= 140 and 80 <= a[1] <= 120, a)
+        job = {"steps": {"scan": {"mpos": [65.7, 80.0, -5.0]}}}
+        saved = v29.machine.status
+        v29.machine.status = lambda: {"connected": True, "mpos": [70.0, 90.0, -5.0]}
+        try:
+            segs = v29.travel_lines(job, d)
+        finally:
+            v29.machine.status = saved
+        self.assertEqual(segs[0][0], (65.7, 80.0))
+        self.assertEqual(segs[1][0], (70.0, 90.0))                 # the head's current position too
+        self.assertEqual(len(segs), 2 + len(st) - 1)
+        self.assertIsNone(v29.travel_lines(job, {"svg": "designs/none.svg"}))   # unreadable: hull rule
+        self.assertIsNone(v29.travel_lines(job, None))
+        seen = []
+        saved_inner = v29._CHECK_DESIGN
+        v29._CHECK_DESIGN = (lambda p: seen.append(dict(v29._PENDING.design)) or {"ok": True}, True)
+        try:
+            v29.check_design(dict(d, job="x", standoff_mm=6))
+        finally:
+            v29._CHECK_DESIGN = saved_inner
+        self.assertEqual(seen[0]["svg"], d["svg"])
+        self.assertIsNone(v29._PENDING.design)
+        self.assertIs(v29.Handler.POST_API["/api/studio/check_design"][0], v29.check_design)
+
+
 if __name__ == "__main__":
     unittest.main()

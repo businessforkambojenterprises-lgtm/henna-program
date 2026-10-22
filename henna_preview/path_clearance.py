@@ -23,6 +23,13 @@ dispenser body, and the surface under them is hidden - found on the first real s
 travel height while the scan is taken, so anything taller in that circle would be touching the nozzle before any move.
 The machine head's own pixels (head_mask) are left out, as everywhere; anything nearer than the tip plane that is not
 the head stays IN (the caller's check refuses a top above the tip as "something between the camera and the hand").
+
+TRAVEL LINES (user 2026-10-22, "do b"): when the design's strokes are known, the corridor is the nozzle's actual moves
+at travel height instead of the convex hull - the straight line from where the run starts (the scan position, and the
+head's current position when it is known) to the first stroke's start, and from each stroke's end to the next stroke's
+start (a hop goes to travel height when its skin is not measured) - each grown by MARGIN_MM. The strokes themselves
+are drawn at skin + nozzle height and checked point by point by the design check; after the last stroke the nozzle
+only rises. A tall wrist or thumb BESIDE those lines no longer refuses the design; on them it still does.
 """
 import numpy as np
 
@@ -64,6 +71,14 @@ def hull(points):
     return np.asarray(convex_hull([tuple(p) for p in np.asarray(points, float)]), float)
 
 
+def _near_segment(xy, a, b, margin):
+    a, b = np.asarray(a, float), np.asarray(b, float)
+    ab = b - a
+    L2 = float(ab @ ab)
+    u = np.zeros(len(xy)) if L2 == 0 else np.clip(((xy - a) @ ab) / L2, 0, 1)
+    return np.hypot(*(xy - (a + u[:, None] * ab)).T) <= margin
+
+
 def in_corridor(xy, poly, margin):
     """Points inside the polygon or within margin of its edges."""
     from matplotlib.path import Path
@@ -74,13 +89,27 @@ def in_corridor(xy, poly, margin):
     near = np.zeros(len(xy), bool)
     pts = list(poly) + [poly[0]] if len(poly) >= 2 else list(poly) * 2
     for a, b in zip(pts[:-1], pts[1:]):
-        a, b = np.asarray(a, float), np.asarray(b, float)
-        ab = b - a
-        L2 = float(ab @ ab)
-        u = np.zeros(len(xy)) if L2 == 0 else np.clip(((xy - a) @ ab) / L2, 0, 1)
-        dist = np.hypot(*(xy - (a + u[:, None] * ab)).T)
-        near |= dist <= margin
+        near |= _near_segment(xy, a, b, margin)
     return inside | near
+
+
+def travel_segments(starts, strokes):
+    """The nozzle's moves at travel height, in program order: from each possible start XY to the first stroke's start,
+    then from each stroke's end to the next stroke's start. strokes: [(start_xy, end_xy)]."""
+    if not strokes:
+        return []
+    segs = [(tuple(map(float, s[:2])), tuple(map(float, strokes[0][0]))) for s in starts]
+    segs += [(tuple(map(float, strokes[i][1])), tuple(map(float, strokes[i + 1][0]))) for i in range(len(strokes) - 1)]
+    return segs
+
+
+def near_segments(xy, segments, margin):
+    """Points within margin of any of the segments."""
+    xy = np.asarray(xy, float).reshape(-1, 2)
+    out = np.zeros(len(xy), bool)
+    for a, b in segments:
+        out |= _near_segment(xy, a, b, margin)
+    return out
 
 
 def hole_heights(blind_mask, incb, ok_mask, z, mm_per_px):
@@ -109,17 +138,27 @@ def hole_heights(blind_mask, incb, ok_mask, z, mm_per_px):
     return out
 
 
-def corridor_top(xy, z, xyb, region_ok, scan_xy, margin=MARGIN_MM, blind_mask=None, mm_per_px=None, ok_mask=None):
+def corridor_top(xy, z, xyb, region_ok, scan_xy, margin=MARGIN_MM, blind_mask=None, mm_per_px=None, ok_mask=None,
+                 segments=None):
     """-> dict with the corridor's top Z and how well it was measured; raises PathClearanceError when it cannot tell.
     region_ok: for each measured point (same order as xy), whether its pixel lies in the accepted region.
-    blind_mask, ok_mask (+ mm_per_px): unmeasured / measured pixels in image layout, for the hole rule."""
+    blind_mask, ok_mask (+ mm_per_px): unmeasured / measured pixels in image layout, for the hole rule.
+    segments: the travel lines (travel_segments) - the corridor is then those lines + margin, not the hull."""
     region_xy = xy[region_ok]
     if len(region_xy) < 3:
         raise PathClearanceError("the design region has too little measured depth to check the nozzle's path")
-    poly = hull(np.vstack([region_xy, np.asarray(scan_xy, float)[None, :2]]))
     sxy = np.asarray(scan_xy, float)[:2]
-    inc = in_corridor(xy, poly, margin) & (np.hypot(*(xy - sxy).T) > HEAD_FOOTPRINT_MM)
-    incb = in_corridor(xyb, poly, margin) & (np.hypot(*(np.asarray(xyb, float).reshape(-1, 2) - sxy).T) > HEAD_FOOTPRINT_MM)
+    xyb = np.asarray(xyb, float).reshape(-1, 2)
+    if segments:
+        poly = None
+        inc = near_segments(xy, segments, margin)
+        incb = near_segments(xyb, segments, margin)
+    else:
+        poly = hull(np.vstack([region_xy, sxy[None, :]]))
+        inc = in_corridor(xy, poly, margin)
+        incb = in_corridor(xyb, poly, margin)
+    inc &= np.hypot(*(xy - sxy).T) > HEAD_FOOTPRINT_MM
+    incb &= np.hypot(*(xyb - sxy).T) > HEAD_FOOTPRINT_MM
     n, nb = int(inc.sum()), int(incb.sum())
     if n < MIN_POINTS:
         raise PathClearanceError("too little of the nozzle's path is measured by the camera - scan again")
@@ -148,6 +187,10 @@ def corridor_top(xy, z, xyb, region_ok, scan_xy, margin=MARGIN_MM, blind_mask=No
     return {"top_z": round(top, 2), "top_xy": top_xy, "points": n,
             "blind_share": round(blind, 4), "largest_hole_mm2": round(largest, 1), "holes": len(holes),
             "hole_top_z": None if hole_top is None else round(hole_top, 2),
-            "margin_mm": margin, "corridor_xy": np.round(poly, 1).tolist(),
+            "margin_mm": margin, "corridor_xy": None if poly is None else np.round(poly, 1).tolist(),
+            "segments": [[list(map(lambda v: round(v, 1), a)), list(map(lambda v: round(v, 1), b))] for a, b in segments]
+            if segments else None,
             "whole_view_top_z": round(float(np.percentile(z, TOP_PERCENTILE)), 2) if len(z) else None,
-            "basis": f"nozzle travel path: design region + scan position, {margin:g} mm margin"}
+            "basis": (f"nozzle travel lines: start -> first stroke and between strokes ({len(segments)} lines), "
+                      f"{margin:g} mm margin") if segments else
+                     f"nozzle travel path: design region + scan position, {margin:g} mm margin"}
