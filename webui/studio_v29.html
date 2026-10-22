@@ -492,6 +492,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
  <div class="foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="scanmovego" disabled>Move to scan position</button></div></div></dialog>
 <dialog id="dlgrun"><div class="dlg"><h2>Start the hover run</h2><p class="sub">The head rises to travel height, then follows the design at the nozzle height you chose above the measured skin. No dispensing. Before it starts, the camera checks that the hand is where it was scanned; on a real hand it keeps watching and pauses the machine if the hand moves.</p>
  <label class="check"><input type="checkbox" id="rclear"><span>Nothing else is in the travel area, no paste in the dispenser, and I am at the emergency stop.</span></label>
+ <label class="check" id="rairbox" hidden><input type="checkbox" id="rair"><span>Air run - no hand under the machine. The camera checks that the design area is empty instead of looking for the hand.</span></label>
  <div class="msg" id="msgrundlg"></div>
  <div class="foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="rungo" disabled>Start run</button></div></div></dialog>
 <dialog id="dlgjog"><div class="dlg"><h2>Jog</h2><p class="sub" id="jogsub">Moves stay at travel height or higher, so the nozzle cannot reach a hand. Only a checked program lowers the nozzle.</p>
@@ -835,10 +836,10 @@ function watchShow(){const el=$('watchline');if(VIEW!=='run'||!JOB||JOB.subject!
 setInterval(async()=>{if(VIEW!=='run'||!JOB||JOB.subject!=='realhand')return;try{WATCHST=await api('/api/studio/watch')}catch(e){}watchShow()},500);
 async function reloadJob(tries){try{const j=await api('/api/studio/job?id='+encodeURIComponent(JOB.id));setJob(j);if(VIEW==='run')renderRunHist();
   if(tries>1&&runsOfProgram().some(r=>r.result==='running')&&!running())setTimeout(()=>reloadJob(tries-1),700)}catch(e){}}
-$('runstart').onclick=()=>{if(!canStart())return;RUN_TICKS.forEach(id=>$(id).checked=false);msg('msgrundlg','','');runShow();$('dlgrun').showModal()};
+$('runstart').onclick=()=>{if(!canStart())return;RUN_TICKS.forEach(id=>$(id).checked=false);$('rair').checked=false;$('rairbox').hidden=JOB.subject!=='realhand';msg('msgrundlg','','');runShow();$('dlgrun').showModal()};
 RUN_TICKS.forEach(id=>$(id).onchange=runShow);
 $('rungo').onclick=async()=>{if($('rungo').disabled)return;runAction='start';runShow();msg('msgrundlg','info','Checking the program file and starting…');
- try{const r=await api('/api/machine/run',{job:JOB.id,confirm_prosthetic:true,confirm_unmoved:true,confirm_clear:true,confirm_estop:true});
+ try{const air=JOB.subject==='realhand'&&$('rair').checked;const r=await api('/api/machine/run',Object.assign({job:JOB.id,confirm_prosthetic:true,confirm_unmoved:true,confirm_clear:true,confirm_estop:true},air?{air_run:true,confirm_air_run:true}:{}));
   const {job,hand_check_warning,...m}=r;lastRunJob=job.id;lastRunState='running';setJob(job);machineAccept(m);$('dlgrun').close();msg('msgrun',hand_check_warning?'warn':'',hand_check_warning||'');renderRunHist()}
  catch(e){msg('msgrundlg','err',e.message)}finally{runAction='';runShow()}};
 $('runpause').onclick=async()=>{const p=prog();if(!running()||!p)return;runAction='pause';runShow();
