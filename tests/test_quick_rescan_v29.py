@@ -104,6 +104,7 @@ class QuickRescanTests(unittest.TestCase):
         paths = [c[0] for c in self.calls]
         self.assertEqual(paths, ["/api/studio/scan", "/api/studio/detect", "/api/studio/region_accept",
                                  "/api/studio/check_design", "/api/studio/program"])      # already at the scan position
+        self.assertIsInstance(self.calls[2][1]["margin"], float)  # the region route refuses a missing margin
         poly = np.array(self.calls[2][1]["polygon"])
         np.testing.assert_allclose(poly, moved([[100, 100], [200, 100], [200, 200], [100, 200]], 5.0, 3.0, 1.0), atol=0.1)
         d = self.calls[3][1]

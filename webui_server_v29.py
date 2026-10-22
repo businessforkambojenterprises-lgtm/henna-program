@@ -601,8 +601,9 @@ def quick_rescan(params):
     f = step("following the hand", lambda: follow_hand.follow(old, new))
     w, h = int(rep_new["colour_intrinsics"]["width"]), int(rep_new["colour_intrinsics"]["height"])
     poly = np.clip(follow_hand.apply(old_poly, f["pixels"]), [0, 0], [w - 1, h - 1])
-    step("the outline", lambda: _route("/api/studio/region_accept")(
-        {"job": jid, "polygon": np.round(poly, 1).tolist(), "edited": True}))
+    from step05_region import DEFAULT_MARGIN                # the region route always needs a number, even for an
+    step("the outline", lambda: _route("/api/studio/region_accept")(   # edited outline (the page sends its slider)
+        {"job": jid, "polygon": np.round(poly, 1).tolist(), "margin": DEFAULT_MARGIN, "edited": True}))
     done.append("outline moved with the hand")
     centre = follow_hand.apply([design["centre_machine_xy"]], f["machine"])[0]
     rot = ((float(design["rotation_deg"]) + f["turn_deg"] + 180.0) % 360.0) - 180.0
