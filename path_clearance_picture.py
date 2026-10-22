@@ -161,6 +161,12 @@ def main(argv=None):
     print(f"\n=== NOZZLE PATH ({'OK' if need <= travel else 'TOO TALL'}) ===")
     print(f"  scan position X{head[0]:g} Y{head[1]:g}; travel Z {travel:g}")
     print(f"  checked: {r['basis']}")
+    if r.get("approach_candidates"):
+        way = r.get("approach") or []
+        print("  route to the first stroke: " + ("straight" if not way else
+              "round tall skin via " + ", ".join(f"X{x:.0f} Y{y:.0f}" for x, y in way)) + "  (candidates: " +
+              ", ".join(("straight" if not c["waypoints"] else "via X{:.0f} Y{:.0f}".format(*c["waypoints"][0]))
+                        + f" top Z {c['top_z']}" for c in r["approach_candidates"]) + ")")
     print(f"  highest on the path: Z {r['top_z']:.1f}" + (f" at X{r['top_xy'][0]:.0f} Y{r['top_xy'][1]:.0f}" if r["top_xy"] else
                                                        " (edge of a patch without depth)"))
     b = result["region_xy_box"]

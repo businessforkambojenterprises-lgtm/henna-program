@@ -96,16 +96,16 @@ def design_strokes(design):
     return [(tuple(s["plan"][0]), tuple(s["plan"][0] if s["closed"] else s["plan"][-1])) for s in placed]
 
 
-def travel_lines(job, design):
-    """The travel-height moves of the program for this placement, or None (then the hull rule applies): from the scan
-    position - and from the head's current position when the machine reports one - to the first stroke, then between
-    strokes."""
-    from henna_preview import path_clearance as pc
+def travel_plan(job, design):
+    """-> {"starts", "strokes"} of the program for this placement, or None (then the hull rule applies): it may start
+    from the scan position - and from the head's current position when the machine reports one."""
     if not design:
         return None
     try:
         strokes = design_strokes(design)
     except (KeyError, TypeError, ValueError, OSError):
+        return None
+    if not strokes:
         return None
     starts = [[float(v) for v in job["steps"]["scan"]["mpos"][:2]]]
     try:
@@ -114,7 +114,22 @@ def travel_lines(job, design):
             starts.append([float(v) for v in st["mpos"][:2]])
     except Exception:                                   # noqa: BLE001 - no machine: the scan position only
         pass
-    return pc.travel_segments(starts, strokes) or None
+    return {"starts": starts, "strokes": strokes}
+
+
+def travel_lines(job, design, approach=()):
+    """The travel-height moves of the program for this placement, or None: from the start(s) through the approach
+    waypoints to the first stroke, then between strokes."""
+    from henna_preview import path_clearance as pc
+    plan = travel_plan(job, design)
+    if plan is None:
+        return None
+    return pc.travel_segments(plan["starts"], plan["strokes"], approach) or None
+
+
+# The route of the first travel move each job's last path check chose (user 2026-10-22, "build step 2"): the program
+# step writes it, and a run is refused when its program's route is a different one.
+_LAST_APPROACH = {}
 
 
 def path_measure(job, design=None):
@@ -143,14 +158,24 @@ def path_measure(job, design=None):
     blind_mask = keep & (sub == 0)
     d_med = float(np.median(sub[keep & (sub > 0)])) * float(scale) * 1000.0
     mm_per_px = float(abs(rays[0][0, 1] - rays[0][0, 0])) * d_med
-    segments = travel_lines(job, design if design is not None else s.get("design"))
+    plan = travel_plan(job, design if design is not None else s.get("design"))
+    approach, rated = [], []
+    if plan:
+        from henna_preview import travel_route
+        keep = np.hypot(*(xy - np.asarray(head[:2])).T) > pc.HEAD_FOOTPRINT_MM
+        approach, _, rated = travel_route.choose(head[:2], plan["strokes"][0][0], xy, z, pc.MARGIN_MM, keep)
+    segments = pc.travel_segments(plan["starts"], plan["strokes"], approach) if plan else None
     try:
         r = pc.corridor_top(xy, z, xyb, region_ok, head[:2], blind_mask=blind_mask, mm_per_px=mm_per_px, ok_mask=ok,
                             segments=segments)
     except pc.PathClearanceError as e:
         raise tc.ClearanceError(f"Nozzle path check: {e}") from None
+    r = dict(r, approach=[[round(float(v), 3) for v in w] for w in approach],
+             approach_candidates=[{"waypoints": [[round(float(v), 1) for v in w] for w in c],
+                                   "top_z": None if t is None else round(t, 2)} for c, t in rated])
+    target = [round(float(v), 3) for v in plan["strokes"][0][0]] if plan else None
     return {"r": r, "frame": fr, "stride": stride, "ok": ok, "xy": xy, "z": z, "region_ok": region_ok,
-            "head": head, "parts": p, "recording": rec}
+            "head": head, "parts": p, "recording": rec, "target": target}
 
 
 def path_clearance(job, standoff_mm):
@@ -165,6 +190,9 @@ def path_clearance(job, standoff_mm):
     bed = v27._paper_z(c, p["k"])
     os.environ["HENNA_PATH_TOP"] = json.dumps({"recording": os.path.basename(rec), "top_z": r["top_z"],
                                                "basis": r["basis"]})
+    os.environ["HENNA_APPROACH"] = json.dumps({"recording": os.path.basename(rec), "target": m["target"],
+                                               "waypoints": r["approach"]})
+    _LAST_APPROACH[job["id"]] = [tuple(w) for w in r["approach"]]
     try:
         out = tc.check(r["top_z"], c["travel_z"], standoff_mm, v27.HOP_CLEARANCE_MM, bed_z=bed)
     except tc.ClearanceError as e:
@@ -254,10 +282,27 @@ def _command_lines(text):
 
 
 # ---------- the paste program ----------
+def _route_check(job, lines):
+    """The program's route to its first stroke must be the one the path check just measured (it ran first in the
+    same request: v27's guard / v28's real-hand rules)."""
+    from henna_preview import travel_route
+    got = [tuple(round(float(v), 3) for v in w) for w in travel_route.program_approach(lines, v10.cal()["travel_z"])]
+    want = _LAST_APPROACH.get(job["id"])
+    if v27.clearance is not path_clearance or want is None:
+        if got:
+            raise ValueError("this program goes round tall skin on its way to the first stroke, which only the path "
+                             "check can approve - write the program again")
+        return
+    if got != [tuple(round(float(v), 3) for v in w) for w in want]:
+        raise ValueError("the program's route to the first stroke is not the one checked now (the hand or the design "
+                         "changed) - write the program again")
+
+
 def checked_program(job):
     """v17's checks of the hover file; for a paste program also its own file, fingerprint and the paste re-read.
     Installed as v17.checked_program, which every run start calls (v20.run_start)."""
     name, lines, end, rr, feed = HOVER_CHECKED(job)
+    _route_check(job, lines)
     pr = job["steps"]["program"]
     d = pr.get("dispense")
     if not d:

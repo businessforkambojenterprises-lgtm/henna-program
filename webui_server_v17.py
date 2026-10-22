@@ -48,13 +48,17 @@ def run_step23(config_path):
 
 def slow_drops(text, feed):
     """Cap each drop (first G1 after a sideways rapid) at DESCENT_MAX; extra seconds vs the drawing speed."""
-    out, after_rapid, z, extra = [], False, None, 0.0
+    out, after_rapid, z, extra, travel = [], False, None, 0.0, None
     cap = min(feed, v16.DESCENT_MAX)
     for line in text.splitlines():
         m0 = _G0Z.match(line)
         if m0:
             z = float(m0.group(1))
+            travel = z if travel is None else travel           # the program's first rise is to travel Z
         m = _G1.match(line)
+        if after_rapid and _G0XY.match(line) and z is not None and z == travel:
+            out.append(line)                                   # a route round tall skin, at travel Z (v29)
+            continue
         if after_rapid:
             if not m:
                 raise ValueError("program structure: a sideways rapid move is not followed by a drop")
