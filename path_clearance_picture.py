@@ -5,7 +5,11 @@ draws it on the scan's colour photo:
   green  = the design region            cyan  = the rest of the nozzle's path (corridor, 8 mm margin)
   white  = the scan position (left out) red X = the highest point Studio found on the path
 Then prints where the tall parts of the path are, so you can see whether they are in the region itself or on the
-way to it. Camera data only - nothing here talks to the CNC or changes the job.
+way to it. Every point too tall for travel height is marked with a red dot.
+It also compares the two frames Studio uses (2026-10-22: the region check said 165-186 mm while the path check
+found points at about 144 mm inside the same outline): the region check reads the hand-detection frame, the path
+check the 15-frame median of the scan recording - their recordings, frames and depth inside the outline are printed.
+Camera data only - nothing here talks to the CNC or changes the job.
 
   python path_clearance_picture.py                       (the newest job with a region)
   python path_clearance_picture.py --job 20261018-084336-job
@@ -76,6 +80,32 @@ def main(argv=None):
     way = corridor & ~region
     above = (lambda zz: round(zz - bed, 1)) if bed is not None else (lambda zz: None)
     reg_xy = xy[region]
+    too_tall = corridor & (z > travel - 9.0)
+    sub = m["frame"]["depth_raw_aligned"][::stride, ::stride]
+    depth_mm = sub[ok].astype(float) * float(m["frame"]["depth_scale_m_per_unit"]) * 1000.0
+    hand = job["steps"].get("hand") or {}
+    hand_input = {}
+    try:
+        with open(os.path.join(out_root, str(hand.get("run", "")).split(":", 1)[-1], "report.json"), encoding="utf-8") as f:
+            hand_input = json.load(f).get("input", {})
+    except (OSError, ValueError):
+        pass
+    frames = {
+        "scan_recording": os.path.basename(m["recording"]),
+        "scan_median_frames_around": m["frame"].get("frame_index"),
+        "hand_recording": os.path.basename(str(hand_input.get("path", ""))) or None,
+        "hand_frame": hand_input.get("frame_index"),
+        "region_check_depth_mm": (job["steps"].get("region") or {}).get("depth_mm_range"),
+        "path_check_depth_mm_in_region": [round(float(depth_mm[region].min()), 1), round(float(depth_mm[region].max()), 1)]
+        if region.any() else None,
+        "region_points": int(region.sum()), "region_points_too_tall": int((too_tall & region).sum()),
+        "path_points_too_tall": int(too_tall.sum()),
+    }
+    vs0, us0 = np.nonzero(ok)
+    order = np.nonzero(too_tall)[0][np.argsort(-z[too_tall])][:10]
+    tallest = [{"u": int(us0[i] * stride), "v": int(vs0[i] * stride), "depth_mm": round(float(depth_mm[i]), 1),
+                "z": round(float(z[i]), 2), "x": round(float(xy[i, 0]), 1), "y": round(float(xy[i, 1]), 1),
+                "in_region": bool(region[i])} for i in order]
     result = {
         "job": job_id, "subject": job.get("subject"), "recording": os.path.basename(m["recording"]),
         "scan_position": head, "travel_z": travel, "bed_z": bed,
@@ -85,6 +115,7 @@ def main(argv=None):
         "tall_in_region": tall_spots(xy, z, region),
         "tall_on_the_way": tall_spots(xy, z, way),
         "path": {k: v for k, v in r.items() if k != "corridor_xy"},
+        "frames": frames, "tallest_points": tallest,
     }
 
     out = os.path.join(v29.base.ROOT, "outputs", "path_checks", dt.datetime.now().strftime("%Y%m%d-%H%M%S"))
@@ -103,6 +134,9 @@ def main(argv=None):
     ax.scatter(us[region], vs[region], s=5, c="#00ff66", alpha=0.4, lw=0)
     ax.plot([], [], "s", ms=8, color="#00b8ff", label="nozzle path (on the way)")
     ax.plot([], [], "s", ms=8, color="#00ff66", label="design region")
+    if too_tall.any():
+        ax.scatter(us[too_tall], vs[too_tall], s=10, c="red", lw=0)
+        ax.plot([], [], "o", ms=5, color="red", label=f"too tall for travel Z ({int(too_tall.sum())} points)")
     i_head = int(np.argmin(np.hypot(*(xy - np.asarray(head[:2])).T)))
     ax.plot(us[i_head], vs[i_head], "o", ms=10, mfc="none", mec="white", mew=2, label="scan position (left out)")
     if r["top_xy"]:
@@ -130,6 +164,16 @@ def main(argv=None):
     print(f"  design region: X{b[0][0]:.0f}-{b[1][0]:.0f} Y{b[0][1]:.0f}-{b[1][1]:.0f}, its top Z {result['region_top_z']}")
     print("  tallest in the region:   " + ", ".join(f"X{x:.0f} Y{y:.0f} Z{zz}" for x, y, zz in result["tall_in_region"][:3]))
     print("  tallest on the way to it: " + ", ".join(f"X{x:.0f} Y{y:.0f} Z{zz}" for x, y, zz in result["tall_on_the_way"][:3]))
+    f_ = frames
+    print(f"  frames: scan {f_['scan_recording']} (median around {f_['scan_median_frames_around']}), "
+          f"hand detection {f_['hand_recording']} frame {f_['hand_frame']}")
+    print(f"  depth inside the outline: region check {f_['region_check_depth_mm']} mm, "
+          f"path check {f_['path_check_depth_mm_in_region']} mm")
+    print(f"  too tall: {f_['path_points_too_tall']} path points, {f_['region_points_too_tall']} of "
+          f"{f_['region_points']} in the outline")
+    for t in tallest[:5]:
+        print(f"    pixel u{t['u']} v{t['v']}: depth {t['depth_mm']} mm -> Z {t['z']} at X{t['x']:.0f} Y{t['y']:.0f}"
+              + (" (in the outline)" if t["in_region"] else ""))
     print(f"  picture + JSON: {out}")
     return 0
 
