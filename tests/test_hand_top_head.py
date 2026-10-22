@@ -45,6 +45,15 @@ class HandTopTests(unittest.TestCase):
         self.assertTrue(head[10, 350] and head[70, 354])           # dispenser and tip
         self.assertFalse(head[310, 610])                            # not connected to the edge: not the head
 
+    def test_a_cable_starting_just_inside_the_edge_is_the_head(self):
+        raw = frame(False)
+        raw[0:4, :] = 0                                             # no depth in the top rows (D405 edge)
+        raw[4:90, 700:712] = int(68.5 * 10)                         # cable hanging in, 68 mm from the camera
+        raw[300:320, 600:620] = int((K - 5) * 10)                   # still: a loose thing high in the picture
+        head = head_pixels(raw, 0.0001, K, lambda d: d)
+        self.assertTrue(head[4, 705] and head[80, 705])
+        self.assertFalse(head[310, 610])
+
 
 if __name__ == "__main__":
     unittest.main()
