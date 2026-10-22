@@ -11,6 +11,20 @@ from henna_preview import stroke_font as sf  # noqa: E402
 from henna_preview.svg_design import place, read_svg  # noqa: E402
 import webui_server_v18 as server  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import studio_pristine  # noqa: E402
+
+studio_pristine.remember()           # the older modules as loaded, before any v24+ test imports a later Studio
+
+
+def setUpModule():
+    global _PRISTINE
+    _PRISTINE = studio_pristine.apply()
+
+
+def tearDownModule():
+    studio_pristine.undo(_PRISTINE)
+
 
 def read_text_svg(text):
     with tempfile.NamedTemporaryFile("w", suffix=".svg", delete=False, encoding="utf-8") as f:

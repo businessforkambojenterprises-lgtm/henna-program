@@ -13,6 +13,20 @@ sys.path.insert(0, ROOT)
 
 from henna_preview import calibration_status, daily_check  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import studio_pristine  # noqa: E402
+
+studio_pristine.remember()           # the older modules as loaded, before any v24+ test imports a later Studio
+
+
+def setUpModule():
+    global _PRISTINE
+    _PRISTINE = studio_pristine.apply()
+
+
+def tearDownModule():
+    studio_pristine.undo(_PRISTINE)
+
 
 def scene(offset=0.0, shift_px=(0, 0), tilt_mm_per_px=0.0, blob=None, serial="260322278767"):
     """A textured flat bed at 200 mm, as daily_check.summarize returns it."""

@@ -376,15 +376,84 @@ def _prosthetic_start(job, params):
     return dict(out, hand_check_warning=warning) if warning else out
 
 
+# ---- air run for a real-hand job (user 2026-10-22: "yes" to an "Air run (no hand)" option instead of removing the
+# hand check): the same program, every real-hand rule, but the camera requires the design area EMPTY before Start and
+# while it runs (henna_preview/hand_watch.py: air_reference) - a hand or anything else there refuses / pauses.
+def air_check(job, samples=v28.PRESTART_SAMPLES):
+    """Right before Start / Resume of an air run: the design area must be empty. -> last result; raises when not."""
+    from henna_preview import hand_watch as hw
+    ref = hw.air_reference(v28.reference(job))
+    st = machine.status()
+    if not st.get("connected") or st.get("mpos") is None:
+        raise MachineError("Connect the machine first")
+    t, res = 0.0, None
+    for _ in range(samples):
+        smp = v28._fresh_sample(t, v28.PRESTART_TIMEOUT_S)
+        t = smp["t"]
+        res = v28.check_sample(ref, smp, st["mpos"])
+        if res["verdict"] != "ok":
+            hint = {"unseen": " Move to scan position first, so the camera sees the design area.",
+                    "moved": " Take the hand (and anything else) away for an air run.", "near": " Raise the nozzle."}
+            raise ValueError(f"Air run check: {hw.message(res)}.{hint[res['verdict']]}")
+    return res
+
+
+def _air_start(job, params):
+    """v28's real-hand run with the reversed camera check (the design area must be empty)."""
+    from henna_preview import hand_watch as hw
+    v28.machine_job_only(job)
+    if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
+        raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
+    if params.get("confirm_air_run") is not True:
+        raise ValueError("Confirm the air run: no hand under the machine")
+    v28._real_rules(job, (job["steps"].get("design") or {}).get("standoff_mm", 0))
+    if float((job["steps"].get("program") or {}).get("draw_feed_mm_min", v28.REAL_FEED_MM_MIN)) > v28.REAL_FEED_MM_MIN:
+        raise ValueError(f"A real hand runs at {v28.REAL_FEED_MM_MIN} mm/min - write the program again")
+    res = air_check(job)
+    out = v28._INNER["/api/machine/run"](dict(params, confirm_prosthetic=True, confirm_unmoved=True))
+    _log("Air run check before Start", (machine.status() or {}).get("mpos"), "camera, 3 pictures",
+         "design area empty (no hand)", f"median {res['median_dz_mm']} mm below the scanned skin; "
+         f"{100 * res['share_off']:.0f} % not clear; {100 * res['seen_share']:.0f} % seen", "ok",
+         job["steps"]["scan"]["name"], f"Studio v29 air run; job {job['id']}")
+    v28.WATCH.start(job, hw.air_reference(v28.reference(job)))
+    with v28.WATCH.lock:
+        v28.WATCH.state["air_run"] = True
+    return dict(out, air_run=True)
+
+
+def resume(params):
+    """An air run paused by the watch resumes after a fresh EMPTY check (v28's resume would look for the hand)."""
+    w = v28.WATCH.view()
+    if w.get("active") and w.get("paused_by_watch") and w.get("air_run"):
+        job = v11.job_load(w["job"])
+        air_check(job, samples=2)
+        with v28.WATCH.lock:
+            v28.WATCH.state["paused_by_watch"] = None
+        _log("Air run watch: resume after a fresh check", (machine.status() or {}).get("mpos"), "camera, 2 pictures",
+             "design area empty", "ok", "resumed", job["steps"]["scan"]["name"], f"Studio v29 air run; job {job['id']}")
+        return v28._INNER["/api/machine/resume"](params)
+    return _RESUME[0](params)
+
+
+_RESUME = v28.Handler.POST_API["/api/machine/resume"]
+
+
 def run(params):
     job = v11.job_load(params.get("job"))
+    if params.get("air_run") is True and job.get("subject") != v28.REAL:
+        raise ValueError("The air run option is for real-hand jobs - a prosthetic job runs with its own warning-only check")
     d = (job["steps"].get("program") or {}).get("dispense")
     if d:
         cfg = dict(dispense.settings(d["dispenser"], d["start_s"], d["stop_s"]), output=output_for(d["dispenser"]))
         found = controller_ready(cfg["output"])
         machine.arm_dispense(cfg)
     try:
-        out = _prosthetic_start(job, params) if job.get("subject") == "prosthetic" else v28.run(params)
+        if job.get("subject") == "prosthetic":
+            out = _prosthetic_start(job, params)
+        elif params.get("air_run") is True:
+            out = _air_start(job, params)
+        else:
+            out = v28.run(params)
     finally:
         machine.arm_dispense(None)                           # start_program took it, or the run was refused
     if d:
@@ -514,6 +583,7 @@ class Handler(v28.Handler):
         "/api/studio/check_design": (check_design, _CHECK_DESIGN[1]),
         "/api/studio/program": (program, v28.Handler.POST_API["/api/studio/program"][1]),
         "/api/machine/run": (run, v28.Handler.POST_API["/api/machine/run"][1]),
+        "/api/machine/resume": (resume, _RESUME[1]),
         "/api/machine/dispense_test": (dispense_test, False),
         "/api/studio/job_new": (job_new, _JOB_NEW[1]),
         "/api/machine/jog": (jog, _JOG[1]),

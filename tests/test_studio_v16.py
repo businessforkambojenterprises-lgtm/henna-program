@@ -13,6 +13,20 @@ import webui_server_v16 as server  # noqa: E402
 from tests.test_grbl_program_link import PROGRAM  # noqa: E402
 from tests.test_studio_v14 import ALL_TICKS, GCODE, JOB, PROG, V14Base  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import studio_pristine  # noqa: E402
+
+studio_pristine.remember()           # the older modules as loaded, before any v24+ test imports a later Studio
+
+
+def setUpModule():
+    global _PRISTINE
+    _PRISTINE = studio_pristine.apply()
+
+
+def tearDownModule():
+    studio_pristine.undo(_PRISTINE)
+
 
 def with_feed(text, feed):
     return text.replace(" F300", f" F{feed}")

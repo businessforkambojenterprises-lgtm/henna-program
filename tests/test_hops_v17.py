@@ -15,6 +15,20 @@ from henna_preview import hop_path as hp  # noqa: E402
 from henna_preview.program_reread_v2 import ProgramReadError, program_lines_v2, reread_v2  # noqa: E402
 from tests.test_studio_v14 import ALL_TICKS, JOB, V14Base  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import studio_pristine  # noqa: E402
+
+studio_pristine.remember()           # the older modules as loaded, before any v24+ test imports a later Studio
+
+
+def setUpModule():
+    global _PRISTINE
+    _PRISTINE = studio_pristine.apply()
+
+
+def tearDownModule():
+    studio_pristine.undo(_PRISTINE)
+
 HOP_PROGRAM = "\n".join([
     "(DESIGN HOVER TEST - PROSTHETIC HAND ONLY - NO PERSON - NO DISPENSING)",
     "(between strokes: 1 of 1 low hops)",

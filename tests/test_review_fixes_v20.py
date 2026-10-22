@@ -11,6 +11,20 @@ from henna_preview import grbl_program_link_v15 as v15  # noqa: E402
 from henna_preview import grbl_program_link_v20 as mod  # noqa: E402
 from tests.test_grbl_program_link import CONFIG, FakeGrbl, lines_and_end, wait_until  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import studio_pristine  # noqa: E402
+
+studio_pristine.remember()           # the older modules as loaded, before any v24+ test imports a later Studio
+
+
+def setUpModule():
+    global _PRISTINE
+    _PRISTINE = studio_pristine.apply()
+
+
+def tearDownModule():
+    studio_pristine.undo(_PRISTINE)
+
 
 class Base(unittest.TestCase):
     def make(self, cls=mod.GrblProgramLinkV20, **fake_kwargs):

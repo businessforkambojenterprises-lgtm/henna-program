@@ -12,6 +12,20 @@ from tests.test_grbl_program_link import wait_until  # noqa: E402
 from tests.test_review_fixes_v20 import Base  # noqa: E402
 import webui_server_v22 as server  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import studio_pristine  # noqa: E402
+
+studio_pristine.remember()           # the older modules as loaded, before any v24+ test imports a later Studio
+
+
+def setUpModule():
+    global _PRISTINE
+    _PRISTINE = studio_pristine.apply()
+
+
+def tearDownModule():
+    studio_pristine.undo(_PRISTINE)
+
 
 def late_home_callback(cls, gate):
     """Once armed, a Home's completion callback waits at the gate (after the machine was released)."""

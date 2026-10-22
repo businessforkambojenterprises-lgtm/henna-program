@@ -9,8 +9,15 @@ and compared with the skin as scanned, cell by cell (1 mm grid) inside the desig
   near   - skin within NEAR_MM of the nozzle tip's own height, within NEAR_XY_MM of the tool (anywhere seen)
   unseen - less than MIN_SEEN of the region's cells visible (hand gone, covered, camera blind)
 Pixels at or above the tip's own depth (d <= k) are the nozzle / dispenser itself and never count as skin.
+AIR RUN (Studio v29, user 2026-10-22): a real-hand program run with NO hand under the machine. The check is reversed -
+a reference marked expect_clear (air_reference) makes evaluate() require the design area EMPTY: at most
+1 - CLEAR_SHARE of the seen cells may be less than CLEAR_MM below the skin as scanned (more than the 6 mm nozzle height
++ a 4 mm margin); otherwise verdict "moved" with the reason in "text" (something is in the area). near and unseen
+are as for a hand. An empty bed is 20-60 mm below a scanned hand.
 Pure functions; the camera sample and the machine position come from the caller.
 """
+import copy
+
 import numpy as np
 
 LIMIT_MM = 2.0
@@ -20,6 +27,8 @@ NEAR_XY_MM = 3.0            # skin right under the tip; the planner already lift
 MIN_SEEN = 0.20
 MIN_POINTS = 30
 CELL_MM = 1.0
+CLEAR_MM = 10.0
+CLEAR_SHARE = 0.98
 
 
 def ray_table(intr, shape, stride):
@@ -85,9 +94,18 @@ class Reference:
         return z, np.where(inside, ix * self.ny + iy, -1)
 
 
+def air_reference(ref):
+    """The same scanned skin, for an air run: evaluate() then requires the area empty (see the module text)."""
+    a = copy.copy(ref)
+    a.expect_clear = True
+    return a
+
+
 def evaluate(ref, live_pts, tool_xyz):
     """-> {'verdict': ok|moved|near|unseen, numbers...} for one live picture."""
-    out = {"seen_share": 0.0, "points": 0, "median_dz_mm": None, "share_off": None, "near_gap_mm": None}
+    clear = getattr(ref, "expect_clear", False)
+    out = {"seen_share": 0.0, "points": 0, "median_dz_mm": None, "share_off": None, "near_gap_mm": None,
+           "air_run": clear}
     tool = np.asarray(tool_xyz, float)
     if len(live_pts):
         dxy = np.hypot(live_pts[:, 0] - tool[0], live_pts[:, 1] - tool[1])
@@ -105,6 +123,13 @@ def evaluate(ref, live_pts, tool_xyz):
         return dict(out, verdict="unseen")
     dz = live_pts[m, 2] - zr[m]
     out["median_dz_mm"] = round(float(np.median(dz)), 2)
+    if clear:
+        out["share_off"] = round(float(np.mean(dz > -CLEAR_MM)), 3)          # share NOT clearly below the skin
+        if out["share_off"] > 1 - CLEAR_SHARE:
+            return dict(out, verdict="moved",
+                        text=f"something is in the design area ({100 * out['share_off']:.0f} % of it less than "
+                             f"{CLEAR_MM:g} mm below the scanned skin) - an air run needs it empty")
+        return dict(out, verdict="ok")
     out["share_off"] = round(float(np.mean(np.abs(dz) > LIMIT_MM)), 3)
     if abs(out["median_dz_mm"]) > LIMIT_MM or out["share_off"] > MOVED_SHARE:
         return dict(out, verdict="moved")
@@ -112,6 +137,8 @@ def evaluate(ref, live_pts, tool_xyz):
 
 
 def message(res):
+    if res.get("text"):
+        return res["text"]
     v = res["verdict"]
     if v == "near":
         return f"the skin came within {res['near_gap_mm']:.1f} mm of the nozzle tip"
@@ -119,5 +146,6 @@ def message(res):
         return (f"the hand moved since the scan (median {res['median_dz_mm']:+.1f} mm, "
                 f"{100 * res['share_off']:.0f} % of the area more than {LIMIT_MM:g} mm off)")
     if v == "unseen":
-        return f"the camera cannot see the hand area ({100 * res['seen_share']:.0f} % seen)"
-    return "hand still"
+        area = "design area" if res.get("air_run") else "hand area"
+        return f"the camera cannot see the {area} ({100 * res['seen_share']:.0f} % seen)"
+    return "design area empty" if res.get("air_run") else "hand still"
