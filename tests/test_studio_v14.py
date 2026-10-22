@@ -14,6 +14,20 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import webui_server_v14 as server  # noqa: E402
 from tests.test_grbl_program_link import PROGRAM  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import studio_pristine  # noqa: E402
+
+studio_pristine.remember()           # the older modules as loaded, before any v24+ test imports a later Studio
+
+
+def setUpModule():
+    global _PRISTINE
+    _PRISTINE = studio_pristine.apply()
+
+
+def tearDownModule():
+    studio_pristine.undo(_PRISTINE)
+
 JOB, PLAN, PROG = "20261010-120000-job", "20261010-120001-plan", "20261010-120002-program"
 GCODE = "DESIGN_HOVER_TEST_PROSTHETIC_20261010-120002.gcode"
 ALL_TICKS = {"confirm_prosthetic": True, "confirm_unmoved": True, "confirm_clear": True, "confirm_estop": True}

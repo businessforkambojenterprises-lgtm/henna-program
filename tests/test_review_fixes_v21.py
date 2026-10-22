@@ -17,6 +17,20 @@ from tests.test_grbl_program_link import lines_and_end, wait_until  # noqa: E402
 from tests.test_review_fixes_v20 import Base  # noqa: E402
 import webui_server_v21 as server  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import studio_pristine  # noqa: E402
+
+studio_pristine.remember()           # the older modules as loaded, before any v24+ test imports a later Studio
+
+
+def setUpModule():
+    global _PRISTINE
+    _PRISTINE = studio_pristine.apply()
+
+
+def tearDownModule():
+    studio_pristine.undo(_PRISTINE)
+
 FONTS = {f["id"] for f in fs.list_fonts()}
 
 
