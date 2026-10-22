@@ -70,7 +70,8 @@ def check(paste_lines, hover_lines, cfg, travel_z, s_full):
             last_g0xy = (x, (g.group(1), g.group(2)))
     if on:
         raise ValueError("the program ends with paste ON")
-    strokes = sum(1 for x in hover_lines if G0XY.match(x))
+    strokes = sum(1 for i, x in enumerate(hover_lines)          # route waypoints at travel Z are not strokes
+                  if G0XY.match(x) and i + 1 < len(hover_lines) and G1.match(hover_lines[i + 1]))
     if not (ons == offs == strokes) or strokes == 0:
         raise ValueError(f"{ons} paste ON and {offs} OFF for {strokes} strokes")
     return {"strokes": strokes, "paste_on": ons, "paste_off": offs, "start_s": float(start), "stop_s": float(stop),

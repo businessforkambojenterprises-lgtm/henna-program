@@ -2,7 +2,8 @@
 
 Same rules as program_reread.reread, plus the hop line shape:
   G53 G0 Z<h>   with h = travel Z, or floor < h < travel Z (a low hop) - and never lower than where the nozzle is
-  G53 G0 X Y    only right after reaching travel Z or a hop height (straight crossing at that height)
+  G53 G0 X Y    only right after reaching travel Z or a hop height (straight crossing at that height); at travel Z
+                also right after another G53 G0 X Y - a route round tall skin (henna_preview/travel_route.py)
   G53 G1 X Y Z F  drawing: floor <= Z < travel Z, F <= limit
 The program must start by rising to travel Z, the first sideways move must be at travel Z, and it must end at
 travel Z. `program_lines_v2` is the run-time allowlist: the lines to send (comments dropped) + end position.
@@ -52,14 +53,16 @@ def _walk(text, travel_z, floor_z, max_draw_feed, firmware_floor=None):
         m = _G0XY.match(line)
         if m:
             prev = send[-1] if send else ""
-            if not (z is not None and _G0Z.match(prev)):
+            chained = bool(_G0XY.match(prev)) and z == travel_z
+            if not (z is not None and (_G0Z.match(prev) or chained)):
                 raise ProgramReadError(f"line {n}: sideways rapid move not right after rising to travel Z or a hop")
             if x is None and z != travel_z:
                 raise ProgramReadError(f"line {n}: the first sideways move must be at travel Z")
             x, y = float(m.group(1)), float(m.group(2))
             if not (0 <= x <= X_MAX and 0 <= y <= Y_MAX):
                 raise ProgramReadError(f"line {n}: X/Y outside the machine")
-            strokes += 1
+            if not chained:
+                strokes += 1
             send.append(line)
             continue
         m = _G1.match(line)

@@ -11,6 +11,13 @@ it in HENNA_PATH_TOP = {"recording": <file name>, "top_z": <Z>, "basis": <text>}
 hand_top_from_raw return that top instead - only when the recording named in HENNA_PATH_TOP is the config's own; else
 the whole-hand top as before - and keeps the whole-hand value in the report (whole_hand_top_contact_z).
 Everything else in the scripts (planning, floors, hops, the re-read, the files they write) is unchanged.
+
+ROUTE (user 2026-10-22, "build step 2"): Studio also passes the route of the first travel move in
+HENNA_APPROACH = {"recording": <file name>, "target": [x, y], "waypoints": [[x, y], ...]} (henna_preview/travel_route.py).
+For step 23, when the recording is the config's own and the target is the program's first stroke start, its
+program_with_hops gets the waypoints written as "G53 G0 X Y" lines at travel Z right after the first rise - the same
+legs Studio's path check measured. Anything else: the straight move as before (and Studio refuses a run whose route
+differs from the one it checked).
 """
 import importlib
 import json
@@ -45,6 +52,36 @@ def wrap(original, info):
     return hand_top_from_raw
 
 
+def approach(cfg, env=None):
+    """The route handed over by Studio for this config's recording, or None."""
+    raw = (env if env is not None else os.environ).get("HENNA_APPROACH", "")
+    try:
+        info = json.loads(raw) if raw else {}
+    except ValueError:
+        return None
+    rec = os.path.basename(str((cfg.get("hand_capture") or {}).get("recording", "")))
+    if info.get("recording") and rec and os.path.basename(str(info["recording"])) == rec and info.get("waypoints"):
+        return info
+    return None
+
+
+def wrap_program(original, info):
+    """program_with_hops with the route's waypoints after the first rise to travel Z (first stroke start must match)."""
+    def program_with_hops(lifted, hops, p, header):
+        lines = original(lifted, hops, p, header)
+        if info is None or not len(lifted):
+            return lines
+        first = lifted[0][0]
+        tx, ty = info["target"]
+        if abs(float(first[0]) - float(tx)) > 0.01 or abs(float(first[1]) - float(ty)) > 0.01:
+            return lines                                   # not the design Studio checked: the straight move
+        rise = f"G53 G0 Z{p['travel_z']:.3f}"
+        i = lines.index(rise) + 1
+        way = [f"G53 G0 X{float(x):.3f} Y{float(y):.3f}" for x, y in info["waypoints"]]
+        return lines[:i] + way + lines[i:]
+    return program_with_hops
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if not argv or argv[0] not in SCRIPTS:
@@ -58,6 +95,8 @@ def main(argv=None):
         with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
     mod.hand_top_from_raw = wrap(mod.hand_top_from_raw, path_top(cfg))
+    if hasattr(mod, "program_with_hops"):
+        mod.program_with_hops = wrap_program(mod.program_with_hops, approach(cfg))
     sys.argv = [mod.__file__] + rest
     mod.main()
     return 0
