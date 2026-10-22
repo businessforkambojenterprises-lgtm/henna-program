@@ -26,6 +26,7 @@ import json
 import os
 import re
 import sys
+import threading
 from urllib.parse import unquote, urlparse
 
 import numpy as np
@@ -81,10 +82,46 @@ def _scan_frame(rec):
     return _frames[rec]
 
 
-def path_measure(job):
+# The design placement being checked (check_design): the job still holds the previous one until the check passes.
+_PENDING = threading.local()
+
+
+def design_strokes(design):
+    """(start XY, end XY) of each stroke in program order for a placement {svg, fit_mm, rotation_deg,
+    centre_machine_xy} - the same place() as the program (step21 plan_design); a closed stroke ends at its start."""
+    from henna_preview.svg_design import place, read_svg
+    d = read_svg(os.path.join(base.ROOT, design["svg"]))
+    centre = [float(v) for v in design["centre_machine_xy"]]
+    placed, _ = place(d, float(design["fit_mm"]), centre, float(design.get("rotation_deg") or 0.0), spacing_mm=0.5)
+    return [(tuple(s["plan"][0]), tuple(s["plan"][0] if s["closed"] else s["plan"][-1])) for s in placed]
+
+
+def travel_lines(job, design):
+    """The travel-height moves of the program for this placement, or None (then the hull rule applies): from the scan
+    position - and from the head's current position when the machine reports one - to the first stroke, then between
+    strokes."""
+    from henna_preview import path_clearance as pc
+    if not design:
+        return None
+    try:
+        strokes = design_strokes(design)
+    except (KeyError, TypeError, ValueError, OSError):
+        return None
+    starts = [[float(v) for v in job["steps"]["scan"]["mpos"][:2]]]
+    try:
+        st = machine.status()
+        if st.get("connected") and st.get("mpos"):
+            starts.append([float(v) for v in st["mpos"][:2]])
+    except Exception:                                   # noqa: BLE001 - no machine: the scan position only
+        pass
+    return pc.travel_segments(starts, strokes) or None
+
+
+def path_measure(job, design=None):
     """The nozzle-path corridor of a job with a scan and a region: the measured surface (sub-sampled pixels) and
     pc.corridor_top's result. Raises tc.ClearanceError when the path cannot be measured. Also used by
-    path_clearance_picture.py, so the picture shows exactly what the design check measured."""
+    path_clearance_picture.py, so the picture shows exactly what the design check measured.
+    design: the placement to check (default: the job's); its travel lines are the corridor (pc.travel_segments)."""
     import cv2
     from henna_preview import path_clearance as pc
     from henna_preview import travel_clearance as tc
@@ -106,8 +143,10 @@ def path_measure(job):
     blind_mask = keep & (sub == 0)
     d_med = float(np.median(sub[keep & (sub > 0)])) * float(scale) * 1000.0
     mm_per_px = float(abs(rays[0][0, 1] - rays[0][0, 0])) * d_med
+    segments = travel_lines(job, design if design is not None else s.get("design"))
     try:
-        r = pc.corridor_top(xy, z, xyb, region_ok, head[:2], blind_mask=blind_mask, mm_per_px=mm_per_px, ok_mask=ok)
+        r = pc.corridor_top(xy, z, xyb, region_ok, head[:2], blind_mask=blind_mask, mm_per_px=mm_per_px, ok_mask=ok,
+                            segments=segments)
     except pc.PathClearanceError as e:
         raise tc.ClearanceError(f"Nozzle path check: {e}") from None
     return {"r": r, "frame": fr, "stride": stride, "ok": ok, "xy": xy, "z": z, "region_ok": region_ok,
@@ -120,7 +159,7 @@ def path_clearance(job, standoff_mm):
     s = job["steps"]
     if not s.get("region") or not s.get("scan"):
         return _WHOLE_HAND_CLEARANCE(job, standoff_mm)
-    m = path_measure(job)
+    m = path_measure(job, getattr(_PENDING, "design", None))
     r, rec, p = m["r"], m["recording"], m["parts"]
     c = v10.cal()
     bed = v27._paper_z(c, p["k"])
@@ -133,8 +172,10 @@ def path_clearance(job, standoff_mm):
         if "too tall" in msg:
             gap = max(float(standoff_mm), float(v27.HOP_CLEARANCE_MM)) + tc.MARGIN_MM
             above = f" (about {r['top_z'] - bed:.1f} mm above the bed)" if bed is not None else ""
-            msg = (f"Under the nozzle's path (the design area and the way to it from the scan position, "
-                   f"{r['margin_mm']:g} mm margin) the highest point is at Z {r['top_z']:.1f}{above}"
+            what = ("the nozzle's travel moves - to the first stroke and between strokes" if r.get("segments")
+                    else "the design area and the way to it from the scan position")
+            msg = (f"Under the nozzle's path ({what}, {r['margin_mm']:g} mm margin) the highest point is at "
+                   f"Z {r['top_z']:.1f}{above}"
                    + (f", near machine X{r['top_xy'][0]:.0f} Y{r['top_xy'][1]:.0f}" if r["top_xy"] else
                       " (the edge of a patch without depth)")
                    + f"; travel height Z {float(c['travel_z']):g} must be at "
@@ -145,6 +186,17 @@ def path_clearance(job, standoff_mm):
 
 
 _WHOLE_HAND_CLEARANCE = v27.clearance
+_CHECK_DESIGN = v28.Handler.POST_API["/api/studio/check_design"]
+
+
+def check_design(params):
+    """The design check, with its placement known to the travel-line clearance while it runs."""
+    p = params or {}
+    _PENDING.design = {k: p.get(k) for k in ("svg", "fit_mm", "rotation_deg", "centre_machine_xy")}
+    try:
+        return _CHECK_DESIGN[0](params)
+    finally:
+        _PENDING.design = None
 
 
 def install_path_clearance():
@@ -459,6 +511,7 @@ class Handler(v28.Handler):
     GET_API = dict(v28.Handler.GET_API, **{"/api/studio/dispensers": dispensers, "/api/studio/job": get_job,
                                            "/api/studio/active_job": lambda q: dict(_ACTIVE)})
     POST_API = dict(v28.Handler.POST_API, **{
+        "/api/studio/check_design": (check_design, _CHECK_DESIGN[1]),
         "/api/studio/program": (program, v28.Handler.POST_API["/api/studio/program"][1]),
         "/api/machine/run": (run, v28.Handler.POST_API["/api/machine/run"][1]),
         "/api/machine/dispense_test": (dispense_test, False),

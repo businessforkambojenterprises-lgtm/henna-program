@@ -75,7 +75,8 @@ def main(argv=None):
     travel = float(c["travel_z"])
 
     far = np.hypot(*(xy - np.asarray(head[:2])).T) > pc.HEAD_FOOTPRINT_MM
-    corridor = pc.in_corridor(xy, np.asarray(r["corridor_xy"]), r["margin_mm"]) & far
+    corridor = (pc.near_segments(xy, r["segments"], r["margin_mm"]) if r.get("segments")
+                else pc.in_corridor(xy, np.asarray(r["corridor_xy"]), r["margin_mm"])) & far
     region = m["region_ok"]
     way = corridor & ~region
     above = (lambda zz: round(zz - bed, 1)) if bed is not None else (lambda zz: None)
@@ -114,7 +115,8 @@ def main(argv=None):
         "region_top_z": round(float(np.percentile(z[region], pc.TOP_PERCENTILE)), 2),
         "tall_in_region": tall_spots(xy, z, region),
         "tall_on_the_way": tall_spots(xy, z, way),
-        "path": {k: v for k, v in r.items() if k != "corridor_xy"},
+        "path": {k: v for k, v in r.items() if k not in ("corridor_xy", "segments")},
+        "travel_lines": r.get("segments"),
         "frames": frames, "tallest_points": tallest,
     }
 
@@ -158,6 +160,7 @@ def main(argv=None):
 
     print(f"\n=== NOZZLE PATH ({'OK' if need <= travel else 'TOO TALL'}) ===")
     print(f"  scan position X{head[0]:g} Y{head[1]:g}; travel Z {travel:g}")
+    print(f"  checked: {r['basis']}")
     print(f"  highest on the path: Z {r['top_z']:.1f}" + (f" at X{r['top_xy'][0]:.0f} Y{r['top_xy'][1]:.0f}" if r["top_xy"] else
                                                        " (edge of a patch without depth)"))
     b = result["region_xy_box"]
