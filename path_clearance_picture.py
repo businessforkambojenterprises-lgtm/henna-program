@@ -106,7 +106,8 @@ def main(argv=None):
     order = np.nonzero(too_tall)[0][np.argsort(-z[too_tall])][:10]
     tallest = [{"u": int(us0[i] * stride), "v": int(vs0[i] * stride), "depth_mm": round(float(depth_mm[i]), 1),
                 "z": round(float(z[i]), 2), "x": round(float(xy[i, 0]), 1), "y": round(float(xy[i, 1]), 1),
-                "in_region": bool(region[i])} for i in order]
+                "in_region": bool(region[i]), "nearer_than_tip": bool(depth_mm[i] < m["parts"]["k"])} for i in order]
+    frames["too_tall_nearer_than_tip"] = int((too_tall & (depth_mm < m["parts"]["k"])).sum())
     result = {
         "job": job_id, "subject": job.get("subject"), "recording": os.path.basename(m["recording"]),
         "scan_position": head, "travel_z": travel, "bed_z": bed,
@@ -180,9 +181,12 @@ def main(argv=None):
           f"path check {f_['path_check_depth_mm_in_region']} mm")
     print(f"  too tall: {f_['path_points_too_tall']} path points, {f_['region_points_too_tall']} of "
           f"{f_['region_points']} in the outline")
+    if f_["too_tall_nearer_than_tip"]:
+        print(f"  {f_['too_tall_nearer_than_tip']} of them are NEARER to the camera than the nozzle tip - a cable, tube or "
+              "part of the head hanging into the view (or something held above the hand)")
     for t in tallest[:5]:
         print(f"    pixel u{t['u']} v{t['v']}: depth {t['depth_mm']} mm -> Z {t['z']} at X{t['x']:.0f} Y{t['y']:.0f}"
-              + (" (in the outline)" if t["in_region"] else ""))
+              + (" (in the outline)" if t["in_region"] else "") + (" (nearer than the tip)" if t["nearer_than_tip"] else ""))
     print(f"  picture + JSON: {out}")
     return 0
 
