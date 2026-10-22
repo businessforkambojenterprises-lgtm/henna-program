@@ -52,16 +52,23 @@ class WatchMathTests(unittest.TestCase):
         self.assertEqual(r["verdict"], "ok")
         self.assertEqual(r["median_dz_mm"], 0.0)
 
-    def test_hand_lifted_3_mm_is_moved(self):
-        r = hw.evaluate(self.ref, pts(skin(167.0)), (100, 100, -5))
+    def test_hand_lifted_5_mm_is_moved(self):                              # limit 4 mm since 2026-10-22 (was 2)
+        r = hw.evaluate(self.ref, pts(skin(165.0)), (100, 100, -5))
         self.assertEqual(r["verdict"], "moved")
-        self.assertAlmostEqual(r["median_dz_mm"], 3.0, places=1)
+        self.assertAlmostEqual(r["median_dz_mm"], 5.0, places=1)
         self.assertIn("moved", hw.message(r))
+
+    def test_hand_lifted_3_mm_is_within_the_wider_tolerance(self):
+        self.assertEqual(hw.evaluate(self.ref, pts(skin(167.0)), (100, 100, -5))["verdict"], "ok")
 
     def test_part_of_the_area_rising_is_moved(self):
         raw = skin(170.0)
-        raw[40:60, 80:130] = int(166.5 * 10)                                       # half the region 3.5 mm higher
-        self.assertEqual(hw.evaluate(self.ref, pts(raw), (100, 100, -5))["verdict"], "moved")
+        raw[35:65, 80:130] = int(165.0 * 10)                     # 45 % of the area 5 mm higher, median unchanged
+        r = hw.evaluate(self.ref, pts(raw), (100, 100, -5))
+        self.assertEqual((r["verdict"], r["median_dz_mm"]), ("moved", 0.0))
+        raw = skin(170.0)
+        raw[40:60, 80:130] = int(165.0 * 10)                     # 30 %: within the wider tolerance (40 %)
+        self.assertEqual(hw.evaluate(self.ref, pts(raw), (100, 100, -5))["verdict"], "ok")
 
     def test_small_noise_is_still_ok(self):
         rng = np.random.default_rng(1)

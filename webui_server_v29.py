@@ -27,6 +27,7 @@ import os
 import re
 import sys
 import threading
+import time
 from urllib.parse import unquote, urlparse
 
 import numpy as np
@@ -508,6 +509,128 @@ def run(params):
     return out
 
 
+# ---- Quick re-scan (user 2026-10-22: "it takes too much time" to redo scan / hand / region / design / program after
+# the hand moved). One request does them in order through the page's own routes, with every guard: (move to the scan
+# position when the head is elsewhere and the straight way there is clear), scan, hand detection, the outline and
+# the design moved WITH the hand (henna_preview/follow_hand.py), the design check on the NEW scan, and the program
+# again when there was one. It stops at the first refusal with that step's message.
+RESCAN_SECONDS = 3
+
+
+def _route(path):
+    return globals()["Handler"].POST_API[path][0]          # looked up now: on the Pi, its own handler's routes
+
+
+def _hand_report(job):
+    run = str(job["steps"]["hand"]["run"]).split(":", 1)[-1]
+    with open(os.path.join(base.OUT_ROOT, run, "report.json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _way_to_scan_position_clear(job, st):
+    """The scan-position route rises to travel Z and goes STRAIGHT over the hand: check that line on the last scan."""
+    from henna_preview import path_clearance as pc
+    from henna_preview import travel_clearance as tc
+    m = path_measure(job)
+    a, b = [float(v) for v in st["mpos"][:2]], [float(v) for v in job["steps"]["scan"]["mpos"][:2]]
+    keep = np.hypot(*(m["xy"] - np.asarray(b)).T) > pc.HEAD_FOOTPRINT_MM
+    near = pc.near_segments(m["xy"], [(tuple(a), tuple(b))], pc.MARGIN_MM) & keep
+    if not near.any():
+        return
+    top = float(np.percentile(m["z"][near], pc.TOP_PERCENTILE))
+    c = v10.cal()
+    standoff = float((job["steps"].get("design") or {}).get("standoff_mm", 6.0))
+    gap = max(standoff, float(v27.HOP_CLEARANCE_MM)) + tc.MARGIN_MM
+    if top > float(c["travel_z"]) - gap + 1e-9:
+        raise ValueError(f"the straight way to the scan position crosses skin at Z {top:.1f} - take the hand away, "
+                         "move to the scan position, put the hand back, then Quick re-scan")
+
+
+def _wait_at_scan_position(timeout_s=120.0):
+    end = time.monotonic() + timeout_s
+    while time.monotonic() < end:
+        st = machine.status()
+        if not st.get("busy"):
+            if st.get("capture_ready"):
+                return st
+            raise MachineError("the move to the scan position did not end there - home and try again")
+        time.sleep(0.25)
+    raise MachineError("the move to the scan position took too long")
+
+
+def quick_rescan(params):
+    from henna_preview import follow_hand
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    if job.get("subject") not in ("prosthetic", v28.REAL):
+        raise ValueError("Quick re-scan is for prosthetic and real-hand jobs")
+    if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
+        raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
+    s = job["steps"]
+    for k, name in (("scan", "Scan"), ("hand", "Hand & region"), ("region", "Hand & region"), ("design", "Design")):
+        if not s.get(k):
+            raise ValueError(f"do the {name} step once first - Quick re-scan repeats the steps you have done")
+    design = {k: s["design"][k] for k in ("svg", "fit_mm", "rotation_deg", "centre_machine_xy", "standoff_mm")}
+    prog = dict(s.get("program") or {})
+    p = v28._parts()
+    old = follow_hand.landmarks(_hand_report(job), s["scan"]["mpos"], p["R"], p["t"])
+    old_poly = s["region"]["polygon_px"]
+    jid, done = job["id"], []
+
+    def step(name, fn):
+        try:
+            return fn()
+        except Exception as e:                              # noqa: BLE001 - the step's own message, which step
+            raise ValueError(f"Quick re-scan stopped at {name}: {e} (done: {', '.join(done) or 'nothing'})") from None
+
+    st = machine.status()
+    if not st.get("capture_ready"):
+        step("the move to the scan position", lambda: _way_to_scan_position_clear(job, st))
+        step("the move to the scan position", lambda: _route("/api/machine/scan_position")(
+            {"job": jid, "confirm_clear": True, "confirm_estop": True}))
+        step("the move to the scan position", _wait_at_scan_position)
+        done.append("moved to the scan position")
+    step("the scan", lambda: _route("/api/studio/scan")({"job": jid, "seconds": RESCAN_SECONDS}))
+    done.append("scan")
+    step("the hand detection", lambda: _route("/api/studio/detect")({"job": jid}))
+    done.append("hand")
+    job = v11.job_load(jid)
+    rep_new = _hand_report(job)
+    new = step("following the hand", lambda: follow_hand.landmarks(rep_new, job["steps"]["scan"]["mpos"],
+                                                                 p["R"], p["t"]))
+    f = step("following the hand", lambda: follow_hand.follow(old, new))
+    w, h = int(rep_new["colour_intrinsics"]["width"]), int(rep_new["colour_intrinsics"]["height"])
+    poly = np.clip(follow_hand.apply(old_poly, f["pixels"]), [0, 0], [w - 1, h - 1])
+    step("the outline", lambda: _route("/api/studio/region_accept")(
+        {"job": jid, "polygon": np.round(poly, 1).tolist(), "edited": True}))
+    done.append("outline moved with the hand")
+    centre = follow_hand.apply([design["centre_machine_xy"]], f["machine"])[0]
+    rot = ((float(design["rotation_deg"]) + f["turn_deg"] + 180.0) % 360.0) - 180.0
+    r = step("the design check", lambda: _route("/api/studio/check_design")(
+        {"job": jid, "svg": design["svg"], "fit_mm": design["fit_mm"], "rotation_deg": round(rot, 2),
+         "centre_machine_xy": [round(float(v), 3) for v in centre], "standoff_mm": design["standoff_mm"]}))
+    verdict = ((r or {}).get("result") or {}).get("verdict")
+    if verdict != "PASS":
+        raise ValueError("Quick re-scan stopped at the design check: the design does not fit on the new scan - move "
+                         f"or shrink it in Design (done: {', '.join(done)})")
+    done.append("design checked")
+    if prog.get("program"):
+        pp = {"job": jid, "confirm_prosthetic": True, "confirm_unmoved": True,
+              "draw_feed_mm_min": float(prog.get("draw_feed_mm_min") or v28.REAL_FEED_MM_MIN)}
+        d = prog.get("dispense")
+        if d:
+            pp.update(dispenser=d["dispenser"], start_delay_s=d["start_s"], stop_delay_s=d["stop_s"])
+        step("writing the program", lambda: _route("/api/studio/program")(pp))
+        done.append("program written")
+    job = v11.job_load(jid)
+    _log("Quick re-scan", (machine.status() or {}).get("mpos"), "scan, hand, outline, design, program",
+         "the design follows the hand; all checks on the new scan", f"hand moved {f['shift_mm']} mm, turned "
+         f"{f['turn_deg']:+.1f} deg (fit {f['machine']['rms']:.1f} mm); {', '.join(done)}", "ready",
+         job["steps"]["scan"]["name"], f"Studio v29; job {jid}")
+    return {"job": v14.job_view(job), "followed": {"shift_mm": f["shift_mm"], "turn_deg": f["turn_deg"],
+                                                   "fit_mm": round(f["machine"]["rms"], 2)}, "done": done}
+
+
 def dispense_test(params):
     seconds = float((params or {}).get("seconds", TEST_S))
     dispenser = (params or {}).get("dispenser")
@@ -629,6 +752,7 @@ class Handler(v28.Handler):
         "/api/studio/program": (program, v28.Handler.POST_API["/api/studio/program"][1]),
         "/api/machine/run": (run, v28.Handler.POST_API["/api/machine/run"][1]),
         "/api/machine/resume": (resume, _RESUME[1]),
+        "/api/studio/quick_rescan": (quick_rescan, True),
         "/api/machine/dispense_test": (dispense_test, False),
         "/api/studio/job_new": (job_new, _JOB_NEW[1]),
         "/api/machine/jog": (jog, _JOG[1]),

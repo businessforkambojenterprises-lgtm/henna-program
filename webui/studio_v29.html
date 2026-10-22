@@ -448,6 +448,8 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
        <button class="btn" id="runpause" type="button" disabled>Pause</button>
       </div>
       <button class="btn stop block" id="runstop" type="button" style="margin-top:10px;padding:12px" disabled>STOP</button>
+      <button class="btn block" id="runrescan" type="button" style="margin-top:10px">Quick re-scan - the hand moved</button>
+      <p class="hint" style="margin:4px 0 0">Scans again with the hand where it is now, moves the outline and the design with the hand, checks them on the new scan and writes the program again - about a minute. Keep the hand still.</p>
       <p class="hint">Pause holds the motion and stops the paste; Resume turns the paste on first, then moves on. STOP holds and resets the controller (paste off) - home again afterwards.</p>
       <div class="msg" id="msgrun"></div>
      </div>
@@ -778,6 +780,12 @@ $('pgrun').onclick=async()=>{
  try{const r=await api('/api/studio/program',Object.assign({job:JOB.id,confirm_prosthetic:true,confirm_unmoved:true,draw_feed_mm_min:+$('pgfeed').value},dispChoice()));setJob(r.job);showProgOut();feedNote();msg('msgpg','good','Program ready. Continue to Run.')}
  catch(e){msg('msgpg','err',e.message)}finally{$('pgrun').disabled=false}};
 $('toRun').onclick=()=>go('run');
+$('runrescan').onclick=async()=>{if(machineBusy()||running())return;
+ if(!confirm('Quick re-scan: the head goes to the scan position if it is not there, records a new scan and moves the outline and the design with the hand. Nothing else is in the travel area and you are at the emergency stop?'))return;
+ $('runrescan').disabled=true;msg('msgrun','info','Quick re-scan: scan, hand, outline, design check and program - about a minute. Keep the hand still.');
+ try{const r=await api('/api/studio/quick_rescan',{job:JOB.id,confirm_clear:true,confirm_estop:true});setJob(r.job);
+  msg('msgrun','good',`Ready: the hand moved ${r.followed.shift_mm} mm and turned ${r.followed.turn_deg} deg; the design followed it, every check passed on the new scan${r.done.includes('program written')?' and the program is written again':''}. Start when ready.`);showRun()}
+ catch(e){msg('msgrun','err',e.message)}finally{$('runrescan').disabled=false;machSeen=0;machPoll()}};
 
 /* ---------- 5 run ---------- */
 let runAction='',lastRunState='',lastRunJob=null;
