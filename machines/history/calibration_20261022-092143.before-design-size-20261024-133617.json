@@ -1,0 +1,35 @@
+{
+  "schema": "current_calibration/1",
+  "machine": "ball-screw",
+  "camera_serial": "260322278767",
+  "note": "The approved calibration of Ball screw (new machine) (made and approved in Studio v26).",
+  "decided_by": "Harsh, approved in Studio 2026-10-22T09:21:43; X/Y 7 dots rms 0.79 mm; Z k 140.73 spread 0.7 mm; processing and path rules as current_calibration.json",
+  "capture_pose_mpos": [
+    65.7,
+    80.0,
+    -5.0
+  ],
+  "xy_calibration": "machines/ball-screw/xy_calibration_20261022-092143.json",
+  "z_calibration": "machines/ball-screw/z_calibration_20261022-092143.json",
+  "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json",
+  "travel_z": -1.0,
+  "firmware_z_floor": -40.0,
+  "frames": 15,
+  "min_valid_frac": 0.8,
+  "max_mad_mm": 1.0,
+  "floor_above_skin_mm": 1.0,
+  "draw_feed_mm_min": 300.0,
+  "travel_feed_mm_min": 1000.0,
+  "standoff_mm_allowed": [
+    3.0,
+    6.0
+  ],
+  "fit_mm_allowed": [
+    10.0,
+    40.0
+  ],
+  "paper_mm_allowed": [
+    0.05,
+    0.3
+  ]
+}
