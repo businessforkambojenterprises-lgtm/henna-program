@@ -39,13 +39,13 @@
         "scan_pose_mpos": [
           65.7,
           80.0,
-          -1.0
+          -0.5
         ],
         "travel_z": -0.5,
         "firmware_z_floor": -49.0,
         "source": "since 2026-10-22: scan X65.7 Y80 Z-5 (unchanged), floor -40 (Z carriage end about -41.2), travel Z -1 (was -5); calibration k 140.73 puts the bed at about Z-71",
         "travel_z_changed": "travel Z -1 -> -0.5 (20261024-142628, machine_travel_z_set.py; scan position and floor unchanged)",
-        "scan_z_changed": "scan Z -5 -> -1 (20261024-141717, machine_scan_z_set.py; X/Y, travel Z and floor unchanged)",
+        "scan_z_changed": "scan Z -1 -> -0.5 (20261024-152708, machine_scan_z_set.py; X/Y, travel Z and floor unchanged)",
         "z_home_moved": "Z home switch moved up 9 mm (20261024-143450, machine_z_home_moved.py): floor -40 -> -49; travel Z and scan position unchanged as numbers"
       },
       "calibration_mode": "recalibration started in Studio 2026-10-18T14:29:14",
