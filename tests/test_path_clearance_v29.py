@@ -198,5 +198,24 @@ class StudioTravelLineTests(unittest.TestCase):
         self.assertIs(v29.Handler.POST_API["/api/studio/check_design"][0], v29.check_design)
 
 
+class HeadIsNotSkinTests(unittest.TestCase):
+    """2026-10-24: "the straight way to the scan position crosses skin at Z 64.9" - the head's own cable in the view.
+    Points more than HEAD_ZONE_MM nearer to the camera than the tip are the head / a cable, never skin: the path
+    check's surface leaves them out; something only a little above the tip (a forearm beside the head) still counts."""
+
+    def test_the_head_is_left_out_a_tall_forearm_is_not(self):
+        import numpy as np
+        from henna_preview import path_clearance as pc
+        raw = np.array([[1500, 750, 1380, 0]], np.uint16)       # 150 mm skin, 75 mm cable, 138 mm (2.7 mm above tip)
+        rays = (np.zeros((1, 4)), np.zeros((1, 4)))
+        keep = np.ones((1, 4), bool)
+        xy, z, xyb, ok = pc.surface(raw, 0.0001, rays, [65.7, 80.0, -0.5], np.eye(2), np.zeros(2), 140.73,
+                                    lambda d: d, keep)
+        self.assertEqual(ok.tolist(), [[True, False, True, False]])
+        np.testing.assert_allclose(z, [-0.5 - (150.0 - 140.73), -0.5 - (138.0 - 140.73)])
+        self.assertEqual(len(xy), 2)
+        self.assertEqual(len(xyb), 1)                          # the unmeasured pixel stays a blind point
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -64,6 +64,18 @@ def plan_design(cfg, fr, mask, head, xy_cal, k, depth_fn, p):
                     "skin_z": [round(float(st[0][:, 2].min()), 3), round(float(st[0][:, 2].max()), 3)],
                     "nozzle_z": [round(float(st[0][:, 3].min()), 3), round(float(st[0][:, 3].max()), 3)],
                     "max_raise_above_standoff_mm": stats["max_raise_above_standoff_due_to_floor_mm"]})
+    # strokes past the machine's X/Y travel (2026-10-24: a 55 mm sunflower at Y 149.8 reached Y 177, the machine stops
+    # at Y 176 - "NozzlePathError: line 570: Y outside travel") - a clear refusal with how far and which way
+    from henna_preview.nozzle_toolpath import XY_LIMITS
+    for i, axis in enumerate("xy"):
+        lo, hi = XY_LIMITS[axis]
+        vals = np.concatenate([st[:, i] for st in paths]) if paths else np.zeros(0)
+        if len(vals) and (vals.min() < lo or vals.max() > hi):
+            over = max(lo - vals.min(), vals.max() - hi)
+            side = "lower" if vals.max() > hi else "higher"
+            problems.append(f"the design goes {over:.1f} mm past the machine's {axis.upper()} travel ({lo:g} to {hi:g} "
+                            f"mm) - move it {over + 1:.0f} mm or more to {side} {axis.upper()}, or make it smaller "
+                            "(or place the hand nearer the middle of the bed)")
     # skin lower than the nozzle can reach (2026-10-24: fingers in the jig's cut-out, skin at Z -46 with the nozzle
     # 6 mm above it -> Z -40.3, under the Z travel) - a clear refusal, not the re-read's "Z or feed out of range"
     low = [(n, st) for n, st in enumerate(paths, start=1) if st[:, 3].min() < p["firmware_z_floor"]]
@@ -94,6 +106,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", required=True)
     a = ap.parse_args()
+    from henna_preview.machine_motion import apply_active_work_area
+    apply_active_work_area(ROOT)                          # the active machine's measured X/Y box (2026-10-24)
     cfg = _j(a.config)
     p = {k: cfg[k] for k in ("standoff_mm", "floor_above_skin_mm", "draw_feed_mm_min", "travel_feed_mm_min",
                              "travel_z", "firmware_z_floor")}

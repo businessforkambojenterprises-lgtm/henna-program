@@ -125,6 +125,8 @@ def main(argv=None):
     if not argv or argv[0] not in SCRIPTS:
         print(__doc__)
         return 2
+    from henna_preview.machine_motion import apply_active_work_area
+    apply_active_work_area(HERE)                          # the active machine's measured X/Y box (2026-10-24)
     mod = importlib.import_module(SCRIPTS[argv[0]])
     rest = argv[1:]
     cfg_path = rest[rest.index("--config") + 1] if "--config" in rest[:-1] else None

@@ -283,6 +283,20 @@ def _z_home_check(job):
                          "heights are in the old Z numbers. Start a new job (or record the scan again)")
 
 
+_REFERENCE = v28.reference
+
+
+def reference_with_gap(job):
+    """The hand watch's reference with the job's nozzle height, so the watch judges the live gap under the nozzle while
+    it draws (hand_watch GAP_MIN_MM / GAP_MAX_MM; user 2026-10-24: "build A, pause below 4 mm or above 9 mm")."""
+    ref = _REFERENCE(job)
+    ref.standoff_mm = float((job["steps"].get("design") or {}).get("standoff_mm") or v28.REAL_MIN_STANDOFF_MM)
+    return ref
+
+
+v28.reference = reference_with_gap                          # v28.run's WATCH.start(job, reference(job)) - real hands
+
+
 def check_design(params):
     """The design check, with its placement known to the travel-line clearance while it runs."""
     p = params or {}

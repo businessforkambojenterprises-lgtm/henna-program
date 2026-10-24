@@ -39,8 +39,35 @@ def values_for(motion, work_area):
 def apply(values):
     gsl.POSE, gsl.TRAVEL_Z, gsl.ROUTE, gsl.COMMANDS = values["POSE"], values["TRAVEL_Z"], values["ROUTE"], values["COMMANDS"]
     gpl.TRAVEL_Z = values["TRAVEL_Z"]
-    gpl.X_MAX = rr1.X_MAX = rr2.X_MAX = values["X_MAX"]
-    gpl.Y_MAX = rr1.Y_MAX = rr2.Y_MAX = values["Y_MAX"]
+    apply_work_area((values["X_MAX"], values["Y_MAX"]))
+
+
+def apply_work_area(work_area):
+    """The machine's X/Y box everywhere it is checked: the link (Jog, program box), both re-reads, and the planners'
+    stroke checks (nozzle_toolpath, dry_run) - those were fixed at 225 x 176 until 2026-10-24 (the ball-screw machine's
+    Y measured: 42 mm more; "the design goes past the machine's Y travel")."""
+    x, y = float(work_area[0]), float(work_area[1])
+    from henna_preview import dry_run, nozzle_toolpath
+    gpl.X_MAX = rr1.X_MAX = rr2.X_MAX = x
+    gpl.Y_MAX = rr1.Y_MAX = rr2.Y_MAX = y
+    nozzle_toolpath.XY_LIMITS = {"x": (0.0, x), "y": (0.0, y)}
+    dry_run.XY_LIMITS = {"x": (0.0, x), "y": (0.0, y)}
+
+
+def apply_active_work_area(root):
+    """For the step scripts (own processes - Studio's apply() does not reach them): the ACTIVE machine's work area from
+    its registry, when it has one. -> (x, y) or None."""
+    from henna_preview.machines import Profiles
+    try:
+        p = Profiles(root)
+        mid = p.active_id()
+        wa = p.get(mid).get("work_area_mm") if mid else None
+    except Exception:                                   # noqa: BLE001 - no registry: the built-in box stays
+        return None
+    if not wa:
+        return None
+    apply_work_area(wa)
+    return float(wa[0]), float(wa[1])
 
 
 def current():
