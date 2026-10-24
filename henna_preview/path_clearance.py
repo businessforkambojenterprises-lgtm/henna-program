@@ -41,6 +41,7 @@ MAX_HOLE_MM2 = 5000.0                # about 70 x 70 mm - larger is refused
 MIN_HOLE_MM2 = 25.0                  # smaller holes: the 99.5th percentile of the measured points covers them
 RIM_PX, MIN_RIM_POINTS = 3, 8
 HEAD_FOOTPRINT_MM = 15.0
+HEAD_ZONE_MM = 20.0                      # more than this nearer to the camera than the tip: the head / its cable
 
 
 class PathClearanceError(ValueError):
@@ -57,6 +58,16 @@ def surface(raw, scale, rays, head, R, t, k, depth_fn, keep):
     R, t = np.asarray(R, float), np.asarray(t, float)
     dm = d[ok]
     dc = np.asarray(depth_fn(dm), float)
+    # far nearer than the tip's own depth = the head or a cable hanging into the view, never skin: at the scan position
+    # skin that close would be pressed against the camera (2026-10-24: "the straight way to the scan position crosses
+    # skin at Z 64.9" - the head's own cable, 65 mm above the tip). Anything only a little above the tip (a forearm
+    # beside the head) still counts.
+    skin = dc > k - HEAD_ZONE_MM
+    if not skin.all():
+        idx = np.flatnonzero(ok)
+        ok = ok.copy()
+        ok.flat[idx[~skin]] = False
+        dm, dc = dm[skin], dc[skin]
     cam = np.column_stack([rays[0][ok] * dm, rays[1][ok] * dm])
     xy = head[:2] + cam @ R.T + t
     z = head[2] - (dc - k)
