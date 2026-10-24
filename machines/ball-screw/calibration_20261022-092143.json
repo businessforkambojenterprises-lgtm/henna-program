@@ -12,7 +12,7 @@
   "xy_calibration": "machines/ball-screw/xy_calibration_20261022-092143.json",
   "z_calibration": "machines/ball-screw/z_calibration_20261022-092143.json",
   "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json",
-  "travel_z": -1.0,
+  "travel_z": -0.5,
   "firmware_z_floor": -40.0,
   "frames": 15,
   "min_valid_frac": 0.8,
