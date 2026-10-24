@@ -200,6 +200,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
     </div></div>
     <div class="card"><h2>Recent jobs</h2><p class="sub">Click a job to continue where you left off.</p><div class="joblist" id="recent"></div></div>
    </div>
+   <div class="card" style="margin-top:16px"><h2>Repeat a setup</h2><p class="sub">The same design for the next hand in the same jig. Choose a setup, Move to scan position, put the hand in, then Scan &amp; prepare: Studio places the outline and the design on this hand, checks them on the new scan and writes the program. Then Start.</p><div class="joblist" id="setups"></div></div>
   </section>
 
   <!-- calibration (v23): status + daily check - camera only, never with a hand under the machine -->
@@ -318,6 +319,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
       <p class="hint" id="scanposhelp" aria-live="polite">Waiting for fresh machine status.</p>
       <label class="f" for="scansec">Length</label>
       <div class="row"><input type="range" id="scansec" min="3" max="10" step="1" value="5"><span class="mono" id="scansecout" style="width:40px">5 s</span></div>
+      <div id="prepbox" hidden style="margin-top:16px"><button class="btn primary block" id="scanprep" type="button" disabled>Scan &amp; prepare</button><p class="hint" id="prephint" style="margin:4px 0 0"></p></div>
       <button class="btn primary block" id="scanrec" type="button" style="margin-top:16px" disabled>Record scan</button>
       <div class="msg" id="msgscan"></div>
       <ul class="checks" id="scanchecks"></ul>
@@ -454,6 +456,9 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
       <div class="msg" id="msgrun"></div>
      </div>
      <div class="card"><h2>Runs of this job</h2><div id="runhist" style="margin-top:8px"></div></div>
+     <div class="card" id="savesetcard" hidden><h2>Save as setup</h2><p class="sub">Keep this outline, design and program settings for the next hand in the same jig. Next time: Repeat a setup on the welcome page, Move to scan position, hand in, Scan &amp; prepare, Start.</p>
+      <div class="row" style="gap:8px"><input id="savesetname" placeholder="Name, e.g. Arabic bel - left hand" maxlength="60" style="flex:1;min-width:0"><button class="btn" id="savesetgo" type="button">Save</button></div>
+      <div class="msg" id="msgsaveset"></div></div>
     </div>
     <div class="stack">
      <div class="card"><h2>Before you start</h2><ol class="ol">
@@ -574,7 +579,15 @@ function setJob(j){JOB=j;renderRail()}
 function jobRows(list){if(!list.length)return'<div class="empty">No jobs yet.</div>';
  return list.map(j=>`<button class="jobrow" type="button" data-job="${esc(j.id)}"><span class="a">${esc(j.id.replace(/-job.*$/,'').replace(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/,'$3.$2.$1 $4:$5'))}${j.design?' · '+esc(j.design.replace('.svg','')):''}</span>
  <span class="chip ${j.verdict==='PASS'?'c-ok':j.subject==='person'?'c-warn':'c-info'}">${esc(j.status)}</span><span class="b">${j.subject==='prosthetic'?'Prosthetic':j.subject==='realhand'?'Real hand (watched run)':'Real hand (camera only)'} · ${j.machine?esc(j.machine):'no machine (before v24)'}${j.recording?' · '+esc(j.recording):''}</span></button>`).join('')}
-async function showWelcome(){try{const j=await api('/api/studio/jobs');$('recent').innerHTML=jobRows(j.jobs.slice(0,8))}catch(e){$('recent').innerHTML=`<div class="msg err" style="display:block">${esc(e.message)}</div>`}}
+function setupRows(list){if(!list.length)return'<div class="empty">No setups yet. Save one on the Run step of a job whose design passed its check.</div>';
+ return list.map(t=>`<div class="row" style="gap:6px;align-items:stretch;flex-wrap:nowrap"><button class="jobrow" style="flex:1;min-width:0" type="button" data-setup="${esc(t.id)}"><span class="a">${esc(t.name)}</span><span class="chip c-info">${t.subject==='realhand'?'Real hand':'Prosthetic'}</span><span class="b">${esc(String(t.svg||'').split('/').pop().replace('.svg',''))} · ${esc(t.fit_mm)} mm · ${esc(t.standoff_mm)} mm above skin${t.paste?' · '+esc(t.paste):''}${t.machine?' · '+esc(t.machine):''}</span></button><button class="btn" type="button" data-setupdel="${esc(t.id)}" aria-label="Delete setup ${esc(t.name)}" title="Delete this setup">✕</button></div>`).join('')}
+async function loadSetups(){try{$('setups').innerHTML=setupRows((await api('/api/studio/setups')).setups)}catch(e){$('setups').innerHTML=`<div class="empty">${esc(e.message)}</div>`}}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-setup]');if(!b||machineBusy())return;
+ try{const r=await api('/api/studio/setup_job',{setup:b.dataset.setup});JOB=r.job;store('studio-job',r.job.id);go('scan')}catch(err){alert(err.message)}});
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-setupdel]');if(!b)return;
+ if(!confirm('Delete this setup? Jobs made from it are kept.'))return;
+ try{$('setups').innerHTML=setupRows((await api('/api/studio/setup_delete',{id:b.dataset.setupdel,confirm:true})).setups)}catch(err){alert(err.message)}});
+async function showWelcome(){loadSetups();try{const j=await api('/api/studio/jobs');$('recent').innerHTML=jobRows(j.jobs.slice(0,8))}catch(e){$('recent').innerHTML=`<div class="msg err" style="display:block">${esc(e.message)}</div>`}}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-job]');if(!b||machineBusy())return;document.querySelectorAll('dialog').forEach(d=>d.open&&d.close());
  try{await openJob(b.dataset.job)}catch(err){alert(err.message)}});
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-subject]');if(!b||machineBusy())return;
@@ -597,11 +610,20 @@ function camStop(){clearInterval(camTimer);fetch('/api/cam/stop',{method:'POST',
 function scanChecks(sc){const c=sc.checks;if(!c)return`<li><span class="ok">✓</span><span>Using existing recording ${esc(sc.name)} (${sc.frame_pairs} frame pairs)</span></li>`;
  return[`Saved ${esc(sc.name)}`,`Depth units ${Number(c.depth_units_m.toPrecision(3))} m`,`${c.camera_settings} camera settings stored`,`${sc.frame_pairs} frame pairs`,`Median depth ${c.median_depth_mm} mm`]
   .map(t=>`<li><span class="ok">✓</span><span>${t}</span></li>`).join('')}
-async function showScan(){scanPositionShow();machPoll();
+async function showScan(){const su=JOB.setup;$('prepbox').hidden=!su;$('scanrec').classList.toggle('primary',!su);
+ if(su)$('prephint').textContent=`Setup "${su.name}". First Move to scan position with no hand under the machine. Then put the hand in the jig and keep it still: Scan & prepare records the scan, finds the hand, places the outline and the design on it, checks the design on this scan and writes the program - about a minute.`;
+ scanPositionShow();machPoll();
  $('scanchecks').innerHTML=JOB.steps.scan?scanChecks(JOB.steps.scan):'';$('toHand').disabled=!JOB.steps.scan;msg('msgscan','','');
  camStart();
  try{const j=await api('/api/recordings');recs=j.recordings.filter(r=>r.usable).sort((a,b)=>b.modified.localeCompare(a.modified));
   $('exrec').innerHTML=recs.map((r,i)=>`<option value="${i}">${esc(r.name)} · ${r.frame_pairs} frames · ${esc(r.modified.replace('T',' '))}</option>`).join('')}catch(e){}}
+$('scanprep').onclick=async()=>{if(!scanReady()){scanPositionShow();msg('msgscan','err','Move to scan position first - before the hand goes in.');return}
+ if(!confirm('Scan & prepare: the hand is in the jig and still, nothing else is in the travel area and you are at the emergency stop?'))return;
+ const jobId=JOB.id;let r=null;recBusy=true;machGeneration++;machShow(MACH);msg('msgscan','info','Scan & prepare: scan, hand, outline, design check and program - about a minute. Keep the hand still.');
+ try{r=await api('/api/studio/setup_prepare',{job:jobId,confirm_clear:true,confirm_estop:true});setJob(r.job)}
+ catch(e){msg('msgscan','err',e.message);try{setJob(await api('/api/studio/job?id='+encodeURIComponent(jobId)))}catch(_){}}
+ finally{recBusy=false;machSeen=0;machGeneration++;machShow(MACH);machPoll()}
+ if(r){go('run');msg('msgrun','good',`Ready: the design is on this hand (${r.followed.shift_mm} mm / ${r.followed.turn_deg} deg from the setup's hand), every check passed on this scan and the program is written. Start when ready.`)}};
 $('scansec').oninput=()=>$('scansecout').textContent=$('scansec').value+' s';
 $('scanrec').onclick=async()=>{if(!scanReady()){scanPositionShow();msg('msgscan','err','Wait for a fresh, homed, idle machine at the scan position.');return}
  const jobId=JOB.id;recBusy=true;machGeneration++;machShow(MACH);msg('msgscan','info','Recording - keep everything still. Then the file is checked (about 20 s).');
@@ -803,7 +825,11 @@ function showRun(){const p=JOB.steps.program,s=JOB.steps;
   .map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
  const st=scanTime(s.scan.name);$('scanage').textContent=st?`Scan taken ${ago(st)}.`:'';
  if(st&&Date.now()-st>30*60000)$('scanage').textContent+=' The prosthetic settles 0.25–1 mm in about 30 min - consider a new scan.';
- msg('msgrun','','');renderRunHist();runShow()}
+ msg('msgrun','','');renderRunHist();runShow();saveSetShow()}
+function saveSetShow(){const d=JOB.steps.design;$('savesetcard').hidden=!(['prosthetic','realhand'].includes(JOB.subject)&&d&&d.verdict==='PASS');msg('msgsaveset','','')}
+$('savesetgo').onclick=async()=>{const n=$('savesetname').value.trim();if(n.length<2){msg('msgsaveset','err','Give the setup a name.');return}
+ $('savesetgo').disabled=true;try{await api('/api/studio/setup_save',{job:JOB.id,name:n});$('savesetname').value='';msg('msgsaveset','good',`Saved "${n}". It is under Repeat a setup on the welcome page.`)}
+ catch(e){msg('msgsaveset','err',e.message)}finally{$('savesetgo').disabled=false}};
 function renderRunHist(){const rs=runsOfProgram().slice().reverse();
  $('runhist').innerHTML=rs.length?'<table><thead><tr><th>Started</th><th>Result</th><th>Lines</th><th>Time</th></tr></thead><tbody>'+rs.map(r=>`<tr><td>${esc((r.started||'').replace('T',' '))}</td>
   <td><span class="chip ${r.result==='finished'?'c-ok':r.result==='running'?'c-info':r.result==='stopped'?'c-warn':'c-bad'}">${esc(r.result)}</span>${r.error?`<div class="hint">${esc(r.error)}</div>`:''}</td>
@@ -876,7 +902,7 @@ function scanPositionShow(){const m=MACH||{},fresh=machFresh(),busy=machineBusy(
  else{title='Move to scan position';help=m.capture_error||'Clear the travel area, then use Move to scan position.'}
  chip.className='chip '+kind;chip.textContent=title;$('scanposhelp').textContent=help;
  $('scanposcoords').textContent=m.mpos?`${fresh?'':'Last reported: '}X${fmt(m.mpos[0],3)} Y${fmt(m.mpos[1],3)} Z${fmt(m.mpos[2],3)}`:'';
- $('scanmove').disabled=!canMove;$('scanrec').disabled=!ready;$('scansec').disabled=!!busy;
+ $('scanmove').disabled=!canMove;$('scanrec').disabled=!ready;$('scanprep').disabled=!ready;$('scansec').disabled=!!busy;
  $('scanclear').disabled=!!busy;$('scanestop').disabled=!!busy;
  $('scanmovego').disabled=!canMove||!$('scanclear').checked||!$('scanestop').checked;
  $('hclear').disabled=!!busy;$('hestop').disabled=!!busy;

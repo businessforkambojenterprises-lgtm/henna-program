@@ -558,33 +558,45 @@ def _wait_at_scan_position(timeout_s=120.0):
     raise MachineError("the move to the scan position took too long")
 
 
-def quick_rescan(params):
+def _placement_of(job, need_pass=False):
+    """What Quick re-scan and a setup repeat: the hand points of the job's scan, its outline, its design placement and
+    its program settings (None when it has no program yet)."""
     from henna_preview import follow_hand
-    params = params or {}
-    job = v11.job_load(params.get("job"))
-    if job.get("subject") not in ("prosthetic", v28.REAL):
-        raise ValueError("Quick re-scan is for prosthetic and real-hand jobs")
-    if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
-        raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
     s = job["steps"]
     for k, name in (("scan", "Scan"), ("hand", "Hand & region"), ("region", "Hand & region"), ("design", "Design")):
         if not s.get(k):
-            raise ValueError(f"do the {name} step once first - Quick re-scan repeats the steps you have done")
-    design = {k: s["design"][k] for k in ("svg", "fit_mm", "rotation_deg", "centre_machine_xy", "standoff_mm")}
-    prog = dict(s.get("program") or {})
+            raise ValueError(f"do the {name} step once first")
+    if need_pass and s["design"].get("verdict") != "PASS":
+        raise ValueError("the design has not passed its check on this scan - Check on measured skin first")
     p = v28._parts()
-    old = follow_hand.landmarks(_hand_report(job), s["scan"]["mpos"], p["R"], p["t"])
-    old_poly = s["region"]["polygon_px"]
-    jid, done = job["id"], []
+    prog = s.get("program") or {}
+    d = prog.get("dispense")
+    return {"landmarks": follow_hand.landmarks(_hand_report(job), s["scan"]["mpos"], p["R"], p["t"]),
+            "outline_px": s["region"]["polygon_px"],
+            "design": {k: s["design"][k] for k in ("svg", "fit_mm", "rotation_deg", "centre_machine_xy", "standoff_mm")},
+            "program": ({"draw_feed_mm_min": prog.get("draw_feed_mm_min"), "dispense": d and {k: d.get(k) for k in ("dispenser", "start_s", "stop_s", "label")}}
+                        if prog.get("program") else None)}
+
+
+def _follow_and_prepare(job, src, what, allow_move=False, write_program=None):
+    """Scan the hand where it is now and repeat src's outline, design and program on it, through the page's own routes
+    (every guard): [move to the scan position], scan, hand, outline + design moved with the hand (follow_hand), the
+    design check on the new scan, the program. Stops at the first refusal, naming the step."""
+    from henna_preview import follow_hand
+    jid, done, p = job["id"], [], v28._parts()
+    design = src["design"]
 
     def step(name, fn):
         try:
             return fn()
         except Exception as e:                              # noqa: BLE001 - the step's own message, which step
-            raise ValueError(f"Quick re-scan stopped at {name}: {e} (done: {', '.join(done) or 'nothing'})") from None
+            raise ValueError(f"{what} stopped at {name}: {e} (done: {', '.join(done) or 'nothing'})") from None
 
     st = machine.status()
     if not st.get("capture_ready"):
+        if not allow_move:
+            raise ValueError(f"{what}: the head is not at the scan position - take the hand away, Move to scan "
+                             "position, then put the hand in place and try again")
         step("the move to the scan position", lambda: _way_to_scan_position_clear(job, st))
         step("the move to the scan position", lambda: _route("/api/machine/scan_position")(
             {"job": jid, "confirm_clear": True, "confirm_estop": True}))
@@ -598,9 +610,9 @@ def quick_rescan(params):
     rep_new = _hand_report(job)
     new = step("following the hand", lambda: follow_hand.landmarks(rep_new, job["steps"]["scan"]["mpos"],
                                                                  p["R"], p["t"]))
-    f = step("following the hand", lambda: follow_hand.follow(old, new))
+    f = step("following the hand", lambda: follow_hand.follow(src["landmarks"], new))
     w, h = int(rep_new["colour_intrinsics"]["width"]), int(rep_new["colour_intrinsics"]["height"])
-    poly = np.clip(follow_hand.apply(old_poly, f["pixels"]), [0, 0], [w - 1, h - 1])
+    poly = np.clip(follow_hand.apply(src["outline_px"], f["pixels"]), [0, 0], [w - 1, h - 1])
     from step05_region import DEFAULT_MARGIN                # the region route always needs a number, even for an
     step("the outline", lambda: _route("/api/studio/region_accept")(   # edited outline (the page sends its slider)
         {"job": jid, "polygon": np.round(poly, 1).tolist(), "margin": DEFAULT_MARGIN, "edited": True}))
@@ -612,10 +624,14 @@ def quick_rescan(params):
          "centre_machine_xy": [round(float(v), 3) for v in centre], "standoff_mm": design["standoff_mm"]}))
     verdict = ((r or {}).get("result") or {}).get("verdict")
     if verdict != "PASS":
-        raise ValueError("Quick re-scan stopped at the design check: the design does not fit on the new scan - move "
-                         f"or shrink it in Design (done: {', '.join(done)})")
+        raise ValueError(f"{what} stopped at the design check: the design does not fit on the new scan - move or "
+                         f"shrink it in Design (done: {', '.join(done)})")
     done.append("design checked")
-    if prog.get("program"):
+    prog = src.get("program")
+    if write_program is None:
+        write_program = prog is not None
+    if write_program:
+        prog = prog or {}
         pp = {"job": jid, "confirm_prosthetic": True, "confirm_unmoved": True,
               "draw_feed_mm_min": float(prog.get("draw_feed_mm_min") or v28.REAL_FEED_MM_MIN)}
         d = prog.get("dispense")
@@ -624,12 +640,125 @@ def quick_rescan(params):
         step("writing the program", lambda: _route("/api/studio/program")(pp))
         done.append("program written")
     job = v11.job_load(jid)
-    _log("Quick re-scan", (machine.status() or {}).get("mpos"), "scan, hand, outline, design, program",
+    _log(what, (machine.status() or {}).get("mpos"), "scan, hand, outline, design, program",
          "the design follows the hand; all checks on the new scan", f"hand moved {f['shift_mm']} mm, turned "
          f"{f['turn_deg']:+.1f} deg (fit {f['machine']['rms']:.1f} mm); {', '.join(done)}", "ready",
          job["steps"]["scan"]["name"], f"Studio v29; job {jid}")
     return {"job": v14.job_view(job), "followed": {"shift_mm": f["shift_mm"], "turn_deg": f["turn_deg"],
                                                    "fit_mm": round(f["machine"]["rms"], 2)}, "done": done}
+
+
+def _ticks(params):
+    if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
+        raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
+
+
+def quick_rescan(params):
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    if job.get("subject") not in ("prosthetic", v28.REAL):
+        raise ValueError("Quick re-scan is for prosthetic and real-hand jobs")
+    _ticks(params)
+    try:
+        src = _placement_of(job)
+    except ValueError as e:
+        raise ValueError(f"{e} - Quick re-scan repeats the steps you have done") from None
+    return _follow_and_prepare(job, src, "Quick re-scan", allow_move=True)
+
+
+# ---- Setups (user 2026-10-22: "this process takes long time, we need to make it faster" -> "yes" to Repeat job):
+# a job that passed is saved as a named setup - the hand points, the outline, the design placement and the program
+# settings. A new job from a setup needs only: Move to scan position, the hand in the jig, Scan & prepare (scan, hand,
+# outline + design moved onto THIS hand, design check, program - the same steps as Quick re-scan), Start.
+SETUPS_DIR = os.path.join(base.ROOT, "outputs", "setups")
+_SETUP_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
+
+
+def _setup_path(sid):
+    if not (isinstance(sid, str) and _SETUP_ID.match(sid)):
+        raise ValueError("unknown setup")
+    return os.path.join(SETUPS_DIR, sid + ".json")
+
+
+def _load_setup(sid):
+    path = _setup_path(sid)
+    if not os.path.isfile(path):
+        raise ValueError("unknown setup")
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def setups_list(_=None):
+    out = []
+    for path in glob.glob(os.path.join(SETUPS_DIR, "*.json")):
+        try:
+            with open(path, encoding="utf-8") as f:
+                st = json.load(f)
+        except (OSError, ValueError):
+            continue
+        d = st.get("design") or {}
+        out.append({"id": st.get("id"), "name": st.get("name"), "subject": st.get("subject"), "created": st.get("created"),
+                    "svg": d.get("svg"), "fit_mm": d.get("fit_mm"), "standoff_mm": d.get("standoff_mm"),
+                    "machine": st.get("machine"), "paste": ((st.get("program") or {}).get("dispense") or {}).get("label")})
+    return {"setups": sorted(out, key=lambda x: str(x.get("created")), reverse=True)}
+
+
+def setup_save(params):
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    if job.get("subject") not in ("prosthetic", v28.REAL):
+        raise ValueError("setups are for prosthetic and real-hand jobs")
+    name = " ".join(str(params.get("name") or "").split())
+    if not 2 <= len(name) <= 60:
+        raise ValueError("give the setup a name (2 to 60 characters)")
+    src = _placement_of(job, need_pass=True)
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:50] or "setup"
+    sid = f"{slug}-{stamp}"
+    rec = dict(src, id=sid, name=name, created=dt.datetime.now().isoformat(timespec="seconds"),
+               subject=job["subject"], from_job=job["id"],
+               machine=job.get("machine") or v28.v26.profiles.active_id())
+    os.makedirs(SETUPS_DIR, exist_ok=True)
+    with open(_setup_path(sid), "w", encoding="utf-8") as f:
+        json.dump(rec, f, indent=2)
+    _log("Setup saved", None, "Save as setup", "outline + design relative to the hand", f"{name} ({sid}) from job "
+         f"{job['id']}: {src['design']['svg']} {src['design']['fit_mm']:g} mm", "saved", job["steps"]["scan"]["name"],
+         "Studio v29")
+    return dict(setups_list(), saved=sid)
+
+
+def setup_delete(params):
+    params = params or {}
+    if params.get("confirm") is not True:
+        raise ValueError("confirm the deletion")
+    path = _setup_path(params.get("id"))
+    if os.path.isfile(path):
+        os.remove(path)
+    return setups_list()
+
+
+def setup_job(params):
+    """A new job for a setup: same subject; the Scan step then offers Scan & prepare."""
+    st = _load_setup((params or {}).get("setup"))
+    if st.get("machine") and st["machine"] != v28.v26.profiles.active_id():
+        raise ValueError(f"this setup was made on the machine '{st['machine']}' - choose that machine first")
+    out = _route("/api/studio/job_new")({"subject": st["subject"]})
+    job = v11.job_load((out.get("job") or out)["id"])
+    job["setup"] = {"id": st["id"], "name": st["name"]}
+    v11.job_save(job)
+    return {"job": v14.job_view(job)}
+
+
+def setup_prepare(params):
+    """Scan & prepare for a job made from a setup: the head must already be at the scan position (Move to scan
+    position before the hand goes in - the way there is not known before this scan)."""
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    if not job.get("setup"):
+        raise ValueError("this job was not made from a setup")
+    _ticks(params)
+    st = _load_setup(job["setup"]["id"])
+    return _follow_and_prepare(job, st, "Scan & prepare", allow_move=False, write_program=True)
 
 
 def dispense_test(params):
@@ -747,13 +876,18 @@ def dispensers(_=None):
 class Handler(v28.Handler):
     server_version = "HennaStudio/0.29"
     GET_API = dict(v28.Handler.GET_API, **{"/api/studio/dispensers": dispensers, "/api/studio/job": get_job,
-                                           "/api/studio/active_job": lambda q: dict(_ACTIVE)})
+                                           "/api/studio/active_job": lambda q: dict(_ACTIVE),
+                                           "/api/studio/setups": setups_list})
     POST_API = dict(v28.Handler.POST_API, **{
         "/api/studio/check_design": (check_design, _CHECK_DESIGN[1]),
         "/api/studio/program": (program, v28.Handler.POST_API["/api/studio/program"][1]),
         "/api/machine/run": (run, v28.Handler.POST_API["/api/machine/run"][1]),
         "/api/machine/resume": (resume, _RESUME[1]),
         "/api/studio/quick_rescan": (quick_rescan, True),
+        "/api/studio/setup_save": (setup_save, True),
+        "/api/studio/setup_delete": (setup_delete, False),
+        "/api/studio/setup_job": (setup_job, False),
+        "/api/studio/setup_prepare": (setup_prepare, True),
         "/api/machine/dispense_test": (dispense_test, False),
         "/api/studio/job_new": (job_new, _JOB_NEW[1]),
         "/api/machine/jog": (jog, _JOG[1]),
