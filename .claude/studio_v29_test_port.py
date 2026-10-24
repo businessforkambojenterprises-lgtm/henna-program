@@ -10,3 +10,5 @@ base.ALLOWED_HOSTS = {"127.0.0.1:8766", "localhost:8766"}
 import webui_server_v29 as studio  # noqa: E402
 
 studio.main()
+if studio._EXIT["requested"]:
+    sys.exit(studio.EXIT_CODE)

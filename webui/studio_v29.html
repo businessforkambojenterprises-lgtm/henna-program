@@ -175,6 +175,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
  <button class="btn small" id="btnjobs" type="button">Jobs</button>
  <button class="btn small primary" id="btnnew" type="button">New job</button>
  <button class="btn small ghost" id="btntheme" type="button" aria-label="Switch light or dark">◐</button>
+ <button class="btn small" id="btnexit" type="button" title="Close Henna Studio: camera off, machine disconnected">Exit</button>
 </header>
 
 <div class="shell">
@@ -192,6 +193,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
   <!-- welcome -->
   <section id="v-welcome">
    <div class="head"><div><h1>Welcome to Henna Studio</h1><p>Start a new job to scan a hand, outline the area, place a design, write a checked hover program and run it from here. Or resume a job from the list.</p></div></div>
+   <div class="card" style="margin-bottom:16px"><h2>Repeat a setup</h2><p class="sub">The same design for the next hand in the same jig. Choose a setup, Move to scan position, put the hand in, then Scan &amp; prepare: Studio places the outline and the design on this hand, checks them on the new scan and writes the program. Then Start.</p><div class="joblist" id="setups"></div></div>
    <div class="cols even">
     <div class="card"><h2>New job</h2><p class="sub">Choose what is under the camera.</p><div class="choice">
      <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow: scan, region, design, hover program and run - all in Studio.</span></button>
@@ -200,7 +202,6 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
     </div></div>
     <div class="card"><h2>Recent jobs</h2><p class="sub">Click a job to continue where you left off.</p><div class="joblist" id="recent"></div></div>
    </div>
-   <div class="card" style="margin-top:16px"><h2>Repeat a setup</h2><p class="sub">The same design for the next hand in the same jig. Choose a setup, Move to scan position, put the hand in, then Scan &amp; prepare: Studio places the outline and the design on this hand, checks them on the new scan and writes the program. Then Start.</p><div class="joblist" id="setups"></div></div>
   </section>
 
   <!-- calibration (v23): status + daily check - camera only, never with a hand under the machine -->
@@ -598,6 +599,11 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-subj
  document.querySelectorAll('dialog').forEach(d=>d.open&&d.close());
  try{const j=await api('/api/studio/job_new',{subject:b.dataset.subject});JOB=j;store('studio-job',j.id);go('scan')}catch(err){alert(err.message)}});
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
+$('btnexit').onclick=async()=>{
+ if(!confirm('Close Henna Studio? The camera is turned off, the machine is disconnected and the Studio window closes. Start it again from the desktop shortcut "Henna Studio (PC - latest)".'))return;
+ try{await api('/api/studio/exit',{confirm:true})}catch(e){alert(e.message);return}
+ clearInterval(camTimer);document.body.innerHTML='<div style="display:grid;place-items:center;min-height:100vh;padding:24px;text-align:center"><div><h1>Henna Studio is closed</h1><p class="sub">The camera is off and the machine is disconnected. You can close this tab.<br>Start Studio again from the desktop shortcut "Henna Studio (PC - latest)".</p></div></div>';
+ setTimeout(()=>{try{window.close()}catch(e){}},300)};
 $('btnnew').onclick=()=>{$('setupsnew').innerHTML='<div class="empty"><span class="spin"></span></div>';loadSetups();$('dlgnew').showModal()};
 $('btnjobs').onclick=async()=>{$('joblist').innerHTML='<div class="empty"><span class="spin"></span></div>';$('dlgjobs').showModal();
  try{$('joblist').innerHTML=jobRows((await api('/api/studio/jobs')).jobs)}catch(e){$('joblist').innerHTML=`<div class="empty">${esc(e.message)}</div>`}};

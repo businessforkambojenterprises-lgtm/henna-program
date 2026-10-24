@@ -12,6 +12,8 @@ if not exist .venv\Scripts\python.exe (
 title Henna Studio v29 (PC) - press Ctrl+C here to stop
 start "" cmd /c "timeout /t 4 /nobreak >nul & start "" http://127.0.0.1:8765/"
 .venv\Scripts\python.exe webui_server_v29.py
+rem 42 = closed with the Exit button in Studio (camera off, CNC disconnected): close this window too
+if "%errorlevel%"=="42" exit 0
 echo.
 echo Henna Studio has stopped.
 pause

@@ -899,6 +899,33 @@ def _reach(job, depth_mm):
     return reach, info
 
 
+# ---- Exit (user 2026-10-24: "also a exit button, so it closes everything running"): only while nothing moves or
+# records; then the same shutdown as Ctrl+C in the Studio window (camera off, CNC disconnected, hand watch stopped,
+# server closed) and the window closes itself (start_studio_pc.bat ends on EXIT_CODE instead of waiting for a key).
+EXIT_CODE = 42
+_EXIT = {"requested": False}
+
+
+def studio_exit(params):
+    import _thread
+    if (params or {}).get("confirm") is not True:
+        raise ValueError("confirm closing Henna Studio")
+    st = machine.status()
+    if st.get("busy"):
+        raise ValueError(f"the machine is busy ({st['busy']}) - wait until it finishes, or press STOP, then Exit")
+    if v28.WATCH.view().get("active"):
+        raise ValueError("a run is still being watched - wait until it ends, or press STOP, then Exit")
+    _EXIT["requested"] = True
+    _log("Studio exit", st.get("mpos"), "Exit button", "nothing moving or recording",
+         "camera off, CNC disconnected, Studio closed", "closed", "", "Studio v29")
+
+    def later():
+        time.sleep(0.5)                                     # let the page get its answer first
+        _thread.interrupt_main()                            # -> main()'s KeyboardInterrupt shutdown
+    threading.Thread(target=later, daemon=True).start()
+    return {"closing": True}
+
+
 def get_job(q):
     return _remember_job(_GET_JOB(q))
 
@@ -935,6 +962,7 @@ class Handler(v28.Handler):
         "/api/machine/resume": (resume, _RESUME[1]),
         "/api/studio/quick_rescan": (quick_rescan, True),
         "/api/studio/setup_save": (setup_save, True),
+        "/api/studio/exit": (studio_exit, False),
         "/api/studio/setup_delete": (setup_delete, False),
         "/api/studio/setup_job": (setup_job, False),
         "/api/studio/setup_prepare": (setup_prepare, True),
@@ -990,3 +1018,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    if _EXIT["requested"]:
+        sys.exit(EXIT_CODE)
