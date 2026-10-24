@@ -161,7 +161,7 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(H.POST_API["/api/studio/" + path], (fn, lock))
         with open(os.path.join(ROOT, "webui", "studio_v29.html"), encoding="utf-8") as f:
             page = f.read()
-        for bit in ('id="setups"', 'id="scanprep"', 'id="savesetcard"', "/api/studio/setup_prepare",
+        for bit in ('id="setups"', 'id="setupsnew"', 'id="scanprep"', 'id="savesetcard"', "/api/studio/setup_prepare",
                     "/api/studio/setup_job", "/api/studio/setup_save", "/api/studio/setup_delete"):
             self.assertIn(bit, page)
         ids = re.findall(r'\bid="([^"]+)"', page)

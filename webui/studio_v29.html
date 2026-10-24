@@ -487,7 +487,9 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
  <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow, including the hover run.</span></button>
  <button class="opt" type="button" data-subject="person"><b>Real hand - camera only</b><span>Camera only: scan, region and design preview.</span></button>
 <button class="opt" type="button" data-subject="realhand"><b>Real hand - hover run</b><span>The full workflow on a real hand: 6 mm above the skin, 300 mm/min. The camera watches the hand and pauses the machine if it moves. No paste.</span></button>
-</div><div class="foot"><span></span><button class="btn" type="button" data-close>Cancel</button></div></div></dialog>
+</div><h2 style="margin-top:18px">Saved setups</h2><p class="sub">The same design for the next hand in the same jig - then Move to scan position, hand in, Scan &amp; prepare, Start.</p>
+<div class="joblist" id="setupsnew" style="max-height:240px;overflow:auto"></div>
+<div class="foot"><span></span><button class="btn" type="button" data-close>Cancel</button></div></div></dialog>
 <dialog id="dlghome"><div class="dlg"><h2>Home the machine</h2><p class="sub">Sends $HZ (Z up first), then $H. The head moves to its home corner.</p>
  <label class="check"><input type="checkbox" id="hclear"><span>Nothing is under or near the nozzle - no hand on the bed.</span></label>
  <label class="check"><input type="checkbox" id="hestop"><span>I am at the emergency stop.</span></label>
@@ -582,12 +584,13 @@ function jobRows(list){if(!list.length)return'<div class="empty">No jobs yet.</d
  <span class="chip ${j.verdict==='PASS'?'c-ok':j.subject==='person'?'c-warn':'c-info'}">${esc(j.status)}</span><span class="b">${j.subject==='prosthetic'?'Prosthetic':j.subject==='realhand'?'Real hand (watched run)':'Real hand (camera only)'} · ${j.machine?esc(j.machine):'no machine (before v24)'}${j.recording?' · '+esc(j.recording):''}</span></button>`).join('')}
 function setupRows(list){if(!list.length)return'<div class="empty">No setups yet. Save one on the Run step of a job whose design passed its check.</div>';
  return list.map(t=>`<div class="row" style="gap:6px;align-items:stretch;flex-wrap:nowrap"><button class="jobrow" style="flex:1;min-width:0" type="button" data-setup="${esc(t.id)}"><span class="a">${esc(t.name)}</span><span class="chip c-info">${t.subject==='realhand'?'Real hand':'Prosthetic'}</span><span class="b">${esc(String(t.svg||'').split('/').pop().replace('.svg',''))} · ${esc(t.fit_mm)} mm · ${esc(t.standoff_mm)} mm above skin${t.paste?' · '+esc(t.paste):''}${t.machine?' · '+esc(t.machine):''}</span></button><button class="btn" type="button" data-setupdel="${esc(t.id)}" aria-label="Delete setup ${esc(t.name)}" title="Delete this setup">✕</button></div>`).join('')}
-async function loadSetups(){try{$('setups').innerHTML=setupRows((await api('/api/studio/setups')).setups)}catch(e){$('setups').innerHTML=`<div class="empty">${esc(e.message)}</div>`}}
-document.addEventListener('click',async e=>{const b=e.target.closest('[data-setup]');if(!b||machineBusy())return;
+async function loadSetups(){let h;try{h=setupRows((await api('/api/studio/setups')).setups)}catch(e){h=`<div class="empty">${esc(e.message)}</div>`}
+ $('setups').innerHTML=h;$('setupsnew').innerHTML=h}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-setup]');if(!b||machineBusy())return;document.querySelectorAll('dialog').forEach(d=>d.open&&d.close());
  try{const r=await api('/api/studio/setup_job',{setup:b.dataset.setup});JOB=r.job;store('studio-job',r.job.id);go('scan')}catch(err){alert(err.message)}});
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-setupdel]');if(!b)return;
  if(!confirm('Delete this setup? Jobs made from it are kept.'))return;
- try{$('setups').innerHTML=setupRows((await api('/api/studio/setup_delete',{id:b.dataset.setupdel,confirm:true})).setups)}catch(err){alert(err.message)}});
+ try{await api('/api/studio/setup_delete',{id:b.dataset.setupdel,confirm:true});await loadSetups()}catch(err){alert(err.message)}});
 async function showWelcome(){loadSetups();try{const j=await api('/api/studio/jobs');$('recent').innerHTML=jobRows(j.jobs.slice(0,8))}catch(e){$('recent').innerHTML=`<div class="msg err" style="display:block">${esc(e.message)}</div>`}}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-job]');if(!b||machineBusy())return;document.querySelectorAll('dialog').forEach(d=>d.open&&d.close());
  try{await openJob(b.dataset.job)}catch(err){alert(err.message)}});
@@ -595,7 +598,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-subj
  document.querySelectorAll('dialog').forEach(d=>d.open&&d.close());
  try{const j=await api('/api/studio/job_new',{subject:b.dataset.subject});JOB=j;store('studio-job',j.id);go('scan')}catch(err){alert(err.message)}});
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
-$('btnnew').onclick=()=>$('dlgnew').showModal();
+$('btnnew').onclick=()=>{$('setupsnew').innerHTML='<div class="empty"><span class="spin"></span></div>';loadSetups();$('dlgnew').showModal()};
 $('btnjobs').onclick=async()=>{$('joblist').innerHTML='<div class="empty"><span class="spin"></span></div>';$('dlgjobs').showModal();
  try{$('joblist').innerHTML=jobRows((await api('/api/studio/jobs')).jobs)}catch(e){$('joblist').innerHTML=`<div class="empty">${esc(e.message)}</div>`}};
 
