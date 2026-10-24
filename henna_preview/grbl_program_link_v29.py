@@ -21,6 +21,13 @@ WHICH OUTPUT A RUN USES (user 2026-10-16: "when using pneumatic valve, it giving
 dlc32?"): the paste settings armed for the run say it - cfg["output"] "pi" = the Pi output above, "controller" = the
 DLC32's TTL with M3 / M5. Studio v29 sets it from the Paste choice (Pneumatic -> controller, Servo -> the Pi's servo).
 Settings without "output" keep the earlier rule: the Pi output whenever one is set.
+
+LIVE HEIGHT FOLLOWING (user 2026-10-24, "Option B ... build this"): arm_follow(fn, floor_z, travel_z) just before
+start_program hands the run a function (henna_preview/follow.Follower.adjust) that may change a DRAWING line's Z just
+before it is sent. The link checks every changed line itself (follow.line_ok: same X, Y, feed; Z within the band, above
+the floor, below travel Z) and sends the checked line when not. While following, at most LOOKAHEAD_BLOCKS moves are
+queued in the controller (status "Bf:" = free planner blocks), so a correction reaches the nozzle about 1 s later
+instead of after the whole planner queue.
 """
 import re
 import threading
@@ -35,6 +42,9 @@ SPINDLE_STOP = b"\x9e"
 HOLD_WAIT_S = 3.0
 SYNC = "G4 P0"                    # grbl answers ok only once every earlier move has finished
 TEST_MIN_S, TEST_MAX_S = 0.2, 3.0
+BF_RE = re.compile(r"\|Bf:(\d+),(\d+)")
+LOOKAHEAD_BLOCKS = 8
+LOOKAHEAD_WAIT_S = 3.0            # never wait longer than this for the queue (then send anyway)
 
 
 class GrblProgramLinkV29(GrblProgramLinkV26):
@@ -74,6 +84,18 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
         return self.paste_output if cfg.get("output", "pi") == "pi" else None
 
     def _send_line(self, owner, line):
+        fol = (self._run or {}).get("follow")
+        if fol is not None and line.startswith("G53 G1 "):
+            from henna_preview import follow
+            fn, floor_z, travel_z = fol
+            try:
+                new = fn(line)
+            except Exception:                            # noqa: BLE001 - following never stops a run: the checked line
+                new = line
+            if not follow.line_ok(line, new, floor_z, travel_z):
+                new = line
+            self._wait_queue(owner)
+            line = new
         with self._lock:
             out = self._run_pin_locked()
         if out is None or line not in (dispense.PASTE_ON, dispense.PASTE_OFF):
@@ -90,8 +112,37 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
         self._event("paste_on" if on else "paste_off", owner, command=f"{SYNC}; {out.name} {'ON' if on else 'OFF'}",
                     detail="after every earlier move finished")
 
+    def _wait_queue(self, owner):
+        """While following: wait until at most LOOKAHEAD_BLOCKS moves are queued in the controller's planner."""
+        end = time.monotonic() + LOOKAHEAD_WAIT_S
+        with self._lock:
+            next_poll = time.monotonic()
+            while True:
+                self._check_token_locked(owner)
+                free, most = getattr(self, "_bf_free", None), getattr(self, "_bf_most", None)
+                if free is None or most is None or most - free <= LOOKAHEAD_BLOCKS or self._run["paused"]:
+                    return
+                now = time.monotonic()
+                if now >= end:
+                    return
+                if now >= next_poll:
+                    self._write_locked(b"?", owner[0])
+                    next_poll = now + self._poll_s
+                self._changed.wait(0.02)
+
+    def arm_follow(self, fn, floor_z, travel_z):
+        """The live height following of the run that start_program() starts next (None = the checked lines only)."""
+        with self._lock:
+            self._follow_next = (fn, float(floor_z), float(travel_z)) if fn else None
+
     # ---- $$ (read only) ----
     def _handle(self, text, generation):
+        b = BF_RE.search(text or "") if (text or "").startswith("<") else None
+        if b is not None:
+            with self._lock:
+                if generation == self._generation:
+                    self._bf_free = int(b.group(1))
+                    self._bf_most = max(int(b.group(1)), getattr(self, "_bf_most", None) or 0)
         m = SETTING_RE.fullmatch(text or "")
         if m is None:
             return super()._handle(text, generation)
@@ -132,6 +183,7 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
         self._pin_off()                                  # a Pi output left at a test angle starts every run closed
         with self._lock:
             cfg, self._dispense_next = getattr(self, "_dispense_next", None), None
+            fol, self._follow_next = getattr(self, "_follow_next", None), None
             self._dispense_starting = cfg
         try:
             return super().start_program(name, lines, end_mpos, on_done=on_done)
@@ -140,6 +192,7 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
                 if self._run is not None:
                     self._run["dispense"] = cfg
                     self._run["paste_stopped"] = False
+                    self._run["follow"] = fol
                 self._dispense_starting = None
 
     def _paste_cfg_locked(self):

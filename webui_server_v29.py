@@ -575,6 +575,52 @@ def resume(params):
 _RESUME = v28.Handler.POST_API["/api/machine/resume"]
 
 
+# ---- live height following on a real hand (user 2026-10-24: "Option B - the nozzle follows the skin live" -> "build
+# this", after "Remove the live gap pause"): henna_preview/follow.py moves each drawing line's Z by the skin's change
+# since the scan, measured live just ahead of the tip, inside 1 mm down / 2 mm up of the checked line; the link
+# checks every changed line again and keeps the controller's queue short. Real-hand runs with the watch only.
+_FOLLOWER = {"current": None}
+
+
+def _arm_follow(job):
+    from henna_preview import follow
+    if not hasattr(machine, "arm_follow"):
+        return None
+    try:
+        c = v10.cal()
+        f = follow.Follower(v28.reference(job), v28.live_points, float(c["firmware_z_floor"]), float(c["travel_z"]))
+    except Exception:                                       # noqa: BLE001 - no reference: the checked lines only, and
+        return None                                         # v28's own refusals answer the run as before
+    _FOLLOWER["current"] = f
+    machine.arm_follow(f.adjust, f.floor_z, f.travel_z)
+    return f
+
+
+def _follow_note():
+    f, _FOLLOWER["current"] = _FOLLOWER["current"], None
+    if f is None:
+        return None
+    st = f.stats
+    if not st["lines"]:
+        return None
+    rng = (f"{st['min_dz']:+.1f} to {st['max_dz']:+.1f} mm" if st["followed"] else "none")
+    return (f"live height following: {st['followed']} of {st['lines']} drawing lines moved ({rng}; band "
+            f"-{follow_band()[0]:g}/+{follow_band()[1]:g} mm), {st['unseen']} not seen")
+
+
+def follow_band():
+    from henna_preview import follow
+    return follow.DOWN_MM, follow.UP_MM
+
+
+v28.WATCH_END_NOTES.append(_follow_note)
+
+
+def follow_view(_=None):
+    f = _FOLLOWER["current"]
+    return {"active": f is not None, "dz_mm": None if f is None else f.dz, "stats": None if f is None else dict(f.stats)}
+
+
 def run(params):
     job = v11.job_load(params.get("job"))
     _z_home_check(job)
@@ -591,9 +637,12 @@ def run(params):
         elif params.get("air_run") is True:
             out = _air_start(job, params)
         else:
+            _arm_follow(job)                                 # a real hand, watched: live height following
             out = v28.run(params)
     finally:
         machine.arm_dispense(None)                           # start_program took it, or the run was refused
+        if hasattr(machine, "arm_follow"):
+            machine.arm_follow(None, 0.0, 0.0)
     if d:
         _log("Paste run start", (machine.status() or {}).get("mpos"), "$$ then the paste program",
              "paste output ready", f"{_where(found)}; {d['label']}, "
@@ -1055,7 +1104,8 @@ class Handler(v28.Handler):
     GET_API = dict(v28.Handler.GET_API, **{"/api/studio/dispensers": dispensers, "/api/studio/job": get_job,
                                            "/api/studio/active_job": lambda q: dict(_ACTIVE),
                                            "/api/studio/setups": setups_list,
-                                           "/api/studio/hand": hand_view})
+                                           "/api/studio/hand": hand_view,
+                                           "/api/studio/follow": follow_view})
     POST_API = dict(v28.Handler.POST_API, **{
         "/api/studio/check_design": (check_design, _CHECK_DESIGN[1]),
         "/api/studio/program": (program, v28.Handler.POST_API["/api/studio/program"][1]),
