@@ -13,7 +13,7 @@
   "z_calibration": "machines/ball-screw/z_calibration_20261022-092143.json",
   "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json",
   "travel_z": -0.5,
-  "firmware_z_floor": -40.0,
+  "firmware_z_floor": -49.0,
   "frames": 15,
   "min_valid_frac": 0.8,
   "max_mad_mm": 1.0,
@@ -31,5 +31,7 @@
   "paper_mm_allowed": [
     0.05,
     0.3
-  ]
+  ],
+  "z_home_moved_mm": 9.0,
+  "z_home_moved_at": "2026-10-24T14:34:50"
 }

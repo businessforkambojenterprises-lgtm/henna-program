@@ -42,10 +42,11 @@
           -1.0
         ],
         "travel_z": -0.5,
-        "firmware_z_floor": -40.0,
+        "firmware_z_floor": -49.0,
         "source": "since 2026-10-22: scan X65.7 Y80 Z-5 (unchanged), floor -40 (Z carriage end about -41.2), travel Z -1 (was -5); calibration k 140.73 puts the bed at about Z-71",
         "travel_z_changed": "travel Z -1 -> -0.5 (20261024-142628, machine_travel_z_set.py; scan position and floor unchanged)",
-        "scan_z_changed": "scan Z -5 -> -1 (20261024-141717, machine_scan_z_set.py; X/Y, travel Z and floor unchanged)"
+        "scan_z_changed": "scan Z -5 -> -1 (20261024-141717, machine_scan_z_set.py; X/Y, travel Z and floor unchanged)",
+        "z_home_moved": "Z home switch moved up 9 mm (20261024-143450, machine_z_home_moved.py): floor -40 -> -49; travel Z and scan position unchanged as numbers"
       },
       "calibration_mode": "recalibration started in Studio 2026-10-18T14:29:14",
       "z_room_mm": "Z travel 40 mm (Z 0 to the floor Z -40); tip 71 mm above the bed at Z 0, 31 mm at the floor; travel Z -1 = 70 mm above the bed: skin up to about 61 mm under travel moves; reach: skin from about 25 mm (6 mm nozzle height) - since 2026-10-22",

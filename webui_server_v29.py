@@ -258,9 +258,40 @@ _WHOLE_HAND_CLEARANCE = v27.clearance
 _CHECK_DESIGN = v28.Handler.POST_API["/api/studio/check_design"]
 
 
+def _scan_time(job):
+    """When the job's scan was recorded: the recording's name (YYYYMMDD_HHMMSS_...), else its file time; or None."""
+    sc = job["steps"].get("scan") or {}
+    m = re.match(r"^(\d{8})_(\d{6})", os.path.basename(str(sc.get("name") or sc.get("recording") or "")))
+    if m:
+        return dt.datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M%S")
+    try:
+        return dt.datetime.fromtimestamp(os.path.getmtime(sc["recording"]))
+    except (KeyError, OSError, TypeError):
+        return None
+
+
+def _z_home_check(job):
+    """A scan made before the Z home switch was moved (machine_z_home_moved.py, user 2026-10-24) measured its heights
+    in the old Z numbers - planned now, every height would be off by that much. Refused; a new scan is needed."""
+    c = v10.cal()
+    at = c.get("z_home_moved_at")
+    if not at or not (job["steps"].get("scan")):
+        return
+    t = _scan_time(job)
+    if t is None or t < dt.datetime.fromisoformat(at):
+        raise ValueError(f"this job's scan was made before the Z home switch was moved ({at.replace('T', ' ')}) - its "
+                         "heights are in the old Z numbers. Start a new job (or record the scan again)")
+
+
 def check_design(params):
     """The design check, with its placement known to the travel-line clearance while it runs."""
     p = params or {}
+    try:
+        job = v11.job_load(p.get("job"))
+    except ValueError:
+        job = None                                          # the design check itself answers "unknown job"
+    if job:
+        _z_home_check(job)
     _PENDING.design = {k: p.get(k) for k in ("svg", "fit_mm", "rotation_deg", "centre_machine_xy")}
     try:
         return _CHECK_DESIGN[0](params)
@@ -373,6 +404,7 @@ v17.checked_program = checked_program
 
 
 def program(params):
+    _z_home_check(v11.job_load(params.get("job")))
     cfg = dispense.settings(params.get("dispenser"), params.get("start_delay_s"), params.get("stop_delay_s"))
     out = v28.program(params)                                # the hover program, written and checked as in v28
     if cfg is None:
@@ -531,6 +563,7 @@ _RESUME = v28.Handler.POST_API["/api/machine/resume"]
 
 def run(params):
     job = v11.job_load(params.get("job"))
+    _z_home_check(job)
     if params.get("air_run") is True and job.get("subject") != v28.REAL:
         raise ValueError("The air run option is for real-hand jobs - a prosthetic job runs with its own warning-only check")
     d = (job["steps"].get("program") or {}).get("dispense")
