@@ -350,6 +350,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
       <button class="btn block" id="redetect" type="button">Detect again</button>
       <label class="f" for="margin">Suggested outline - in from the hand's edge <span id="marginout"></span></label>
       <input type="range" id="margin" min="0" max="0.5" step="0.01" value="0.15">
+      <p class="hint" id="reachinfo" style="margin:6px 0 0"></p>
       <button class="btn block" id="regreset" type="button" style="margin-top:12px">Reset to suggestion</button>
      </div>
      <div class="card">
@@ -639,10 +640,13 @@ $('toHand').onclick=()=>go('region');
 /* ---------- 2 hand & region ---------- */
 let RUN=null,poly=[],edited=false,checked=false,dragI=-1;const imgC=new Image(),imgH=new Image(),ed=$('ed'),ex=ed.getContext('2d');
 function handInfo(){const h=JOB.steps.hand;$('handinfo').textContent=h?`Hand found · confidence ${fmt(h.score)} · frame ${h.frame} · ${h.landmarks_on_missing_depth} of 21 landmarks on missing depth`:'Not detected yet'}
-async function loadRun(keep){const r=await api(`/api/studio/hand?job=${encodeURIComponent(JOB.id)}&margin=${$('margin').value}`);RUN=r;$('margin').oninput();ed.width=r.width;ed.height=r.height;
+async function loadRun(keep){const r=await api(`/api/studio/hand?job=${encodeURIComponent(JOB.id)}&margin=${$('margin').value}`);RUN=r;$('margin').oninput();reachInfo(r);ed.width=r.width;ed.height=r.height;
  await Promise.all([new Promise(ok=>{imgC.onload=ok;imgC.src=r.colour}),new Promise(ok=>{imgH.onload=ok;imgH.src=r.holes})]);
  if(!keep){poly=r.suggestion?r.suggestion.map(p=>p.slice()):[];edited=false}$('edph').hidden=true;ed.hidden=false;invalidate();drawEd()}
-function edBlank(t){RUN=null;poly=[];edited=false;ex.clearRect(0,0,ed.width,ed.height);ed.hidden=true;$('edph').hidden=false;$('edph').innerHTML=`<span><span class="spin"></span> ${t}</span>`}
+function reachInfo(r){const a=r.reach;if(!a||r.suggestion_kind==='palm'){$('reachinfo').textContent='';return}
+ const b=a.bed_z,mm=z=>b==null?`Z ${z}`:`${Math.round(z-b)} mm above the bed`;
+ $('reachinfo').textContent=`The suggestion keeps to skin the nozzle can reach: from ${mm(a.lowest_skin_z)} to ${mm(a.highest_skin_z)}. Lower parts (fingers lying low) and taller parts (heel of the palm, wrist) are left out - a design there would be refused.`}
+function edBlank(t){$('reachinfo').textContent='';RUN=null;poly=[];edited=false;ex.clearRect(0,0,ed.width,ed.height);ed.hidden=true;$('edph').hidden=false;$('edph').innerHTML=`<span><span class="spin"></span> ${t}</span>`}
 async function showRegion(){handInfo();if(!RUN||!JOB.steps.hand||RUN.run!==JOB.steps.hand.run)edBlank(JOB.steps.hand?'Loading the scan…':'Finding the hand (about 10 s)…');$('regstats').innerHTML='';msg('msgreg','','');$('toDesign').disabled=!JOB.steps.region;
  if(JOB.steps.region){$('regstate').className='chip c-ok';$('regstate').textContent='Accepted'}
  try{if(!JOB.steps.hand){$('edph').hidden=false;$('edph').innerHTML='<span><span class="spin"></span> Finding the hand (about 10 s)…</span>';await detect()}

@@ -73,11 +73,49 @@ class OutlineTests(unittest.TestCase):
         poly, kind = ho.suggest(np.zeros((H, W)), lm, FX, 0.15)   # no depth at all
         self.assertEqual(kind, "palm")
 
+    def test_keeps_to_the_reachable_skin(self):
+        d, lm = synthetic_hand()
+        skin = np.where(d < 180, -30.0, -80.0)                   # head Z -5, k 140: depth 150 -> skin Z -15...
+        skin[:, :450] = np.where(d[:, :450] < 180, -47.0, -80.0)  # ...the fingers lying low: under -40 - 6
+        reach, low, tall = ho.reach_mask(skin, d > 0, -40.0, 6.0, -10.0)
+        self.assertTrue(low[255, 360] and not reach[255, 360])
+        self.assertFalse(tall.any())
+        poly, kind = ho.suggest(d, lm, FX, 0.15, reach)
+        self.assertEqual(kind, "hand")
+        m = polygon_mask(poly, W, H)
+        self.assertFalse(m[255, 360])                            # the low finger is left out
+        self.assertTrue(m[240, 600])                             # the palm stays
+        self.assertFalse((m & ~reach).any())
+        skin[200:280, 600:690] = -9.0                            # a tall heel by the wrist
+        reach, low, tall = ho.reach_mask(skin, d > 0, -40.0, 6.0, -10.0)
+        self.assertTrue(tall[240, 650])
+        self.assertFalse(polygon_mask(ho.suggest(d, lm, FX, 0.15, reach)[0], W, H)[240, 650])
+
+    def test_reach_limits_follow_the_design_check(self):
+        import webui_server_v29 as v29
+        saved = (v29.v10.cal, v29.v28._parts, v29.v27._paper_z)
+        v29.v10.cal = lambda: {"standoff_mm_allowed": [1.0, 6.0], "travel_z": -1.0, "firmware_z_floor": -40.0}
+        v29.v28._parts = lambda: {"k": 140.0, "depth_fn": lambda dd: dd}
+        v29.v27._paper_z = lambda c, k: -73.5
+        try:
+            depth = np.array([[150.0, 182.0, 128.0, 0.0]])   # skin Z -15, -47, -3, no depth (head Z -5)
+            job = {"subject": "realhand", "steps": {"scan": {"mpos": [65.7, 80.0, -5.0]}}}
+            reach, info = v29._reach(job, depth)
+            self.assertEqual(reach.tolist(), [[True, False, False, False]])
+            self.assertEqual(info, {"lowest_skin_z": -46.0, "highest_skin_z": -10.0, "bed_z": -73.5})
+            job["subject"] = "prosthetic"                    # smallest height 1 mm -> hop 5 + 3 below travel
+            self.assertEqual(v29._reach(job, depth)[1]["highest_skin_z"], -9.0)
+            self.assertEqual(v29._reach(dict(job, subject="person"), depth), (None, None))
+        finally:
+            v29.v10.cal, v29.v28._parts, v29.v27._paper_z = saved
+
     def test_studio_route_uses_it(self):
         import webui_server_v29 as v29
         self.assertIs(v29.Handler.GET_API["/api/studio/hand"], v29.hand_view)
         d, lm = synthetic_hand()
-        saved = (v29._HAND, v29.v11.v3.run_dir_from_id)
+        saved = (v29._HAND, v29.v11.v3.run_dir_from_id, v29._reach, v29.v11.job_load)
+        v29._reach = lambda job, depth: (None, None)
+        v29.v11.job_load = lambda jid: {"id": jid, "subject": "person"}
         import henna_preview.region as region
         saved_load = region.load_bundle
         v29._HAND = lambda q: {"run": "web:x", "suggestion": [[1, 1], [2, 1], [2, 2]]}
@@ -91,7 +129,7 @@ class OutlineTests(unittest.TestCase):
             out = v29.hand_view({"job": ["j"], "margin": ["0.15"]})
             self.assertEqual((out["suggestion_kind"], out["suggestion"]), ("palm", [[1, 1], [2, 1], [2, 2]]))
         finally:
-            v29._HAND, v29.v11.v3.run_dir_from_id = saved
+            v29._HAND, v29.v11.v3.run_dir_from_id, v29._reach, v29.v11.job_load = saved
             region.load_bundle = saved_load
 
 

@@ -866,11 +866,37 @@ def hand_view(q):
         b = load_bundle(v11.v3.run_dir_from_id(out["run"]))
         depth = b["depth_raw_aligned"].astype(float) * b["depth_scale_m_per_unit"] * 1000.0
         margin = v11.v3.margin_of({"margin": q.get("margin", [0.15])[0]})
-        poly, kind = hand_outline.suggest(depth, b["landmarks_px"], b["colour_intrinsics"]["fx"], margin)
+        reach, info = _reach(v11.job_load(q.get("job", [""])[0]), depth)
+        poly, kind = hand_outline.suggest(depth, b["landmarks_px"], b["colour_intrinsics"]["fx"], margin, reach)
     except Exception:                                       # noqa: BLE001 - keep the palm suggestion, never fail
         return dict(out, suggestion_kind="palm")
-    return dict(out, suggestion=poly, suggestion_kind=kind,
+    return dict(out, suggestion=poly, suggestion_kind=kind, reach=info,
                 inset_mm=round(hand_outline.inset_mm_of(margin), 1) if kind != "palm" else None)
+
+
+def _reach(job, depth_mm):
+    """(mask of the skin the nozzle can work on, numbers for the page) for the job's scan pose - (None, None) for a
+    camera-only job. The same model as the design check: skin Z = head Z - (corrected depth - k); too low when the
+    nozzle at the largest allowed height above it is under the Z floor, too tall above the path check's limit
+    (travel Z - max(smallest allowed height, hop) - margin)."""
+    from henna_preview import hand_outline
+    from henna_preview import travel_clearance as tc
+    if job.get("subject") not in ("prosthetic", v28.REAL):
+        return None, None
+    c, p = v10.cal(), v28._parts()
+    lo, hi = (float(v) for v in c["standoff_mm_allowed"])
+    if job["subject"] == v28.REAL:
+        lo = max(lo, v28.REAL_MIN_STANDOFF_MM)
+        hi = max(hi, lo)
+    ok = depth_mm > 0
+    d = np.where(ok, depth_mm, 1.0)
+    skin = float(job["steps"]["scan"]["mpos"][2]) - (np.asarray(p["depth_fn"](d), float) - p["k"])
+    top = float(c["travel_z"]) - (max(lo, float(v27.HOP_CLEARANCE_MM)) + tc.MARGIN_MM)
+    reach, low, tall = hand_outline.reach_mask(skin, ok, float(c["firmware_z_floor"]), hi, top)
+    bed = v27._paper_z(c, p["k"])
+    info = {"lowest_skin_z": round(float(c["firmware_z_floor"]) - hi, 1), "highest_skin_z": round(top, 1),
+            "bed_z": None if bed is None else round(float(bed), 1)}
+    return reach, info
 
 
 def get_job(q):

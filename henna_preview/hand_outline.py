@@ -25,6 +25,7 @@ SIZES = {"hand": {"finger_mm": 11.0, "palm_grow_mm": 12.0},     # generous: the 
 TIP_EXTRA_MM = 6.0                  # the tip landmark is a little short of the fingertip
 WRIST_BACK_MM = 3.0                 # keep up to just past the wrist landmark, not the forearm
 MAX_POINTS = 60                     # each point is a handle to drag on the page (region.check_polygon allows 200)
+REACH_MARGIN_MM = 0.5               # inside the reach limits, for depth noise
 MIN_PALM_COVER = 0.8                # share of the old palm suggestion the hand outline must cover
 
 
@@ -102,11 +103,26 @@ def hand_mask(depth_mm, landmarks_px, fx):
     return lab == keep, px_mm, kind
 
 
-def suggest_hand_outline(depth_mm, landmarks_px, fx, inset_mm):
-    """(polygon in colour pixels around the whole hand, inset_mm in from its edge; kind)."""
+def reach_mask(skin_z, ok, floor_z, max_standoff_mm, top_z):
+    """Skin the nozzle can work on (user 2026-10-24: "make suggested outline only cover reachable area"):
+    not too low - the nozzle max_standoff_mm above it stays at or above the Z travel's floor (fingers in the jig's
+    cut-out were at Z -46 with the floor at -40) - and not too tall - at or below top_z, the highest skin the travel
+    moves may cross (travel Z - max(standoff, hop) - margin, the path check's rule). REACH_MARGIN_MM inside both."""
+    low = skin_z + max_standoff_mm < floor_z + REACH_MARGIN_MM
+    tall = skin_z > top_z - REACH_MARGIN_MM
+    return ok & ~low & ~tall, ok & low, ok & tall
+
+
+def suggest_hand_outline(depth_mm, landmarks_px, fx, inset_mm, reach=None):
+    """(polygon in colour pixels around the whole hand, inset_mm in from its edge; kind). reach: boolean mask of
+    the skin the nozzle can work on - the outline then keeps to it (no inset at that border: it is not an edge)."""
     mask, px_mm, kind = hand_mask(depth_mm, landmarks_px, fx)
     if inset_mm > 0:
         mask = cv2.erode(mask.astype(np.uint8), _disk(inset_mm * px_mm)) > 0
+    if reach is not None:
+        r = cv2.morphologyEx(reach.astype(np.uint8), cv2.MORPH_OPEN, _disk(1.0 * px_mm))
+        r = cv2.morphologyEx(r, cv2.MORPH_CLOSE, _disk(2.0 * px_mm)) > 0
+        mask &= r
     cs, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     if not cs:
         raise OutlineError("no hand left after the inset")
@@ -124,18 +140,20 @@ def suggest_hand_outline(depth_mm, landmarks_px, fx, inset_mm):
     return poly.round(1).tolist(), kind
 
 
-def suggest(depth_mm, landmarks_px, fx, margin_frac):
-    """(polygon, kind): the whole-hand outline ("hand" / "model"), or the old palm suggestion ("palm") when there is
-    no hand shape or it does not cover at least MIN_PALM_COVER of the palm suggestion (2026-10-14 prosthetic scan:
-    landmarks off the hand)."""
+def suggest(depth_mm, landmarks_px, fx, margin_frac, reach=None):
+    """(polygon, kind): the whole-hand outline ("hand" / "model"), kept to the reachable skin when reach is given,
+    or the old palm suggestion ("palm") when there is no hand shape or it does not cover at least MIN_PALM_COVER of
+    the (reachable part of the) palm suggestion (2026-10-14 prosthetic scan: landmarks off the hand)."""
     from henna_preview.region import polygon_mask, suggest_region
     palm = suggest_region(np.asarray(landmarks_px, float).tolist(), margin_frac)
     try:
-        poly, kind = suggest_hand_outline(depth_mm, landmarks_px, fx, inset_mm_of(margin_frac))
+        poly, kind = suggest_hand_outline(depth_mm, landmarks_px, fx, inset_mm_of(margin_frac), reach)
     except OutlineError:
         return palm, "palm"
     h, w = depth_mm.shape
     pm = polygon_mask(palm, w, h)
+    if reach is not None:
+        pm &= reach
     if (pm & polygon_mask(poly, w, h)).sum() < MIN_PALM_COVER * max(1, pm.sum()):
         return palm, "palm"
     return poly, kind
