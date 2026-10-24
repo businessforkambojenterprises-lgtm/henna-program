@@ -161,7 +161,8 @@ class Watch:
         self._stop.clear()
         with self.lock:
             self.state = {"active": True, "job": job["id"], "started": dt.datetime.now().isoformat(timespec="seconds"),
-                          "verdict": "starting", "paused_by_watch": None, "last": None, "checks": 0}
+                          "verdict": "starting", "paused_by_watch": None, "last": None, "checks": 0,
+                          "gap": {"n": 0, "min": None, "max": None, "sum": 0.0}}
         self._thread = threading.Thread(target=self._loop, args=(job, ref), daemon=True)
         self._thread.start()
 
@@ -208,7 +209,14 @@ class Watch:
                 res = check_sample(ref, s, head)
                 with self.lock:
                     self.state.update(verdict=res["verdict"], last=res, checks=self.state.get("checks", 0) + 1)
-                if res["verdict"] in ("moved", "near"):
+                    g = res.get("near_gap_mm")
+                    if res.get("drawing") and g is not None:       # the live gap while drawing (2026-10-24)
+                        gs = self.state["gap"]
+                        gs["n"] += 1
+                        gs["sum"] += g
+                        gs["min"] = g if gs["min"] is None else min(gs["min"], g)
+                        gs["max"] = g if gs["max"] is None else max(gs["max"], g)
+                if res["verdict"] in ("moved", "near", "gap"):
                     self._pause(job, hw.message(res), head)
                 elif res["verdict"] == "unseen":
                     unseen_since = unseen_since or now
@@ -223,6 +231,16 @@ class Watch:
             with self.lock:
                 self.state["active"] = False
                 self.state["ended"] = dt.datetime.now().isoformat(timespec="seconds")
+                gs = dict(self.state.get("gap") or {})
+            if gs.get("n"):                                       # how close the heights really were (2026-10-24)
+                try:
+                    _log("Hand watch: gap under the nozzle while drawing", None, "camera, live",
+                         f"between {hw.GAP_MIN_MM:g} and {hw.GAP_MAX_MM:g} mm",
+                         f"{gs['n']} readings: min {gs['min']:.1f} mm, mean {gs['sum'] / gs['n']:.1f} mm, "
+                         f"max {gs['max']:.1f} mm", "recorded", job["steps"]["scan"]["name"],
+                         f"Studio v28 real-hand watch; job {job['id']}")
+                except Exception:                                 # noqa: BLE001 - a log row never stops the shutdown
+                    pass
 
 
 def _mpos_at(hist, t):
