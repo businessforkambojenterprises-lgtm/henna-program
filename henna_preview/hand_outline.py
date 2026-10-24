@@ -25,7 +25,7 @@ SIZES = {"hand": {"finger_mm": 11.0, "palm_grow_mm": 12.0},     # generous: the 
 TIP_EXTRA_MM = 6.0                  # the tip landmark is a little short of the fingertip
 WRIST_BACK_MM = 3.0                 # keep up to just past the wrist landmark, not the forearm
 MAX_POINTS = 60                     # each point is a handle to drag on the page (region.check_polygon allows 200)
-REACH_MARGIN_MM = 0.5               # inside the reach limits, for depth noise
+REACH_MARGIN_MM = 1.0               # inside the reach limits: depth noise, and the check reads a 15-frame median
 MIN_PALM_COVER = 0.8                # share of the old palm suggestion the hand outline must cover
 
 

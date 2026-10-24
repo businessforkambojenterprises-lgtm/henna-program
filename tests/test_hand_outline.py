@@ -106,6 +106,16 @@ class OutlineTests(unittest.TestCase):
             job["subject"] = "prosthetic"                    # smallest height 1 mm -> hop 5 + 3 below travel
             self.assertEqual(v29._reach(job, depth)[1]["highest_skin_z"], -9.0)
             self.assertEqual(v29._reach(dict(job, subject="person"), depth), (None, None))
+            # with the lens: skin within the path check's 8 mm of a tall mound is left out too (jumps start and end at
+            # strokes; the check looks 8 mm round every jump) - 2026-10-24
+            job["subject"] = "realhand"
+            wide = np.full((60, 200), 150.0)                 # skin Z -15 (reachable) everywhere, 435 px / 150 mm
+            wide[:, 100:] = 128.0                            # a tall mound on the right half: skin Z -3
+            reach = v29._reach(job, wide, 435.0)[0]
+            self.assertTrue(reach[30, 60])                   # far from the mound
+            self.assertFalse(reach[30, 90])                  # 10 px = 3.4 mm from it
+            self.assertFalse(reach[30, 150])                 # the mound itself
+            self.assertTrue(v29._reach(job, wide)[0][30, 90])    # without the lens: only the mound itself
         finally:
             v29.v10.cal, v29.v28._parts, v29.v27._paper_z = saved
 
@@ -114,7 +124,7 @@ class OutlineTests(unittest.TestCase):
         self.assertIs(v29.Handler.GET_API["/api/studio/hand"], v29.hand_view)
         d, lm = synthetic_hand()
         saved = (v29._HAND, v29.v11.v3.run_dir_from_id, v29._reach, v29.v11.job_load)
-        v29._reach = lambda job, depth: (None, None)
+        v29._reach = lambda job, depth, fx=None: (None, None)
         v29.v11.job_load = lambda jid: {"id": jid, "subject": "person"}
         import henna_preview.region as region
         saved_load = region.load_bundle

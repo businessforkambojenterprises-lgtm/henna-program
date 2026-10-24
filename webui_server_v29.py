@@ -131,13 +131,39 @@ def travel_lines(job, design, approach=()):
 # The route of the first travel move each job's last path check chose (user 2026-10-22, "build step 2"): the program
 # step writes it, and a run is refused when its program's route is a different one.
 _LAST_APPROACH = {}
+_LAST_GAPS = {}                                         # the same for the jumps between strokes (2026-10-24)
 
 
-def path_measure(job, design=None):
+def _gap_key(gaps):
+    """Jumps round tall skin, comparable: sorted ((from), (waypoints...), (to)) rounded to 0.001 mm."""
+    def r(p):
+        return tuple(round(float(v), 3) for v in p)
+    out = []
+    for g in gaps:
+        if isinstance(g, dict):
+            g = (g["from"], g["waypoints"], g["to"])
+        out.append((r(g[0]), tuple(r(w) for w in g[1]), r(g[2])))
+    return sorted(out)
+
+
+def _same_gaps(a, b, tol=0.011):
+    """Same jumps: the same waypoints (written from the check's numbers) between stroke ends that agree to 0.01 mm
+    (the program's stroke ends are the placement's, as for the first move's target)."""
+    if len(a) != len(b):
+        return False
+    for (fa, wa, ta), (fb, wb, tb) in zip(a, b):
+        if wa != wb or max(abs(x - y) for x, y in zip(fa + ta, fb + tb)) > tol:
+            return False
+    return True
+
+
+def path_measure(job, design=None, standoff_mm=None):
     """The nozzle-path corridor of a job with a scan and a region: the measured surface (sub-sampled pixels) and
     pc.corridor_top's result. Raises tc.ClearanceError when the path cannot be measured. Also used by
     path_clearance_picture.py, so the picture shows exactly what the design check measured.
-    design: the placement to check (default: the job's); its travel lines are the corridor (pc.travel_segments)."""
+    design: the placement to check (default: the job's); its travel lines are the corridor (pc.travel_segments).
+    Jumps between strokes that cross skin too tall for travel Z go round it (travel_route.choose_gap, 2026-10-24);
+    standoff_mm sets that limit (default: the placement's, else the real-hand 6 mm)."""
     import cv2
     from henna_preview import path_clearance as pc
     from henna_preview import travel_clearance as tc
@@ -160,18 +186,31 @@ def path_measure(job, design=None):
     d_med = float(np.median(sub[keep & (sub > 0)])) * float(scale) * 1000.0
     mm_per_px = float(abs(rays[0][0, 1] - rays[0][0, 0])) * d_med
     plan = travel_plan(job, design if design is not None else s.get("design"))
-    approach, rated = [], []
+    approach, rated, gaps = [], [], {}
     if plan:
+        from henna_preview import grbl_program_link as gpl
         from henna_preview import travel_route
         keep = np.hypot(*(xy - np.asarray(head[:2])).T) > pc.HEAD_FOOTPRINT_MM
         approach, _, rated = travel_route.choose(head[:2], plan["strokes"][0][0], xy, z, pc.MARGIN_MM, keep)
-    segments = pc.travel_segments(plan["starts"], plan["strokes"], approach) if plan else None
+        if standoff_mm is None:
+            standoff_mm = (design or s.get("design") or {}).get("standoff_mm") or v28.REAL_MIN_STANDOFF_MM
+        limit = float(v10.cal()["travel_z"]) - (max(float(standoff_mm), float(v27.HOP_CLEARANCE_MM)) + tc.MARGIN_MM)
+        st = plan["strokes"]
+        for i in range(len(st) - 1):
+            w, _ = travel_route.choose_gap(st[i][1], st[i + 1][0], xy, z, pc.MARGIN_MM, limit, keep,
+                                           (gpl.X_MAX, gpl.Y_MAX))
+            if w:
+                gaps[i] = w
+    segments = pc.travel_segments(plan["starts"], plan["strokes"], approach, gaps) if plan else None
     try:
         r = pc.corridor_top(xy, z, xyb, region_ok, head[:2], blind_mask=blind_mask, mm_per_px=mm_per_px, ok_mask=ok,
                             segments=segments)
     except pc.PathClearanceError as e:
         raise tc.ClearanceError(f"Nozzle path check: {e}") from None
     r = dict(r, approach=[[round(float(v), 3) for v in w] for w in approach],
+             gaps=[{"from": [round(float(v), 3) for v in plan["strokes"][i][1]],
+                    "to": [round(float(v), 3) for v in plan["strokes"][i + 1][0]],
+                    "waypoints": [[round(float(v), 3) for v in w] for w in gaps[i]]} for i in sorted(gaps)],
              approach_candidates=[{"waypoints": [[round(float(v), 1) for v in w] for w in c],
                                    "top_z": None if t is None else round(t, 2)} for c, t in rated])
     target = [round(float(v), 3) for v in plan["strokes"][0][0]] if plan else None
@@ -185,15 +224,16 @@ def path_clearance(job, standoff_mm):
     s = job["steps"]
     if not s.get("region") or not s.get("scan"):
         return _WHOLE_HAND_CLEARANCE(job, standoff_mm)
-    m = path_measure(job, getattr(_PENDING, "design", None))
+    m = path_measure(job, getattr(_PENDING, "design", None), standoff_mm)
     r, rec, p = m["r"], m["recording"], m["parts"]
     c = v10.cal()
     bed = v27._paper_z(c, p["k"])
     os.environ["HENNA_PATH_TOP"] = json.dumps({"recording": os.path.basename(rec), "top_z": r["top_z"],
                                                "basis": r["basis"]})
     os.environ["HENNA_APPROACH"] = json.dumps({"recording": os.path.basename(rec), "target": m["target"],
-                                               "waypoints": r["approach"]})
+                                               "waypoints": r["approach"], "gaps": r["gaps"]})
     _LAST_APPROACH[job["id"]] = [tuple(w) for w in r["approach"]]
+    _LAST_GAPS[job["id"]] = _gap_key(r["gaps"])
     try:
         out = tc.check(r["top_z"], c["travel_z"], standoff_mm, v27.HOP_CLEARANCE_MM, bed_z=bed)
     except tc.ClearanceError as e:
@@ -287,16 +327,21 @@ def _route_check(job, lines):
     """The program's route to its first stroke must be the one the path check just measured (it ran first in the
     same request: v27's guard / v28's real-hand rules)."""
     from henna_preview import travel_route
-    got = [tuple(round(float(v), 3) for v in w) for w in travel_route.program_approach(lines, v10.cal()["travel_z"])]
+    travel = v10.cal()["travel_z"]
+    got = [tuple(round(float(v), 3) for v in w) for w in travel_route.program_approach(lines, travel)]
+    got_gaps = _gap_key(travel_route.program_gaps(lines, travel))
     want = _LAST_APPROACH.get(job["id"])
     if v27.clearance is not path_clearance or want is None:
-        if got:
-            raise ValueError("this program goes round tall skin on its way to the first stroke, which only the path "
-                             "check can approve - write the program again")
+        if got or got_gaps:
+            raise ValueError("this program goes round tall skin between its strokes or on its way to the first one, "
+                             "which only the path check can approve - write the program again")
         return
     if got != [tuple(round(float(v), 3) for v in w) for w in want]:
         raise ValueError("the program's route to the first stroke is not the one checked now (the hand or the design "
                          "changed) - write the program again")
+    if not _same_gaps(got_gaps, _LAST_GAPS.get(job["id"], [])):
+        raise ValueError("the program's jumps round tall skin between strokes are not the ones checked now (the hand "
+                         "or the design changed) - write the program again")
 
 
 def checked_program(job):
@@ -866,7 +911,7 @@ def hand_view(q):
         b = load_bundle(v11.v3.run_dir_from_id(out["run"]))
         depth = b["depth_raw_aligned"].astype(float) * b["depth_scale_m_per_unit"] * 1000.0
         margin = v11.v3.margin_of({"margin": q.get("margin", [0.15])[0]})
-        reach, info = _reach(v11.job_load(q.get("job", [""])[0]), depth)
+        reach, info = _reach(v11.job_load(q.get("job", [""])[0]), depth, b["colour_intrinsics"]["fx"])
         poly, kind = hand_outline.suggest(depth, b["landmarks_px"], b["colour_intrinsics"]["fx"], margin, reach)
     except Exception:                                       # noqa: BLE001 - keep the palm suggestion, never fail
         return dict(out, suggestion_kind="palm")
@@ -874,12 +919,16 @@ def hand_view(q):
                 inset_mm=round(hand_outline.inset_mm_of(margin), 1) if kind != "palm" else None)
 
 
-def _reach(job, depth_mm):
+def _reach(job, depth_mm, fx=None):
     """(mask of the skin the nozzle can work on, numbers for the page) for the job's scan pose - (None, None) for a
     camera-only job. The same model as the design check: skin Z = head Z - (corrected depth - k); too low when the
     nozzle at the largest allowed height above it is under the Z floor, too tall above the path check's limit
-    (travel Z - max(smallest allowed height, hop) - margin)."""
+    (travel Z - max(smallest allowed height, hop) - margin). With fx (the colour lens' focal length, px), the tall
+    skin is grown by the path check's corridor margin (8 mm) first: every jump starts or ends at a stroke, and the check
+    looks 8 mm round each jump - a stroke ending that close to a tall mound is refused whatever the jump does
+    (2026-10-24, job 11:14: strokes on the edge of the heel of the palm)."""
     from henna_preview import hand_outline
+    from henna_preview import path_clearance as pc
     from henna_preview import travel_clearance as tc
     if job.get("subject") not in ("prosthetic", v28.REAL):
         return None, None
@@ -893,6 +942,11 @@ def _reach(job, depth_mm):
     skin = float(job["steps"]["scan"]["mpos"][2]) - (np.asarray(p["depth_fn"](d), float) - p["k"])
     top = float(c["travel_z"]) - (max(lo, float(v27.HOP_CLEARANCE_MM)) + tc.MARGIN_MM)
     reach, low, tall = hand_outline.reach_mask(skin, ok, float(c["firmware_z_floor"]), hi, top)
+    if fx and tall.any():
+        import cv2
+        r = max(1, int(round(pc.MARGIN_MM * float(fx) / float(np.median(depth_mm[ok])))))
+        near_tall = cv2.dilate(tall.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1,) * 2))
+        reach &= near_tall == 0
     bed = v27._paper_z(c, p["k"])
     info = {"lowest_skin_z": round(float(c["firmware_z_floor"]) - hi, 1), "highest_skin_z": round(top, 1),
             "bed_z": None if bed is None else round(float(bed), 1)}

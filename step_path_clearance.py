@@ -18,6 +18,8 @@ For step 23, when the recording is the config's own and the target is the progra
 program_with_hops gets the waypoints written as "G53 G0 X Y" lines at travel Z right after the first rise - the same
 legs Studio's path check measured. Anything else: the straight move as before (and Studio refuses a run whose route
 differs from the one it checked).
+JUMPS (2026-10-24, "make the pen's jumps go around the tall mound"): HENNA_APPROACH also carries "gaps" -
+[{"from", "to", "waypoints"}] for the jumps between strokes that go round tall skin; gap_routes writes them at travel Z.
 """
 import importlib
 import json
@@ -60,13 +62,49 @@ def approach(cfg, env=None):
     except ValueError:
         return None
     rec = os.path.basename(str((cfg.get("hand_capture") or {}).get("recording", "")))
-    if info.get("recording") and rec and os.path.basename(str(info["recording"])) == rec and info.get("waypoints"):
+    if (info.get("recording") and rec and os.path.basename(str(info["recording"])) == rec
+            and (info.get("waypoints") or info.get("gaps"))):
         return info
     return None
 
 
+def _near(a, b, tol=0.01):
+    return abs(float(a[0]) - float(b[0])) <= tol and abs(float(a[1]) - float(b[1])) <= tol
+
+
+def gap_routes(lines, lifted, gaps, travel_z):
+    """The jumps between strokes that Studio's path check routed round tall skin (2026-10-24, HENNA_APPROACH "gaps"):
+    for the jump after stroke i whose ends are the checked ones, its low hop (or rise) becomes a rise to travel Z and
+    the waypoints follow it as G53 G0 X Y lines at travel Z. A gap that does not match is left straight - Studio then
+    refuses the run (its route check compares the program with what it checked)."""
+    if not gaps:
+        return lines
+    rise = f"G53 G0 Z{float(travel_z):.3f}"
+    out, stroke, last_g1 = [], -1, None
+    i = 0
+    while i < len(lines):
+        ln = lines[i]
+        if ln.startswith("G53 G1 "):
+            last_g1 = ln
+        if (ln.startswith("G53 G0 Z") and last_g1 is not None and i + 1 < len(lines)
+                and lines[i + 1].startswith("G53 G0 X")):
+            stroke += 1                                   # the jump after stroke number `stroke` (0-based)
+            if stroke + 1 < len(lifted):
+                end, start = lifted[stroke][-1], lifted[stroke + 1][0]
+                g = next((g for g in gaps if _near(g["from"], end) and _near(g["to"], start)), None)
+                if g:
+                    out.append(rise)
+                    out += [f"G53 G0 X{float(x):.3f} Y{float(y):.3f}" for x, y in g["waypoints"]]
+                    i += 1
+                    continue
+        out.append(ln)
+        i += 1
+    return out
+
+
 def wrap_program(original, info):
-    """program_with_hops with the route's waypoints after the first rise to travel Z (first stroke start must match)."""
+    """program_with_hops with the route's waypoints after the first rise to travel Z (first stroke start must match)
+    and the routed jumps between strokes (gap_routes)."""
     def program_with_hops(lifted, hops, p, header):
         lines = original(lifted, hops, p, header)
         if info is None or not len(lifted):
@@ -78,7 +116,7 @@ def wrap_program(original, info):
         rise = f"G53 G0 Z{p['travel_z']:.3f}"
         i = lines.index(rise) + 1
         way = [f"G53 G0 X{float(x):.3f} Y{float(y):.3f}" for x, y in info["waypoints"]]
-        return lines[:i] + way + lines[i:]
+        return gap_routes(lines[:i] + way + lines[i:], lifted, info.get("gaps"), p["travel_z"])
     return program_with_hops
 
 
