@@ -21,6 +21,7 @@ Everything else is v29 unchanged; start_studio_pc.bat starts this file.
 import os
 import sys
 import threading
+import time
 from urllib.parse import urlparse
 
 import webui_server_v26 as v26
@@ -32,6 +33,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PC_CSS = os.path.join(HERE, "webui", "pc_admin.css")
 PC_JS = os.path.join(HERE, "webui", "pc_admin.js")
 PAGES = ("/", "/index.html", "/studio")
+BOOT = str(time.time())                     # this Studio start: the page opens on the home page once per start
 
 ADMIN = AdminLock()
 ADMIN_PATHS = {"/api/machines/select", "/api/machines/add", "/api/machines/recalibrate", "/api/machines/setup_area",
@@ -145,7 +147,7 @@ def pc_page():
         raise RuntimeError("Studio page has no </head> or </body>")
     html = html.replace("</head>", f'<style id="pc-admin">\n{css}\n</style>\n</head>', 1)
     i = html.rindex("</body>")
-    return html[:i] + f'<script id="pc-admin-js">\n{js}\n</script>\n' + html[i:]
+    return html[:i] + f'<script id="pc-admin-js">\nwindow.STUDIO_BOOT = "{BOOT}";\n{js}\n</script>\n' + html[i:]
 
 
 class PcHandler(studio.Handler):

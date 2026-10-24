@@ -202,6 +202,10 @@ class PcServerTests(unittest.TestCase):
         self.assertIn('<style id="pc-admin">', html)
         self.assertIn('<script id="pc-admin-js">', html)
         self.assertLess(html.index("pc-admin-js"), html.rindex("</body>"))
+        # once per Studio start the page opens on the home page, not the last job ("restarted ... this check comes")
+        self.assertIn(f'window.STUDIO_BOOT = "{self.pc.BOOT}";', html)
+        self.assertIn("localStorage.removeItem('studio-job')", html)
+        self.assertLess(html.index("window.STUDIO_BOOT"), html.index("localStorage.removeItem('studio-job')"))
 
 
 class AdminPageTests(unittest.TestCase):

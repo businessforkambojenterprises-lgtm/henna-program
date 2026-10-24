@@ -12,6 +12,21 @@
      Forgotten PIN: admin_pin_reset.py on this PC.
    - Program step: shows the Admin's paste setup; the server applies it to every program.
    The same Studio routes and checks as before - nothing here moves the machine on its own. */
+/* Home page after every Studio start (user 2026-10-24: "i have restarted studio multiple time but this check comes" -
+   the page reopened the last job, with its finished steps ticked). Once per Studio start (window.STUDIO_BOOT, set by
+   webui_server_pc.py) the remembered job is forgotten, so the page starts on the home page; the job itself is kept
+   (Saved jobs / Recent jobs). Reloading the page (F5) during the same start still reopens it. Runs before the page's
+   start code reads the remembered job (that waits for the machine list first). */
+(function () {
+  'use strict';
+  try {
+    if (window.STUDIO_BOOT && localStorage.getItem('studio-boot') !== window.STUDIO_BOOT) {
+      localStorage.removeItem('studio-job');
+      localStorage.setItem('studio-boot', window.STUDIO_BOOT);
+    }
+  } catch (e) { /* no storage: the page decides as before */ }
+})();
+
 (function () {
   'use strict';
   var ADMIN_TOKEN = null, SETUP = null, DISP = null;
