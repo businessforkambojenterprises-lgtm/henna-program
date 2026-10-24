@@ -850,6 +850,29 @@ def _remember_job(job):
     return job
 
 
+_HAND = v28.Handler.GET_API["/api/studio/hand"]
+
+
+def hand_view(q):
+    """Hand & region: the suggested outline is the whole hand - palm, fingers, thumb, up to the wrist, inset from the
+    edge by the margin slider (user 2026-10-24: "this suggested area is too small ... make it big according to our
+    designs"). Falls back to the old palm outline when the hand shape is not trustworthy."""
+    from henna_preview import hand_outline
+    from henna_preview.region import load_bundle
+    out = _HAND(q)
+    if not out.get("suggestion"):
+        return out
+    try:
+        b = load_bundle(v11.v3.run_dir_from_id(out["run"]))
+        depth = b["depth_raw_aligned"].astype(float) * b["depth_scale_m_per_unit"] * 1000.0
+        margin = v11.v3.margin_of({"margin": q.get("margin", [0.15])[0]})
+        poly, kind = hand_outline.suggest(depth, b["landmarks_px"], b["colour_intrinsics"]["fx"], margin)
+    except Exception:                                       # noqa: BLE001 - keep the palm suggestion, never fail
+        return dict(out, suggestion_kind="palm")
+    return dict(out, suggestion=poly, suggestion_kind=kind,
+                inset_mm=round(hand_outline.inset_mm_of(margin), 1) if kind != "palm" else None)
+
+
 def get_job(q):
     return _remember_job(_GET_JOB(q))
 
@@ -877,7 +900,8 @@ class Handler(v28.Handler):
     server_version = "HennaStudio/0.29"
     GET_API = dict(v28.Handler.GET_API, **{"/api/studio/dispensers": dispensers, "/api/studio/job": get_job,
                                            "/api/studio/active_job": lambda q: dict(_ACTIVE),
-                                           "/api/studio/setups": setups_list})
+                                           "/api/studio/setups": setups_list,
+                                           "/api/studio/hand": hand_view})
     POST_API = dict(v28.Handler.POST_API, **{
         "/api/studio/check_design": (check_design, _CHECK_DESIGN[1]),
         "/api/studio/program": (program, v28.Handler.POST_API["/api/studio/program"][1]),
