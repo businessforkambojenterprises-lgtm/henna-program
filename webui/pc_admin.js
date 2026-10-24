@@ -82,7 +82,8 @@
     var top = $id('btnjobs');
     if (top && !$id('pihomebtn')) {
       var b = document.createElement('button');
-      b.className = 'btn small'; b.id = 'pihomebtn'; b.type = 'button'; b.textContent = 'Home';
+      b.className = 'btn small'; b.id = 'pihomebtn'; b.type = 'button'; b.textContent = 'Main menu';
+      b.title = 'Back to the main menu (Home in the machine bar homes the machine)';
       b.onclick = function () {
         if (typeof machineBusy === 'function' && machineBusy()) return;
         go('welcome');                                     /* leaves Admin / daily mode (go, wrapped below) */

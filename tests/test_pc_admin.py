@@ -240,6 +240,10 @@ class AdminPageTests(unittest.TestCase):
                       "/api/admin/paste_setup", "/api/admin/jog_limits"):
             self.assertIn(route, js, route)
         self.assertIn("python.exe webui_server_pc.py", self.read("start_studio_pc.bat"))
+        # the page button is not called "Home" - that is the machine's homing button (user 2026-10-24: "same name may
+        # cause problem")
+        self.assertIn("b.textContent = 'Main menu'", js)
+        self.assertNotIn("b.textContent = 'Home'", js)
 
 
 if __name__ == "__main__":
