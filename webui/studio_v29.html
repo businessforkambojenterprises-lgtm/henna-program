@@ -641,13 +641,14 @@ let RUN=null,poly=[],edited=false,checked=false,dragI=-1;const imgC=new Image(),
 function handInfo(){const h=JOB.steps.hand;$('handinfo').textContent=h?`Hand found · confidence ${fmt(h.score)} · frame ${h.frame} · ${h.landmarks_on_missing_depth} of 21 landmarks on missing depth`:'Not detected yet'}
 async function loadRun(keep){const r=await api(`/api/studio/hand?job=${encodeURIComponent(JOB.id)}&margin=${$('margin').value}`);RUN=r;$('margin').oninput();ed.width=r.width;ed.height=r.height;
  await Promise.all([new Promise(ok=>{imgC.onload=ok;imgC.src=r.colour}),new Promise(ok=>{imgH.onload=ok;imgH.src=r.holes})]);
- if(!keep){poly=r.suggestion?r.suggestion.map(p=>p.slice()):[];edited=false}$('edph').hidden=true;invalidate();drawEd()}
-async function showRegion(){handInfo();$('regstats').innerHTML='';msg('msgreg','','');$('toDesign').disabled=!JOB.steps.region;
+ if(!keep){poly=r.suggestion?r.suggestion.map(p=>p.slice()):[];edited=false}$('edph').hidden=true;ed.hidden=false;invalidate();drawEd()}
+function edBlank(t){RUN=null;poly=[];edited=false;ex.clearRect(0,0,ed.width,ed.height);ed.hidden=true;$('edph').hidden=false;$('edph').innerHTML=`<span><span class="spin"></span> ${t}</span>`}
+async function showRegion(){handInfo();if(!RUN||!JOB.steps.hand||RUN.run!==JOB.steps.hand.run)edBlank(JOB.steps.hand?'Loading the scan…':'Finding the hand (about 10 s)…');$('regstats').innerHTML='';msg('msgreg','','');$('toDesign').disabled=!JOB.steps.region;
  if(JOB.steps.region){$('regstate').className='chip c-ok';$('regstate').textContent='Accepted'}
  try{if(!JOB.steps.hand){$('edph').hidden=false;$('edph').innerHTML='<span><span class="spin"></span> Finding the hand (about 10 s)…</span>';await detect()}
   else{await loadRun(false);if(JOB.steps.region){poly=JOB.steps.region.polygon_px.map(p=>p.slice());edited=true;drawEd();$('regstate').className='chip c-ok';$('regstate').textContent='Accepted'}}}
  catch(e){$('edph').hidden=false;$('edph').textContent=e.message;msg('msgreg','err',e.message)}}
-async function detect(){const r=await api('/api/studio/detect',{job:JOB.id});setJob(r.job);handInfo();await loadRun(false);$('toDesign').disabled=true}
+async function detect(){edBlank('Finding the hand (about 10 s)…');let r;try{r=await api('/api/studio/detect',{job:JOB.id})}catch(e){$('edph').textContent=e.message;throw e}setJob(r.job);handInfo();await loadRun(false);$('toDesign').disabled=true}
 $('redetect').onclick=async()=>{$('redetect').disabled=true;msg('msgreg','info','Detecting the hand…');try{await detect();msg('msgreg','','')}catch(e){msg('msgreg','err',e.message)}finally{$('redetect').disabled=false}};
 $('margin').oninput=()=>{const v=+$('margin').value;$('marginout').textContent=RUN&&RUN.suggestion_kind==='palm'?`(palm only, ${Math.round(100*v)}% smaller)`:RUN&&RUN.suggestion_kind==='model'?`(${Math.round(2+20*v)} mm - from the hand points: check the edges)`:`(${Math.round(2+20*v)} mm)`};$('margin').oninput();
 $('margin').onchange=async()=>{if(!RUN)return;if(edited&&!confirm('Replace your edited outline with a new suggestion?'))return;await loadRun(false)};
