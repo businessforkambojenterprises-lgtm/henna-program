@@ -117,8 +117,11 @@ class LinkCommandTests(unittest.TestCase):
 
     def test_ball_screw_route(self):
         cmds, pos = self.run_route("ball-screw")
-        self.assertEqual(cmds, ["$HZ", "$H", "$J=G21 G90 G53 Z-5.000 F300", "$J=G21 G90 G53 X65.700 Y80.000 F1000",
-                                "$J=G21 G90 G53 Z-5.000 F300"])
+        import json                                               # travel Z from the registry (-1 since 2026-10-22)
+        with open(os.path.join(ROOT, "machines", "registry.json"), encoding="utf-8") as f:
+            travel = next(m for m in json.load(f)["machines"] if m["id"] == "ball-screw")["motion"]["travel_z"]
+        self.assertEqual(cmds, ["$HZ", "$H", f"$J=G21 G90 G53 Z{travel:.3f} F300",
+                                "$J=G21 G90 G53 X65.700 Y80.000 F1000", "$J=G21 G90 G53 Z-5.000 F300"])
         self.assertEqual(pos, [65.7, 80.0, -5.0])
 
 
