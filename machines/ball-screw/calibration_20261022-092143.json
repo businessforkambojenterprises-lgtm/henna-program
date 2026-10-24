@@ -7,7 +7,7 @@
   "capture_pose_mpos": [
     65.7,
     80.0,
-    -5.0
+    -1.0
   ],
   "xy_calibration": "machines/ball-screw/xy_calibration_20261022-092143.json",
   "z_calibration": "machines/ball-screw/z_calibration_20261022-092143.json",

@@ -117,12 +117,19 @@ class LinkCommandTests(unittest.TestCase):
 
     def test_ball_screw_route(self):
         cmds, pos = self.run_route("ball-screw")
-        import json                                               # travel Z from the registry (-1 since 2026-10-22)
-        with open(os.path.join(ROOT, "machines", "registry.json"), encoding="utf-8") as f:
-            travel = next(m for m in json.load(f)["machines"] if m["id"] == "ball-screw")["motion"]["travel_z"]
+        mo = ball_screw_motion()          # travel Z (-1 since 2026-10-22) and scan Z (-1 since 2026-10-24) as registered
+        travel, scan_z = mo["travel_z"], mo["scan_pose_mpos"][2]
         self.assertEqual(cmds, ["$HZ", "$H", f"$J=G21 G90 G53 Z{travel:.3f} F300",
-                                "$J=G21 G90 G53 X65.700 Y80.000 F1000", "$J=G21 G90 G53 Z-5.000 F300"])
-        self.assertEqual(pos, [65.7, 80.0, -5.0])
+                                "$J=G21 G90 G53 X65.700 Y80.000 F1000", f"$J=G21 G90 G53 Z{scan_z:.3f} F300"])
+        self.assertEqual(pos, [65.7, 80.0, scan_z])
+
+
+def ball_screw_motion():
+    """The ball-screw machine's motion values as registered (machine_travel_z_set.py / machine_scan_z_set.py change
+    them on the real machine)."""
+    import json
+    with open(os.path.join(ROOT, "machines", "registry.json"), encoding="utf-8") as f:
+        return next(m for m in json.load(f)["machines"] if m["id"] == "ball-screw")["motion"]
 
 
 class CalibrationModeTests(unittest.TestCase):
@@ -132,7 +139,7 @@ class CalibrationModeTests(unittest.TestCase):
     def test_ball_screw_scans_but_no_programs(self):
         choose("ball-screw")
         c = v10.cal()
-        self.assertEqual(c["capture_pose_mpos"], [65.7, 80.0, -5.0])
+        self.assertEqual(c["capture_pose_mpos"], ball_screw_motion()["scan_pose_mpos"])
         self.assertNotIn("xy_calibration", c)
         job = v25.v24.job_new({"subject": "prosthetic"})
         ok = []

@@ -282,7 +282,10 @@ class ProductionFlowTests(unittest.TestCase):
         c = v10.cal()
         for k in ("xy_calibration", "z_calibration", "depth_scale"):
             self.assertNotIn(k, c)                                                # never the camera-to-nozzle parts
-        self.assertEqual(c["capture_pose_mpos"], [65.7, 80.0, -5.0])
+        import json                                   # as registered (scan Z -1 since 2026-10-24, machine_scan_z_set.py)
+        with open(os.path.join(ROOT, "machines", "registry.json"), encoding="utf-8") as f:
+            pose = next(m for m in json.load(f)["machines"] if m["id"] == "ball-screw")["motion"]["scan_pose_mpos"]
+        self.assertEqual(c["capture_pose_mpos"], pose)
 
     def test_belt_drive_cannot_use_the_calibration_tools(self):
         choose("belt-drive")
