@@ -30,12 +30,11 @@ CELL_MM = 1.0
 CLEAR_MM = 10.0
 CLEAR_SHARE = 0.98
 # Live gap under the nozzle while it draws (user 2026-10-24: "I want realsense to check realtime distance for better
-# accuracy" -> "build A, pause below 4 mm or above 9 mm"). The gap is the tip's height above the highest live skin
-# within NEAR_XY_MM of it (near_gap_mm). It is judged only while the nozzle DRAWS: its planned gap (tip Z - the scanned
-# skin under it) is the nozzle height within DRAW_BAND_MM - not on jumps, rises and drops. Outside GAP_MIN_MM ..
-# GAP_MAX_MM: verdict "gap" (the watch pauses). Needs ref.standoff_mm (set by Studio for real-hand jobs); never in an
-# air run. A gap that the camera cannot see (nozzle in the way) is not judged - the other checks still run.
-GAP_MIN_MM = 4.0
+# accuracy"): the tip's height above the highest live skin within NEAR_XY_MM of it (near_gap_mm), marked "drawing"
+# while its planned gap (tip Z - the scanned skin under it) is the nozzle height within DRAW_BAND_MM. Shown and logged
+# only - the pause below GAP_MIN_MM / above GAP_MAX_MM ("build A") was removed on the user's request ("Remove the live
+# gap pause" before live height following, henna_preview/follow.py). Needs ref.standoff_mm; never in an air run.
+GAP_MIN_MM = 4.0                    # the 2026-10-24 limits, kept for the log's reference only
 GAP_MAX_MM = 9.0
 DRAW_BAND_MM = 1.5
 
@@ -111,7 +110,7 @@ def air_reference(ref):
 
 
 def evaluate(ref, live_pts, tool_xyz):
-    """-> {'verdict': ok|moved|near|gap|unseen, numbers...} for one live picture."""
+    """-> {'verdict': ok|moved|near|unseen, numbers...} for one live picture."""
     clear = getattr(ref, "expect_clear", False)
     out = {"seen_share": 0.0, "points": 0, "median_dz_mm": None, "share_off": None, "near_gap_mm": None,
            "air_run": clear, "drawing": False, "planned_gap_mm": None}
@@ -131,11 +130,6 @@ def evaluate(ref, live_pts, tool_xyz):
             planned = float(tool[2] - zr_tool[0])
             out["planned_gap_mm"] = round(planned, 2)
             out["drawing"] = abs(planned - float(standoff)) <= DRAW_BAND_MM
-        gap = out["near_gap_mm"]
-        if out["drawing"] and gap is not None and not GAP_MIN_MM <= gap <= GAP_MAX_MM:
-            return dict(out, verdict="gap",
-                        text=f"the nozzle is {gap:.1f} mm above the skin under it (planned {float(standoff):g} mm; "
-                             f"allowed {GAP_MIN_MM:g} to {GAP_MAX_MM:g} mm while drawing)")
     zr, cell = ref.lookup(live_pts) if len(live_pts) else (np.array([]), np.array([], int))
     m = np.isfinite(zr)
     out["points"] = int(m.sum())
