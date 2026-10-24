@@ -20,6 +20,9 @@ class ProstheticStartTests(unittest.TestCase):
         self.saved = (v29.v28.hand_check, v29.v28._INNER["/api/machine/run"], v29.v28.machine_job_only, v29._log,
                       v29.v28.run)
         self.started, self.logs = [], []
+        # the jobs here are made up; the Z-home guard has its own tests (test_machine_z_home_moved.py)
+        self.saved_zhome = v29._z_home_check
+        v29._z_home_check = lambda job: None
         v29.v28._INNER["/api/machine/run"] = lambda p: self.started.append(p) or {"busy": "program"}
         v29.v28.machine_job_only = lambda job: None
         v29._log = lambda *a: self.logs.append(a)
@@ -27,6 +30,7 @@ class ProstheticStartTests(unittest.TestCase):
     def tearDown(self):
         (v29.v28.hand_check, v29.v28._INNER["/api/machine/run"], v29.v28.machine_job_only, v29._log,
          v29.v28.run) = self.saved
+        v29._z_home_check = self.saved_zhome
 
     def job(self, subject="prosthetic"):
         return {"id": "20261016-120000-job", "subject": subject, "steps": {"scan": {"name": "rec.db3"}}}

@@ -29,7 +29,10 @@ def _paper_z(c, k):
         with open(os.path.join(base.ROOT, c["xy_calibration"]), encoding="utf-8") as f:
             inp = json.load(f)["inputs"]
         depths = sorted(d["camera_mm"][2] for d in inp["dots"])
-        return float(inp["head_pose_at_capture"]["z"]) - (depths[len(depths) // 2] - k)
+        # the dot sheet's head Z is in the numbers of the calibration's homing; when the Z home switch moved up since
+        # (machine_z_home_moved.py, 2026-10-24) the same bed is that much lower in today's numbers
+        moved = float(c.get("z_home_moved_mm") or 0.0)
+        return float(inp["head_pose_at_capture"]["z"]) - (depths[len(depths) // 2] - k) - moved
     except (OSError, KeyError, TypeError, ValueError, IndexError):
         return None
 

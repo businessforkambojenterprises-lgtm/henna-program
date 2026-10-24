@@ -58,7 +58,10 @@ def plan_hops(paths, sample_fn, travel_z, clearance=HOP_CLEARANCE_MM):
     """One hop per gap between strokes. sample_fn(points_xy) -> highest skin Z or None."""
     hops = []
     for s0, s1 in zip(paths[:-1], paths[1:]):
-        top = sample_fn(crossing_points(s0[-1, :2], s1[0, :2]))
+        # the crossing as the program text will have it (X/Y to 0.001 mm) - verify_hops re-samples exactly these
+        # points; from the unrounded ends a sample on a steep edge could fall on the next pixel (2026-10-24: "low hop
+        # at Z -16.834 is only 4.80 mm above the skin (needs 5)")
+        top = sample_fn(crossing_points(np.round(s0[-1, :2], 3), np.round(s1[0, :2], 3)))
         if top is None:
             hops.append({"z": float(travel_z), "low": False, "reason": "no measured skin along the crossing"})
             continue

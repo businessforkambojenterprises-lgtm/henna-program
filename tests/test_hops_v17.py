@@ -192,5 +192,23 @@ class StudioV17(V14Base):
         self.assertEqual(server.Handler.server_version, "HennaStudio/0.17")
 
 
+class HopRoundingTests(unittest.TestCase):
+    """2026-10-24: "low hop at Z -16.834 is only 4.80 mm above the skin (needs 5)" - the hop was planned from the
+    unrounded stroke ends, the check re-reads the text (X/Y to 0.001 mm); on a steep edge the samples of the two fell on
+    different pixels. The plan now samples the crossing as the text has it."""
+
+    def test_plan_and_text_check_sample_the_same_crossing(self):
+        s0 = np.array([[45.0, 10.0, -30.0, -24.0], [49.9996, 10.0, -30.0, -24.0]])   # text: X50.000
+        s1 = np.array([[40.0, 10.0, -30.0, -24.0], [35.0, 10.0, -30.0, -24.0]])
+
+        def sample(points):                              # a skin edge just past the band of the unrounded end
+            return -25.0 if points[:, 0].max() >= 51.4998 else -30.0
+        hops = hp.plan_hops([s0, s1], sample, -1.0)
+        text = "\n".join(["G53 G1 X50.000 Y10.000 Z-24.000 F300", f"G53 G0 Z{hops[0]['z']:.3f}",
+                          "G53 G0 X40.000 Y10.000", "G53 G1 X40.000 Y10.000 Z-24.000 F300"])
+        self.assertEqual(hops[0]["skin_max_z"], -25.0)
+        self.assertEqual(len(hp.verify_hops(text, sample, -1.0)), 1)      # was: only 0.5 mm above the skin
+
+
 if __name__ == "__main__":
     unittest.main()

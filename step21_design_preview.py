@@ -64,6 +64,16 @@ def plan_design(cfg, fr, mask, head, xy_cal, k, depth_fn, p):
                     "skin_z": [round(float(st[0][:, 2].min()), 3), round(float(st[0][:, 2].max()), 3)],
                     "nozzle_z": [round(float(st[0][:, 3].min()), 3), round(float(st[0][:, 3].max()), 3)],
                     "max_raise_above_standoff_mm": stats["max_raise_above_standoff_due_to_floor_mm"]})
+    # skin lower than the nozzle can reach (2026-10-24: fingers in the jig's cut-out, skin at Z -46 with the nozzle
+    # 6 mm above it -> Z -40.3, under the Z travel) - a clear refusal, not the re-read's "Z or feed out of range"
+    low = [(n, st) for n, st in enumerate(paths, start=1) if st[:, 3].min() < p["firmware_z_floor"]]
+    if low:
+        pts = np.vstack([st[st[:, 3] < p["firmware_z_floor"]] for _, st in low])
+        lo = pts[np.argmin(pts[:, 3])]
+        problems.append(f"the skin under {len(low)} stroke(s) is too low for the nozzle: it would have to go to Z "
+                        f"{lo[3]:.1f} (skin Z {lo[2]:.1f}, near X{lo[0]:.0f} Y{lo[1]:.0f}) and the lowest it reaches is "
+                        f"Z {p['firmware_z_floor']:g} - place the design on a higher part of the hand (the middle of "
+                        "the palm), or raise the hand")
     return placed, paths, per, problems, centre, scale
 
 

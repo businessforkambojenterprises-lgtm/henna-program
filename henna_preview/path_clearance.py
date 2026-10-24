@@ -93,16 +93,21 @@ def in_corridor(xy, poly, margin):
     return inside | near
 
 
-def travel_segments(starts, strokes, approach=()):
+def travel_segments(starts, strokes, approach=(), gaps=None):
     """The nozzle's moves at travel height, in program order: from each possible start XY through the approach
     waypoints (henna_preview/travel_route.py) to the first stroke's start, then from each stroke's end to the next
-    stroke's start. strokes: [(start_xy, end_xy)]."""
+    stroke's start - through gaps[i]'s waypoints when the jump after stroke i goes round tall skin (2026-10-24).
+    strokes: [(start_xy, end_xy)]."""
     if not strokes:
         return []
     way = [tuple(map(float, w)) for w in approach] + [tuple(map(float, strokes[0][0]))]
     segs = [(tuple(map(float, s[:2])), way[0]) for s in starts]
     segs += list(zip(way[:-1], way[1:]))
-    segs += [(tuple(map(float, strokes[i][1])), tuple(map(float, strokes[i + 1][0]))) for i in range(len(strokes) - 1)]
+    gaps = gaps or {}
+    for i in range(len(strokes) - 1):
+        pts = ([tuple(map(float, strokes[i][1]))] + [tuple(map(float, w)) for w in gaps.get(i, ())]
+               + [tuple(map(float, strokes[i + 1][0]))])
+        segs += list(zip(pts[:-1], pts[1:]))
     return segs
 
 

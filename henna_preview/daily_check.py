@@ -20,6 +20,9 @@ import numpy as np
 # (OK up to, CHECK up to) - above the second = RECALIBRATE
 LIMITS = {"height_mm": (0.5, 1.0), "sideways_mm": (0.3, 0.7), "tilt_deg": (0.15, 0.3)}
 CHANGED_MM, CHANGED_MAX_PCT = 2.0, 5.0        # more of the bed changed than this -> the comparison is not fair
+MIN_MATCH = 0.5                               # picture match below this: the bed does not look like the reference
+                                              # (good checks 0.91-0.94; 2026-10-24: jig board instead of the dot
+                                              # sheet of the reference -> 0.18, "sideways 49.6 mm", "RECALIBRATE")
 BORDER = 0.1                                  # ignore 10 % at each picture edge
 
 
@@ -124,6 +127,13 @@ def compare(ref, cur, limits=LIMITS):
         out.update(verdict="UNCLEAR", reasons=[f"{changed_pct:.0f} % of the bed changed by more than {CHANGED_MM:g} mm - "
                                                "something is on the bed (a hand? an object?) or was moved; "
                                                "clear the bed as at the reference and check again"])
+        return out
+    if response < MIN_MATCH:
+        out.update(verdict="UNCLEAR", reasons=[f"the picture of the bed does not match the reference (match "
+                                               f"{response:.2f}, a good check is above 0.9) - the bed is set up "
+                                               "differently (another board, sheet or jig, or moved); set it up as at "
+                                               "the reference and check again. If it is exactly as at the reference, "
+                                               "the camera moved a lot: recalibrate"])
         return out
     grades = {"height_mm": _grade(abs(offset), limits["height_mm"]),
               "tilt_deg": _grade(tilt_deg, limits["tilt_deg"]),

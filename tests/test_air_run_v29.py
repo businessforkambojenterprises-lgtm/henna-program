@@ -60,6 +60,9 @@ class StudioAirRunTests(unittest.TestCase):
                       v29.v28._INNER["/api/machine/resume"], v29.v28.WATCH.start, v29.v28.reference, v29._RESUME,
                       v29._log)
         self.calls = []
+        # the jobs here are made up; the Z-home guard has its own tests (test_machine_z_home_moved.py)
+        self.saved_zhome = v29._z_home_check
+        v29._z_home_check = lambda job: None
         self.job = {"id": "20261022-120000-job", "subject": "realhand",
                     "steps": {"scan": {"name": "s.db3", "mpos": [65.7, 80, -5]}, "design": {"standoff_mm": 6},
                               "program": {"draw_feed_mm_min": 300}}}
@@ -79,6 +82,7 @@ class StudioAirRunTests(unittest.TestCase):
         (v29.v11.job_load, v29.v28._real_rules, v29.air_check, v29.v28._INNER["/api/machine/run"],
          v29.v28._INNER["/api/machine/resume"], v29.v28.WATCH.start, v29.v28.reference, v29._RESUME,
          v29._log) = self.saved
+        v29._z_home_check = self.saved_zhome
         with v29.v28.WATCH.lock:
             v29.v28.WATCH.state = {"active": False}
 

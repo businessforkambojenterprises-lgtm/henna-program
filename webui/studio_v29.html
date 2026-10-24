@@ -71,7 +71,7 @@ a.btn{text-decoration:none;color:inherit}
 @media (max-width:1100px){.cols,.cols.even{grid-template-columns:minmax(0,1fr)}}
 .stack{display:grid;gap:18px;align-content:start}
 label.f{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.4px}
-select,input[type=number],input[type=text],textarea{width:100%;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2)}
+select,input[type=number],input[type=text],input:not([type]),textarea{width:100%;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2)}
 #capprover,#mrecalby,#maddname,#madddrive{background:#fff;color:#000;font-weight:700}
 textarea{resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;line-height:1.45}
 input[type=range]{width:100%;accent-color:var(--accent)}
@@ -175,6 +175,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
  <button class="btn small" id="btnjobs" type="button">Jobs</button>
  <button class="btn small primary" id="btnnew" type="button">New job</button>
  <button class="btn small ghost" id="btntheme" type="button" aria-label="Switch light or dark">◐</button>
+ <button class="btn small" id="btnexit" type="button" title="Close Henna Studio: camera off, machine disconnected">Exit</button>
 </header>
 
 <div class="shell">
@@ -192,6 +193,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
   <!-- welcome -->
   <section id="v-welcome">
    <div class="head"><div><h1>Welcome to Henna Studio</h1><p>Start a new job to scan a hand, outline the area, place a design, write a checked hover program and run it from here. Or resume a job from the list.</p></div></div>
+   <div class="card" style="margin-bottom:16px"><h2>Repeat a setup</h2><p class="sub">The same design for the next hand in the same jig. Choose a setup, Move to scan position, put the hand in, then Scan &amp; prepare: Studio places the outline and the design on this hand, checks them on the new scan and writes the program. Then Start.</p><div class="joblist" id="setups"></div></div>
    <div class="cols even">
     <div class="card"><h2>New job</h2><p class="sub">Choose what is under the camera.</p><div class="choice">
      <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow: scan, region, design, hover program and run - all in Studio.</span></button>
@@ -318,6 +320,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
       <p class="hint" id="scanposhelp" aria-live="polite">Waiting for fresh machine status.</p>
       <label class="f" for="scansec">Length</label>
       <div class="row"><input type="range" id="scansec" min="3" max="10" step="1" value="5"><span class="mono" id="scansecout" style="width:40px">5 s</span></div>
+      <div id="prepbox" hidden style="margin-top:16px"><button class="btn primary block" id="scanprep" type="button" disabled>Scan &amp; prepare</button><p class="hint" id="prephint" style="margin:4px 0 0"></p></div>
       <button class="btn primary block" id="scanrec" type="button" style="margin-top:16px" disabled>Record scan</button>
       <div class="msg" id="msgscan"></div>
       <ul class="checks" id="scanchecks"></ul>
@@ -346,8 +349,9 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
      <div class="card">
       <h2>Hand detection</h2><p class="sub" id="handinfo">—</p>
       <button class="btn block" id="redetect" type="button">Detect again</button>
-      <label class="f" for="margin">Suggested outline margin <span id="marginout"></span></label>
+      <label class="f" for="margin">Suggested outline - in from the hand's edge <span id="marginout"></span></label>
       <input type="range" id="margin" min="0" max="0.5" step="0.01" value="0.15">
+      <p class="hint" id="reachinfo" style="margin:6px 0 0"></p>
       <button class="btn block" id="regreset" type="button" style="margin-top:12px">Reset to suggestion</button>
      </div>
      <div class="card">
@@ -454,6 +458,9 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
       <div class="msg" id="msgrun"></div>
      </div>
      <div class="card"><h2>Runs of this job</h2><div id="runhist" style="margin-top:8px"></div></div>
+     <div class="card" id="savesetcard" hidden><h2>Save as setup</h2><p class="sub">Keep this outline, design and program settings for the next hand in the same jig. Next time: Repeat a setup on the welcome page, Move to scan position, hand in, Scan &amp; prepare, Start.</p>
+      <div class="row" style="gap:8px"><input id="savesetname" placeholder="Name, e.g. Arabic bel - left hand" maxlength="60" style="flex:1;min-width:0"><button class="btn" id="savesetgo" type="button">Save</button></div>
+      <div class="msg" id="msgsaveset"></div></div>
     </div>
     <div class="stack">
      <div class="card"><h2>Before you start</h2><ol class="ol">
@@ -481,7 +488,9 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
  <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow, including the hover run.</span></button>
  <button class="opt" type="button" data-subject="person"><b>Real hand - camera only</b><span>Camera only: scan, region and design preview.</span></button>
 <button class="opt" type="button" data-subject="realhand"><b>Real hand - hover run</b><span>The full workflow on a real hand: 6 mm above the skin, 300 mm/min. The camera watches the hand and pauses the machine if it moves. No paste.</span></button>
-</div><div class="foot"><span></span><button class="btn" type="button" data-close>Cancel</button></div></div></dialog>
+</div><h2 style="margin-top:18px">Saved setups</h2><p class="sub">The same design for the next hand in the same jig - then Move to scan position, hand in, Scan &amp; prepare, Start.</p>
+<div class="joblist" id="setupsnew" style="max-height:240px;overflow:auto"></div>
+<div class="foot"><span></span><button class="btn" type="button" data-close>Cancel</button></div></div></dialog>
 <dialog id="dlghome"><div class="dlg"><h2>Home the machine</h2><p class="sub">Sends $HZ (Z up first), then $H. The head moves to its home corner.</p>
  <label class="check"><input type="checkbox" id="hclear"><span>Nothing is under or near the nozzle - no hand on the bed.</span></label>
  <label class="check"><input type="checkbox" id="hestop"><span>I am at the emergency stop.</span></label>
@@ -574,14 +583,28 @@ function setJob(j){JOB=j;renderRail()}
 function jobRows(list){if(!list.length)return'<div class="empty">No jobs yet.</div>';
  return list.map(j=>`<button class="jobrow" type="button" data-job="${esc(j.id)}"><span class="a">${esc(j.id.replace(/-job.*$/,'').replace(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/,'$3.$2.$1 $4:$5'))}${j.design?' · '+esc(j.design.replace('.svg','')):''}</span>
  <span class="chip ${j.verdict==='PASS'?'c-ok':j.subject==='person'?'c-warn':'c-info'}">${esc(j.status)}</span><span class="b">${j.subject==='prosthetic'?'Prosthetic':j.subject==='realhand'?'Real hand (watched run)':'Real hand (camera only)'} · ${j.machine?esc(j.machine):'no machine (before v24)'}${j.recording?' · '+esc(j.recording):''}</span></button>`).join('')}
-async function showWelcome(){try{const j=await api('/api/studio/jobs');$('recent').innerHTML=jobRows(j.jobs.slice(0,8))}catch(e){$('recent').innerHTML=`<div class="msg err" style="display:block">${esc(e.message)}</div>`}}
+function setupRows(list){if(!list.length)return'<div class="empty">No setups yet. Save one on the Run step of a job whose design passed its check.</div>';
+ return list.map(t=>`<div class="row" style="gap:6px;align-items:stretch;flex-wrap:nowrap"><button class="jobrow" style="flex:1;min-width:0" type="button" data-setup="${esc(t.id)}"><span class="a">${esc(t.name)}</span><span class="chip c-info">${t.subject==='realhand'?'Real hand':'Prosthetic'}</span><span class="b">${esc(String(t.svg||'').split('/').pop().replace('.svg',''))} · ${esc(t.fit_mm)} mm · ${esc(t.standoff_mm)} mm above skin${t.paste?' · '+esc(t.paste):''}${t.machine?' · '+esc(t.machine):''}</span></button><button class="btn" type="button" data-setupdel="${esc(t.id)}" aria-label="Delete setup ${esc(t.name)}" title="Delete this setup">✕</button></div>`).join('')}
+async function loadSetups(){let h;try{h=setupRows((await api('/api/studio/setups')).setups)}catch(e){h=`<div class="empty">${esc(e.message)}</div>`}
+ $('setups').innerHTML=h;$('setupsnew').innerHTML=h}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-setup]');if(!b||machineBusy())return;document.querySelectorAll('dialog').forEach(d=>d.open&&d.close());
+ try{const r=await api('/api/studio/setup_job',{setup:b.dataset.setup});JOB=r.job;store('studio-job',r.job.id);go('scan')}catch(err){alert(err.message)}});
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-setupdel]');if(!b)return;
+ if(!confirm('Delete this setup? Jobs made from it are kept.'))return;
+ try{await api('/api/studio/setup_delete',{id:b.dataset.setupdel,confirm:true});await loadSetups()}catch(err){alert(err.message)}});
+async function showWelcome(){loadSetups();try{const j=await api('/api/studio/jobs');$('recent').innerHTML=jobRows(j.jobs.slice(0,8))}catch(e){$('recent').innerHTML=`<div class="msg err" style="display:block">${esc(e.message)}</div>`}}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-job]');if(!b||machineBusy())return;document.querySelectorAll('dialog').forEach(d=>d.open&&d.close());
  try{await openJob(b.dataset.job)}catch(err){alert(err.message)}});
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-subject]');if(!b||machineBusy())return;
  document.querySelectorAll('dialog').forEach(d=>d.open&&d.close());
  try{const j=await api('/api/studio/job_new',{subject:b.dataset.subject});JOB=j;store('studio-job',j.id);go('scan')}catch(err){alert(err.message)}});
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
-$('btnnew').onclick=()=>$('dlgnew').showModal();
+$('btnexit').onclick=async()=>{
+ if(!confirm('Close Henna Studio? The camera is turned off, the machine is disconnected and the Studio window closes. Start it again from the desktop shortcut "Henna Studio (PC - latest)".'))return;
+ try{await api('/api/studio/exit',{confirm:true})}catch(e){alert(e.message);return}
+ clearInterval(camTimer);document.body.innerHTML='<div style="display:grid;place-items:center;min-height:100vh;padding:24px;text-align:center"><div><h1>Henna Studio is closed</h1><p class="sub">The camera is off and the machine is disconnected. You can close this tab.<br>Start Studio again from the desktop shortcut "Henna Studio (PC - latest)".</p></div></div>';
+ setTimeout(()=>{try{window.close()}catch(e){}},300)};
+$('btnnew').onclick=()=>{$('setupsnew').innerHTML='<div class="empty"><span class="spin"></span></div>';loadSetups();$('dlgnew').showModal()};
 $('btnjobs').onclick=async()=>{$('joblist').innerHTML='<div class="empty"><span class="spin"></span></div>';$('dlgjobs').showModal();
  try{$('joblist').innerHTML=jobRows((await api('/api/studio/jobs')).jobs)}catch(e){$('joblist').innerHTML=`<div class="empty">${esc(e.message)}</div>`}};
 
@@ -597,11 +620,20 @@ function camStop(){clearInterval(camTimer);fetch('/api/cam/stop',{method:'POST',
 function scanChecks(sc){const c=sc.checks;if(!c)return`<li><span class="ok">✓</span><span>Using existing recording ${esc(sc.name)} (${sc.frame_pairs} frame pairs)</span></li>`;
  return[`Saved ${esc(sc.name)}`,`Depth units ${Number(c.depth_units_m.toPrecision(3))} m`,`${c.camera_settings} camera settings stored`,`${sc.frame_pairs} frame pairs`,`Median depth ${c.median_depth_mm} mm`]
   .map(t=>`<li><span class="ok">✓</span><span>${t}</span></li>`).join('')}
-async function showScan(){scanPositionShow();machPoll();
+async function showScan(){const su=JOB.setup;$('prepbox').hidden=!su;$('scanrec').classList.toggle('primary',!su);
+ if(su)$('prephint').textContent=`Setup "${su.name}". First Move to scan position with no hand under the machine. Then put the hand in the jig and keep it still: Scan & prepare records the scan, finds the hand, places the outline and the design on it, checks the design on this scan and writes the program - about a minute.`;
+ scanPositionShow();machPoll();
  $('scanchecks').innerHTML=JOB.steps.scan?scanChecks(JOB.steps.scan):'';$('toHand').disabled=!JOB.steps.scan;msg('msgscan','','');
  camStart();
  try{const j=await api('/api/recordings');recs=j.recordings.filter(r=>r.usable).sort((a,b)=>b.modified.localeCompare(a.modified));
   $('exrec').innerHTML=recs.map((r,i)=>`<option value="${i}">${esc(r.name)} · ${r.frame_pairs} frames · ${esc(r.modified.replace('T',' '))}</option>`).join('')}catch(e){}}
+$('scanprep').onclick=async()=>{if(!scanReady()){scanPositionShow();msg('msgscan','err','Move to scan position first - before the hand goes in.');return}
+ if(!confirm('Scan & prepare: the hand is in the jig and still, nothing else is in the travel area and you are at the emergency stop?'))return;
+ const jobId=JOB.id;let r=null;recBusy=true;machGeneration++;machShow(MACH);msg('msgscan','info','Scan & prepare: scan, hand, outline, design check and program - about a minute. Keep the hand still.');
+ try{r=await api('/api/studio/setup_prepare',{job:jobId,confirm_clear:true,confirm_estop:true});setJob(r.job)}
+ catch(e){msg('msgscan','err',e.message);try{setJob(await api('/api/studio/job?id='+encodeURIComponent(jobId)))}catch(_){}}
+ finally{recBusy=false;machSeen=0;machGeneration++;machShow(MACH);machPoll()}
+ if(r){go('run');msg('msgrun','good',`Ready: the design is on this hand (${r.followed.shift_mm} mm / ${r.followed.turn_deg} deg from the setup's hand), every check passed on this scan and the program is written. Start when ready.`)}};
 $('scansec').oninput=()=>$('scansecout').textContent=$('scansec').value+' s';
 $('scanrec').onclick=async()=>{if(!scanReady()){scanPositionShow();msg('msgscan','err','Wait for a fresh, homed, idle machine at the scan position.');return}
  const jobId=JOB.id;recBusy=true;machGeneration++;machShow(MACH);msg('msgscan','info','Recording - keep everything still. Then the file is checked (about 20 s).');
@@ -617,17 +649,21 @@ $('toHand').onclick=()=>go('region');
 /* ---------- 2 hand & region ---------- */
 let RUN=null,poly=[],edited=false,checked=false,dragI=-1;const imgC=new Image(),imgH=new Image(),ed=$('ed'),ex=ed.getContext('2d');
 function handInfo(){const h=JOB.steps.hand;$('handinfo').textContent=h?`Hand found · confidence ${fmt(h.score)} · frame ${h.frame} · ${h.landmarks_on_missing_depth} of 21 landmarks on missing depth`:'Not detected yet'}
-async function loadRun(keep){const r=await api(`/api/studio/hand?job=${encodeURIComponent(JOB.id)}&margin=${$('margin').value}`);RUN=r;ed.width=r.width;ed.height=r.height;
+async function loadRun(keep){const r=await api(`/api/studio/hand?job=${encodeURIComponent(JOB.id)}&margin=${$('margin').value}`);RUN=r;$('margin').oninput();reachInfo(r);ed.width=r.width;ed.height=r.height;
  await Promise.all([new Promise(ok=>{imgC.onload=ok;imgC.src=r.colour}),new Promise(ok=>{imgH.onload=ok;imgH.src=r.holes})]);
- if(!keep){poly=r.suggestion?r.suggestion.map(p=>p.slice()):[];edited=false}$('edph').hidden=true;invalidate();drawEd()}
-async function showRegion(){handInfo();$('regstats').innerHTML='';msg('msgreg','','');$('toDesign').disabled=!JOB.steps.region;
+ if(!keep){poly=r.suggestion?r.suggestion.map(p=>p.slice()):[];edited=false}$('edph').hidden=true;ed.hidden=false;invalidate();drawEd()}
+function reachInfo(r){const a=r.reach;if(!a||r.suggestion_kind==='palm'){$('reachinfo').textContent='';return}
+ const b=a.bed_z,mm=z=>b==null?`Z ${z}`:`${Math.round(z-b)} mm above the bed`;
+ $('reachinfo').textContent=`The suggestion keeps to skin the nozzle can reach: from ${mm(a.lowest_skin_z)} to ${mm(a.highest_skin_z)}. Lower parts (fingers lying low) and taller parts (heel of the palm, wrist) are left out - a design there would be refused.`}
+function edBlank(t){$('reachinfo').textContent='';RUN=null;poly=[];edited=false;ex.clearRect(0,0,ed.width,ed.height);ed.hidden=true;$('edph').hidden=false;$('edph').innerHTML=`<span><span class="spin"></span> ${t}</span>`}
+async function showRegion(){handInfo();if(!RUN||!JOB.steps.hand||RUN.run!==JOB.steps.hand.run)edBlank(JOB.steps.hand?'Loading the scan…':'Finding the hand (about 10 s)…');$('regstats').innerHTML='';msg('msgreg','','');$('toDesign').disabled=!JOB.steps.region;
  if(JOB.steps.region){$('regstate').className='chip c-ok';$('regstate').textContent='Accepted'}
  try{if(!JOB.steps.hand){$('edph').hidden=false;$('edph').innerHTML='<span><span class="spin"></span> Finding the hand (about 10 s)…</span>';await detect()}
   else{await loadRun(false);if(JOB.steps.region){poly=JOB.steps.region.polygon_px.map(p=>p.slice());edited=true;drawEd();$('regstate').className='chip c-ok';$('regstate').textContent='Accepted'}}}
  catch(e){$('edph').hidden=false;$('edph').textContent=e.message;msg('msgreg','err',e.message)}}
-async function detect(){const r=await api('/api/studio/detect',{job:JOB.id});setJob(r.job);handInfo();await loadRun(false);$('toDesign').disabled=true}
+async function detect(){edBlank('Finding the hand (about 10 s)…');let r;try{r=await api('/api/studio/detect',{job:JOB.id})}catch(e){$('edph').textContent=e.message;throw e}setJob(r.job);handInfo();await loadRun(false);$('toDesign').disabled=true}
 $('redetect').onclick=async()=>{$('redetect').disabled=true;msg('msgreg','info','Detecting the hand…');try{await detect();msg('msgreg','','')}catch(e){msg('msgreg','err',e.message)}finally{$('redetect').disabled=false}};
-$('margin').oninput=()=>$('marginout').textContent=`(${Math.round(100*$('margin').value)}%)`;$('margin').oninput();
+$('margin').oninput=()=>{const v=+$('margin').value;$('marginout').textContent=RUN&&RUN.suggestion_kind==='palm'?`(palm only, ${Math.round(100*v)}% smaller)`:RUN&&RUN.suggestion_kind==='model'?`(${Math.round(2+20*v)} mm - from the hand points: check the edges)`:`(${Math.round(2+20*v)} mm)`};$('margin').oninput();
 $('margin').onchange=async()=>{if(!RUN)return;if(edited&&!confirm('Replace your edited outline with a new suggestion?'))return;await loadRun(false)};
 $('regreset').onclick=async()=>{if(!RUN)return;if(edited&&!confirm('Discard your edits?'))return;await loadRun(false)};
 function invalidate(){checked=false;$('regaccept').disabled=true;$('regstate').className='chip c-info';$('regstate').textContent='Not checked'}
@@ -803,7 +839,11 @@ function showRun(){const p=JOB.steps.program,s=JOB.steps;
   .map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
  const st=scanTime(s.scan.name);$('scanage').textContent=st?`Scan taken ${ago(st)}.`:'';
  if(st&&Date.now()-st>30*60000)$('scanage').textContent+=' The prosthetic settles 0.25–1 mm in about 30 min - consider a new scan.';
- msg('msgrun','','');renderRunHist();runShow()}
+ msg('msgrun','','');renderRunHist();runShow();saveSetShow()}
+function saveSetShow(){const d=JOB.steps.design;$('savesetcard').hidden=!(['prosthetic','realhand'].includes(JOB.subject)&&d&&d.verdict==='PASS');msg('msgsaveset','','')}
+$('savesetgo').onclick=async()=>{const n=$('savesetname').value.trim();if(n.length<2){msg('msgsaveset','err','Give the setup a name.');return}
+ $('savesetgo').disabled=true;try{await api('/api/studio/setup_save',{job:JOB.id,name:n});$('savesetname').value='';msg('msgsaveset','good',`Saved "${n}". It is under Repeat a setup on the welcome page.`)}
+ catch(e){msg('msgsaveset','err',e.message)}finally{$('savesetgo').disabled=false}};
 function renderRunHist(){const rs=runsOfProgram().slice().reverse();
  $('runhist').innerHTML=rs.length?'<table><thead><tr><th>Started</th><th>Result</th><th>Lines</th><th>Time</th></tr></thead><tbody>'+rs.map(r=>`<tr><td>${esc((r.started||'').replace('T',' '))}</td>
   <td><span class="chip ${r.result==='finished'?'c-ok':r.result==='running'?'c-info':r.result==='stopped'?'c-warn':'c-bad'}">${esc(r.result)}</span>${r.error?`<div class="hint">${esc(r.error)}</div>`:''}</td>
@@ -876,7 +916,7 @@ function scanPositionShow(){const m=MACH||{},fresh=machFresh(),busy=machineBusy(
  else{title='Move to scan position';help=m.capture_error||'Clear the travel area, then use Move to scan position.'}
  chip.className='chip '+kind;chip.textContent=title;$('scanposhelp').textContent=help;
  $('scanposcoords').textContent=m.mpos?`${fresh?'':'Last reported: '}X${fmt(m.mpos[0],3)} Y${fmt(m.mpos[1],3)} Z${fmt(m.mpos[2],3)}`:'';
- $('scanmove').disabled=!canMove;$('scanrec').disabled=!ready;$('scansec').disabled=!!busy;
+ $('scanmove').disabled=!canMove;$('scanrec').disabled=!ready;$('scanprep').disabled=!ready;$('scansec').disabled=!!busy;
  $('scanclear').disabled=!!busy;$('scanestop').disabled=!!busy;
  $('scanmovego').disabled=!canMove||!$('scanclear').checked||!$('scanestop').checked;
  $('hclear').disabled=!!busy;$('hestop').disabled=!!busy;

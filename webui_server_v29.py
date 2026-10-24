@@ -131,13 +131,39 @@ def travel_lines(job, design, approach=()):
 # The route of the first travel move each job's last path check chose (user 2026-10-22, "build step 2"): the program
 # step writes it, and a run is refused when its program's route is a different one.
 _LAST_APPROACH = {}
+_LAST_GAPS = {}                                         # the same for the jumps between strokes (2026-10-24)
 
 
-def path_measure(job, design=None):
+def _gap_key(gaps):
+    """Jumps round tall skin, comparable: sorted ((from), (waypoints...), (to)) rounded to 0.001 mm."""
+    def r(p):
+        return tuple(round(float(v), 3) for v in p)
+    out = []
+    for g in gaps:
+        if isinstance(g, dict):
+            g = (g["from"], g["waypoints"], g["to"])
+        out.append((r(g[0]), tuple(r(w) for w in g[1]), r(g[2])))
+    return sorted(out)
+
+
+def _same_gaps(a, b, tol=0.011):
+    """Same jumps: the same waypoints (written from the check's numbers) between stroke ends that agree to 0.01 mm
+    (the program's stroke ends are the placement's, as for the first move's target)."""
+    if len(a) != len(b):
+        return False
+    for (fa, wa, ta), (fb, wb, tb) in zip(a, b):
+        if wa != wb or max(abs(x - y) for x, y in zip(fa + ta, fb + tb)) > tol:
+            return False
+    return True
+
+
+def path_measure(job, design=None, standoff_mm=None):
     """The nozzle-path corridor of a job with a scan and a region: the measured surface (sub-sampled pixels) and
     pc.corridor_top's result. Raises tc.ClearanceError when the path cannot be measured. Also used by
     path_clearance_picture.py, so the picture shows exactly what the design check measured.
-    design: the placement to check (default: the job's); its travel lines are the corridor (pc.travel_segments)."""
+    design: the placement to check (default: the job's); its travel lines are the corridor (pc.travel_segments).
+    Jumps between strokes that cross skin too tall for travel Z go round it (travel_route.choose_gap, 2026-10-24);
+    standoff_mm sets that limit (default: the placement's, else the real-hand 6 mm)."""
     import cv2
     from henna_preview import path_clearance as pc
     from henna_preview import travel_clearance as tc
@@ -160,18 +186,31 @@ def path_measure(job, design=None):
     d_med = float(np.median(sub[keep & (sub > 0)])) * float(scale) * 1000.0
     mm_per_px = float(abs(rays[0][0, 1] - rays[0][0, 0])) * d_med
     plan = travel_plan(job, design if design is not None else s.get("design"))
-    approach, rated = [], []
+    approach, rated, gaps = [], [], {}
     if plan:
+        from henna_preview import grbl_program_link as gpl
         from henna_preview import travel_route
         keep = np.hypot(*(xy - np.asarray(head[:2])).T) > pc.HEAD_FOOTPRINT_MM
         approach, _, rated = travel_route.choose(head[:2], plan["strokes"][0][0], xy, z, pc.MARGIN_MM, keep)
-    segments = pc.travel_segments(plan["starts"], plan["strokes"], approach) if plan else None
+        if standoff_mm is None:
+            standoff_mm = (design or s.get("design") or {}).get("standoff_mm") or v28.REAL_MIN_STANDOFF_MM
+        limit = float(v10.cal()["travel_z"]) - (max(float(standoff_mm), float(v27.HOP_CLEARANCE_MM)) + tc.MARGIN_MM)
+        st = plan["strokes"]
+        for i in range(len(st) - 1):
+            w, _ = travel_route.choose_gap(st[i][1], st[i + 1][0], xy, z, pc.MARGIN_MM, limit, keep,
+                                           (gpl.X_MAX, gpl.Y_MAX))
+            if w:
+                gaps[i] = w
+    segments = pc.travel_segments(plan["starts"], plan["strokes"], approach, gaps) if plan else None
     try:
         r = pc.corridor_top(xy, z, xyb, region_ok, head[:2], blind_mask=blind_mask, mm_per_px=mm_per_px, ok_mask=ok,
                             segments=segments)
     except pc.PathClearanceError as e:
         raise tc.ClearanceError(f"Nozzle path check: {e}") from None
     r = dict(r, approach=[[round(float(v), 3) for v in w] for w in approach],
+             gaps=[{"from": [round(float(v), 3) for v in plan["strokes"][i][1]],
+                    "to": [round(float(v), 3) for v in plan["strokes"][i + 1][0]],
+                    "waypoints": [[round(float(v), 3) for v in w] for w in gaps[i]]} for i in sorted(gaps)],
              approach_candidates=[{"waypoints": [[round(float(v), 1) for v in w] for w in c],
                                    "top_z": None if t is None else round(t, 2)} for c, t in rated])
     target = [round(float(v), 3) for v in plan["strokes"][0][0]] if plan else None
@@ -185,15 +224,16 @@ def path_clearance(job, standoff_mm):
     s = job["steps"]
     if not s.get("region") or not s.get("scan"):
         return _WHOLE_HAND_CLEARANCE(job, standoff_mm)
-    m = path_measure(job, getattr(_PENDING, "design", None))
+    m = path_measure(job, getattr(_PENDING, "design", None), standoff_mm)
     r, rec, p = m["r"], m["recording"], m["parts"]
     c = v10.cal()
     bed = v27._paper_z(c, p["k"])
     os.environ["HENNA_PATH_TOP"] = json.dumps({"recording": os.path.basename(rec), "top_z": r["top_z"],
                                                "basis": r["basis"]})
     os.environ["HENNA_APPROACH"] = json.dumps({"recording": os.path.basename(rec), "target": m["target"],
-                                               "waypoints": r["approach"]})
+                                               "waypoints": r["approach"], "gaps": r["gaps"]})
     _LAST_APPROACH[job["id"]] = [tuple(w) for w in r["approach"]]
+    _LAST_GAPS[job["id"]] = _gap_key(r["gaps"])
     try:
         out = tc.check(r["top_z"], c["travel_z"], standoff_mm, v27.HOP_CLEARANCE_MM, bed_z=bed)
     except tc.ClearanceError as e:
@@ -218,9 +258,40 @@ _WHOLE_HAND_CLEARANCE = v27.clearance
 _CHECK_DESIGN = v28.Handler.POST_API["/api/studio/check_design"]
 
 
+def _scan_time(job):
+    """When the job's scan was recorded: the recording's name (YYYYMMDD_HHMMSS_...), else its file time; or None."""
+    sc = job["steps"].get("scan") or {}
+    m = re.match(r"^(\d{8})_(\d{6})", os.path.basename(str(sc.get("name") or sc.get("recording") or "")))
+    if m:
+        return dt.datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M%S")
+    try:
+        return dt.datetime.fromtimestamp(os.path.getmtime(sc["recording"]))
+    except (KeyError, OSError, TypeError):
+        return None
+
+
+def _z_home_check(job):
+    """A scan made before the Z home switch was moved (machine_z_home_moved.py, user 2026-10-24) measured its heights
+    in the old Z numbers - planned now, every height would be off by that much. Refused; a new scan is needed."""
+    c = v10.cal()
+    at = c.get("z_home_moved_at")
+    if not at or not (job["steps"].get("scan")):
+        return
+    t = _scan_time(job)
+    if t is None or t < dt.datetime.fromisoformat(at):
+        raise ValueError(f"this job's scan was made before the Z home switch was moved ({at.replace('T', ' ')}) - its "
+                         "heights are in the old Z numbers. Start a new job (or record the scan again)")
+
+
 def check_design(params):
     """The design check, with its placement known to the travel-line clearance while it runs."""
     p = params or {}
+    try:
+        job = v11.job_load(p.get("job"))
+    except ValueError:
+        job = None                                          # the design check itself answers "unknown job"
+    if job:
+        _z_home_check(job)
     _PENDING.design = {k: p.get(k) for k in ("svg", "fit_mm", "rotation_deg", "centre_machine_xy")}
     try:
         return _CHECK_DESIGN[0](params)
@@ -287,16 +358,21 @@ def _route_check(job, lines):
     """The program's route to its first stroke must be the one the path check just measured (it ran first in the
     same request: v27's guard / v28's real-hand rules)."""
     from henna_preview import travel_route
-    got = [tuple(round(float(v), 3) for v in w) for w in travel_route.program_approach(lines, v10.cal()["travel_z"])]
+    travel = v10.cal()["travel_z"]
+    got = [tuple(round(float(v), 3) for v in w) for w in travel_route.program_approach(lines, travel)]
+    got_gaps = _gap_key(travel_route.program_gaps(lines, travel))
     want = _LAST_APPROACH.get(job["id"])
     if v27.clearance is not path_clearance or want is None:
-        if got:
-            raise ValueError("this program goes round tall skin on its way to the first stroke, which only the path "
-                             "check can approve - write the program again")
+        if got or got_gaps:
+            raise ValueError("this program goes round tall skin between its strokes or on its way to the first one, "
+                             "which only the path check can approve - write the program again")
         return
     if got != [tuple(round(float(v), 3) for v in w) for w in want]:
         raise ValueError("the program's route to the first stroke is not the one checked now (the hand or the design "
                          "changed) - write the program again")
+    if not _same_gaps(got_gaps, _LAST_GAPS.get(job["id"], [])):
+        raise ValueError("the program's jumps round tall skin between strokes are not the ones checked now (the hand "
+                         "or the design changed) - write the program again")
 
 
 def checked_program(job):
@@ -328,6 +404,7 @@ v17.checked_program = checked_program
 
 
 def program(params):
+    _z_home_check(v11.job_load(params.get("job")))
     cfg = dispense.settings(params.get("dispenser"), params.get("start_delay_s"), params.get("stop_delay_s"))
     out = v28.program(params)                                # the hover program, written and checked as in v28
     if cfg is None:
@@ -486,6 +563,7 @@ _RESUME = v28.Handler.POST_API["/api/machine/resume"]
 
 def run(params):
     job = v11.job_load(params.get("job"))
+    _z_home_check(job)
     if params.get("air_run") is True and job.get("subject") != v28.REAL:
         raise ValueError("The air run option is for real-hand jobs - a prosthetic job runs with its own warning-only check")
     d = (job["steps"].get("program") or {}).get("dispense")
@@ -558,33 +636,45 @@ def _wait_at_scan_position(timeout_s=120.0):
     raise MachineError("the move to the scan position took too long")
 
 
-def quick_rescan(params):
+def _placement_of(job, need_pass=False):
+    """What Quick re-scan and a setup repeat: the hand points of the job's scan, its outline, its design placement and
+    its program settings (None when it has no program yet)."""
     from henna_preview import follow_hand
-    params = params or {}
-    job = v11.job_load(params.get("job"))
-    if job.get("subject") not in ("prosthetic", v28.REAL):
-        raise ValueError("Quick re-scan is for prosthetic and real-hand jobs")
-    if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
-        raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
     s = job["steps"]
     for k, name in (("scan", "Scan"), ("hand", "Hand & region"), ("region", "Hand & region"), ("design", "Design")):
         if not s.get(k):
-            raise ValueError(f"do the {name} step once first - Quick re-scan repeats the steps you have done")
-    design = {k: s["design"][k] for k in ("svg", "fit_mm", "rotation_deg", "centre_machine_xy", "standoff_mm")}
-    prog = dict(s.get("program") or {})
+            raise ValueError(f"do the {name} step once first")
+    if need_pass and s["design"].get("verdict") != "PASS":
+        raise ValueError("the design has not passed its check on this scan - Check on measured skin first")
     p = v28._parts()
-    old = follow_hand.landmarks(_hand_report(job), s["scan"]["mpos"], p["R"], p["t"])
-    old_poly = s["region"]["polygon_px"]
-    jid, done = job["id"], []
+    prog = s.get("program") or {}
+    d = prog.get("dispense")
+    return {"landmarks": follow_hand.landmarks(_hand_report(job), s["scan"]["mpos"], p["R"], p["t"]),
+            "outline_px": s["region"]["polygon_px"],
+            "design": {k: s["design"][k] for k in ("svg", "fit_mm", "rotation_deg", "centre_machine_xy", "standoff_mm")},
+            "program": ({"draw_feed_mm_min": prog.get("draw_feed_mm_min"), "dispense": d and {k: d.get(k) for k in ("dispenser", "start_s", "stop_s", "label")}}
+                        if prog.get("program") else None)}
+
+
+def _follow_and_prepare(job, src, what, allow_move=False, write_program=None):
+    """Scan the hand where it is now and repeat src's outline, design and program on it, through the page's own routes
+    (every guard): [move to the scan position], scan, hand, outline + design moved with the hand (follow_hand), the
+    design check on the new scan, the program. Stops at the first refusal, naming the step."""
+    from henna_preview import follow_hand
+    jid, done, p = job["id"], [], v28._parts()
+    design = src["design"]
 
     def step(name, fn):
         try:
             return fn()
         except Exception as e:                              # noqa: BLE001 - the step's own message, which step
-            raise ValueError(f"Quick re-scan stopped at {name}: {e} (done: {', '.join(done) or 'nothing'})") from None
+            raise ValueError(f"{what} stopped at {name}: {e} (done: {', '.join(done) or 'nothing'})") from None
 
     st = machine.status()
     if not st.get("capture_ready"):
+        if not allow_move:
+            raise ValueError(f"{what}: the head is not at the scan position - take the hand away, Move to scan "
+                             "position, then put the hand in place and try again")
         step("the move to the scan position", lambda: _way_to_scan_position_clear(job, st))
         step("the move to the scan position", lambda: _route("/api/machine/scan_position")(
             {"job": jid, "confirm_clear": True, "confirm_estop": True}))
@@ -598,9 +688,9 @@ def quick_rescan(params):
     rep_new = _hand_report(job)
     new = step("following the hand", lambda: follow_hand.landmarks(rep_new, job["steps"]["scan"]["mpos"],
                                                                  p["R"], p["t"]))
-    f = step("following the hand", lambda: follow_hand.follow(old, new))
+    f = step("following the hand", lambda: follow_hand.follow(src["landmarks"], new))
     w, h = int(rep_new["colour_intrinsics"]["width"]), int(rep_new["colour_intrinsics"]["height"])
-    poly = np.clip(follow_hand.apply(old_poly, f["pixels"]), [0, 0], [w - 1, h - 1])
+    poly = np.clip(follow_hand.apply(src["outline_px"], f["pixels"]), [0, 0], [w - 1, h - 1])
     from step05_region import DEFAULT_MARGIN                # the region route always needs a number, even for an
     step("the outline", lambda: _route("/api/studio/region_accept")(   # edited outline (the page sends its slider)
         {"job": jid, "polygon": np.round(poly, 1).tolist(), "margin": DEFAULT_MARGIN, "edited": True}))
@@ -612,10 +702,14 @@ def quick_rescan(params):
          "centre_machine_xy": [round(float(v), 3) for v in centre], "standoff_mm": design["standoff_mm"]}))
     verdict = ((r or {}).get("result") or {}).get("verdict")
     if verdict != "PASS":
-        raise ValueError("Quick re-scan stopped at the design check: the design does not fit on the new scan - move "
-                         f"or shrink it in Design (done: {', '.join(done)})")
+        raise ValueError(f"{what} stopped at the design check: the design does not fit on the new scan - move or "
+                         f"shrink it in Design (done: {', '.join(done)})")
     done.append("design checked")
-    if prog.get("program"):
+    prog = src.get("program")
+    if write_program is None:
+        write_program = prog is not None
+    if write_program:
+        prog = prog or {}
         pp = {"job": jid, "confirm_prosthetic": True, "confirm_unmoved": True,
               "draw_feed_mm_min": float(prog.get("draw_feed_mm_min") or v28.REAL_FEED_MM_MIN)}
         d = prog.get("dispense")
@@ -624,12 +718,125 @@ def quick_rescan(params):
         step("writing the program", lambda: _route("/api/studio/program")(pp))
         done.append("program written")
     job = v11.job_load(jid)
-    _log("Quick re-scan", (machine.status() or {}).get("mpos"), "scan, hand, outline, design, program",
+    _log(what, (machine.status() or {}).get("mpos"), "scan, hand, outline, design, program",
          "the design follows the hand; all checks on the new scan", f"hand moved {f['shift_mm']} mm, turned "
          f"{f['turn_deg']:+.1f} deg (fit {f['machine']['rms']:.1f} mm); {', '.join(done)}", "ready",
          job["steps"]["scan"]["name"], f"Studio v29; job {jid}")
     return {"job": v14.job_view(job), "followed": {"shift_mm": f["shift_mm"], "turn_deg": f["turn_deg"],
                                                    "fit_mm": round(f["machine"]["rms"], 2)}, "done": done}
+
+
+def _ticks(params):
+    if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
+        raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
+
+
+def quick_rescan(params):
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    if job.get("subject") not in ("prosthetic", v28.REAL):
+        raise ValueError("Quick re-scan is for prosthetic and real-hand jobs")
+    _ticks(params)
+    try:
+        src = _placement_of(job)
+    except ValueError as e:
+        raise ValueError(f"{e} - Quick re-scan repeats the steps you have done") from None
+    return _follow_and_prepare(job, src, "Quick re-scan", allow_move=True)
+
+
+# ---- Setups (user 2026-10-22: "this process takes long time, we need to make it faster" -> "yes" to Repeat job):
+# a job that passed is saved as a named setup - the hand points, the outline, the design placement and the program
+# settings. A new job from a setup needs only: Move to scan position, the hand in the jig, Scan & prepare (scan, hand,
+# outline + design moved onto THIS hand, design check, program - the same steps as Quick re-scan), Start.
+SETUPS_DIR = os.path.join(base.ROOT, "outputs", "setups")
+_SETUP_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
+
+
+def _setup_path(sid):
+    if not (isinstance(sid, str) and _SETUP_ID.match(sid)):
+        raise ValueError("unknown setup")
+    return os.path.join(SETUPS_DIR, sid + ".json")
+
+
+def _load_setup(sid):
+    path = _setup_path(sid)
+    if not os.path.isfile(path):
+        raise ValueError("unknown setup")
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def setups_list(_=None):
+    out = []
+    for path in glob.glob(os.path.join(SETUPS_DIR, "*.json")):
+        try:
+            with open(path, encoding="utf-8") as f:
+                st = json.load(f)
+        except (OSError, ValueError):
+            continue
+        d = st.get("design") or {}
+        out.append({"id": st.get("id"), "name": st.get("name"), "subject": st.get("subject"), "created": st.get("created"),
+                    "svg": d.get("svg"), "fit_mm": d.get("fit_mm"), "standoff_mm": d.get("standoff_mm"),
+                    "machine": st.get("machine"), "paste": ((st.get("program") or {}).get("dispense") or {}).get("label")})
+    return {"setups": sorted(out, key=lambda x: str(x.get("created")), reverse=True)}
+
+
+def setup_save(params):
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    if job.get("subject") not in ("prosthetic", v28.REAL):
+        raise ValueError("setups are for prosthetic and real-hand jobs")
+    name = " ".join(str(params.get("name") or "").split())
+    if not 2 <= len(name) <= 60:
+        raise ValueError("give the setup a name (2 to 60 characters)")
+    src = _placement_of(job, need_pass=True)
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:50] or "setup"
+    sid = f"{slug}-{stamp}"
+    rec = dict(src, id=sid, name=name, created=dt.datetime.now().isoformat(timespec="seconds"),
+               subject=job["subject"], from_job=job["id"],
+               machine=job.get("machine") or v28.v26.profiles.active_id())
+    os.makedirs(SETUPS_DIR, exist_ok=True)
+    with open(_setup_path(sid), "w", encoding="utf-8") as f:
+        json.dump(rec, f, indent=2)
+    _log("Setup saved", None, "Save as setup", "outline + design relative to the hand", f"{name} ({sid}) from job "
+         f"{job['id']}: {src['design']['svg']} {src['design']['fit_mm']:g} mm", "saved", job["steps"]["scan"]["name"],
+         "Studio v29")
+    return dict(setups_list(), saved=sid)
+
+
+def setup_delete(params):
+    params = params or {}
+    if params.get("confirm") is not True:
+        raise ValueError("confirm the deletion")
+    path = _setup_path(params.get("id"))
+    if os.path.isfile(path):
+        os.remove(path)
+    return setups_list()
+
+
+def setup_job(params):
+    """A new job for a setup: same subject; the Scan step then offers Scan & prepare."""
+    st = _load_setup((params or {}).get("setup"))
+    if st.get("machine") and st["machine"] != v28.v26.profiles.active_id():
+        raise ValueError(f"this setup was made on the machine '{st['machine']}' - choose that machine first")
+    out = _route("/api/studio/job_new")({"subject": st["subject"]})
+    job = v11.job_load((out.get("job") or out)["id"])
+    job["setup"] = {"id": st["id"], "name": st["name"]}
+    v11.job_save(job)
+    return {"job": v14.job_view(job)}
+
+
+def setup_prepare(params):
+    """Scan & prepare for a job made from a setup: the head must already be at the scan position (Move to scan
+    position before the hand goes in - the way there is not known before this scan)."""
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    if not job.get("setup"):
+        raise ValueError("this job was not made from a setup")
+    _ticks(params)
+    st = _load_setup(job["setup"]["id"])
+    return _follow_and_prepare(job, st, "Scan & prepare", allow_move=False, write_program=True)
 
 
 def dispense_test(params):
@@ -721,6 +928,91 @@ def _remember_job(job):
     return job
 
 
+_HAND = v28.Handler.GET_API["/api/studio/hand"]
+
+
+def hand_view(q):
+    """Hand & region: the suggested outline is the whole hand - palm, fingers, thumb, up to the wrist, inset from the
+    edge by the margin slider (user 2026-10-24: "this suggested area is too small ... make it big according to our
+    designs"). Falls back to the old palm outline when the hand shape is not trustworthy."""
+    from henna_preview import hand_outline
+    from henna_preview.region import load_bundle
+    out = _HAND(q)
+    if not out.get("suggestion"):
+        return out
+    try:
+        b = load_bundle(v11.v3.run_dir_from_id(out["run"]))
+        depth = b["depth_raw_aligned"].astype(float) * b["depth_scale_m_per_unit"] * 1000.0
+        margin = v11.v3.margin_of({"margin": q.get("margin", [0.15])[0]})
+        reach, info = _reach(v11.job_load(q.get("job", [""])[0]), depth, b["colour_intrinsics"]["fx"])
+        poly, kind = hand_outline.suggest(depth, b["landmarks_px"], b["colour_intrinsics"]["fx"], margin, reach)
+    except Exception:                                       # noqa: BLE001 - keep the palm suggestion, never fail
+        return dict(out, suggestion_kind="palm")
+    return dict(out, suggestion=poly, suggestion_kind=kind, reach=info,
+                inset_mm=round(hand_outline.inset_mm_of(margin), 1) if kind != "palm" else None)
+
+
+def _reach(job, depth_mm, fx=None):
+    """(mask of the skin the nozzle can work on, numbers for the page) for the job's scan pose - (None, None) for a
+    camera-only job. The same model as the design check: skin Z = head Z - (corrected depth - k); too low when the
+    nozzle at the largest allowed height above it is under the Z floor, too tall above the path check's limit
+    (travel Z - max(smallest allowed height, hop) - margin). With fx (the colour lens' focal length, px), the tall
+    skin is grown by the path check's corridor margin (8 mm) first: every jump starts or ends at a stroke, and the check
+    looks 8 mm round each jump - a stroke ending that close to a tall mound is refused whatever the jump does
+    (2026-10-24, job 11:14: strokes on the edge of the heel of the palm)."""
+    from henna_preview import hand_outline
+    from henna_preview import path_clearance as pc
+    from henna_preview import travel_clearance as tc
+    if job.get("subject") not in ("prosthetic", v28.REAL):
+        return None, None
+    c, p = v10.cal(), v28._parts()
+    lo, hi = (float(v) for v in c["standoff_mm_allowed"])
+    if job["subject"] == v28.REAL:
+        lo = max(lo, v28.REAL_MIN_STANDOFF_MM)
+        hi = max(hi, lo)
+    ok = depth_mm > 0
+    d = np.where(ok, depth_mm, 1.0)
+    skin = float(job["steps"]["scan"]["mpos"][2]) - (np.asarray(p["depth_fn"](d), float) - p["k"])
+    top = float(c["travel_z"]) - (max(lo, float(v27.HOP_CLEARANCE_MM)) + tc.MARGIN_MM)
+    reach, low, tall = hand_outline.reach_mask(skin, ok, float(c["firmware_z_floor"]), hi, top)
+    if fx and tall.any():
+        import cv2
+        r = max(1, int(round(pc.MARGIN_MM * float(fx) / float(np.median(depth_mm[ok])))))
+        near_tall = cv2.dilate(tall.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1,) * 2))
+        reach &= near_tall == 0
+    bed = v27._paper_z(c, p["k"])
+    info = {"lowest_skin_z": round(float(c["firmware_z_floor"]) - hi, 1), "highest_skin_z": round(top, 1),
+            "bed_z": None if bed is None else round(float(bed), 1)}
+    return reach, info
+
+
+# ---- Exit (user 2026-10-24: "also a exit button, so it closes everything running"): only while nothing moves or
+# records; then the same shutdown as Ctrl+C in the Studio window (camera off, CNC disconnected, hand watch stopped,
+# server closed) and the window closes itself (start_studio_pc.bat ends on EXIT_CODE instead of waiting for a key).
+EXIT_CODE = 42
+_EXIT = {"requested": False}
+
+
+def studio_exit(params):
+    import _thread
+    if (params or {}).get("confirm") is not True:
+        raise ValueError("confirm closing Henna Studio")
+    st = machine.status()
+    if st.get("busy"):
+        raise ValueError(f"the machine is busy ({st['busy']}) - wait until it finishes, or press STOP, then Exit")
+    if v28.WATCH.view().get("active"):
+        raise ValueError("a run is still being watched - wait until it ends, or press STOP, then Exit")
+    _EXIT["requested"] = True
+    _log("Studio exit", st.get("mpos"), "Exit button", "nothing moving or recording",
+         "camera off, CNC disconnected, Studio closed", "closed", "", "Studio v29")
+
+    def later():
+        time.sleep(0.5)                                     # let the page get its answer first
+        _thread.interrupt_main()                            # -> main()'s KeyboardInterrupt shutdown
+    threading.Thread(target=later, daemon=True).start()
+    return {"closing": True}
+
+
 def get_job(q):
     return _remember_job(_GET_JOB(q))
 
@@ -747,13 +1039,20 @@ def dispensers(_=None):
 class Handler(v28.Handler):
     server_version = "HennaStudio/0.29"
     GET_API = dict(v28.Handler.GET_API, **{"/api/studio/dispensers": dispensers, "/api/studio/job": get_job,
-                                           "/api/studio/active_job": lambda q: dict(_ACTIVE)})
+                                           "/api/studio/active_job": lambda q: dict(_ACTIVE),
+                                           "/api/studio/setups": setups_list,
+                                           "/api/studio/hand": hand_view})
     POST_API = dict(v28.Handler.POST_API, **{
         "/api/studio/check_design": (check_design, _CHECK_DESIGN[1]),
         "/api/studio/program": (program, v28.Handler.POST_API["/api/studio/program"][1]),
         "/api/machine/run": (run, v28.Handler.POST_API["/api/machine/run"][1]),
         "/api/machine/resume": (resume, _RESUME[1]),
         "/api/studio/quick_rescan": (quick_rescan, True),
+        "/api/studio/setup_save": (setup_save, True),
+        "/api/studio/exit": (studio_exit, False),
+        "/api/studio/setup_delete": (setup_delete, False),
+        "/api/studio/setup_job": (setup_job, False),
+        "/api/studio/setup_prepare": (setup_prepare, True),
         "/api/machine/dispense_test": (dispense_test, False),
         "/api/studio/job_new": (job_new, _JOB_NEW[1]),
         "/api/machine/jog": (jog, _JOG[1]),
@@ -806,3 +1105,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    if _EXIT["requested"]:
+        sys.exit(EXIT_CODE)

@@ -95,6 +95,17 @@ class CompareTests(unittest.TestCase):
         self.assertEqual(r["verdict"], "UNCLEAR")
         self.assertIn("something is on the bed", r["reasons"][0])
 
+    def test_a_differently_set_up_bed_is_unclear_not_recalibrate(self):
+        # 2026-10-24: the jig board instead of the reference's dot sheet - the pictures do not match (0.18), the
+        # "shift" found is meaningless (49.6 mm) - say so, do not ask for a recalibration
+        other = scene()
+        other["gray"] = np.random.default_rng(99).random(other["gray"].shape).astype(np.float32) * 255
+        r = daily_check.compare(scene(), other)
+        self.assertEqual(r["verdict"], "UNCLEAR")
+        self.assertLess(r["picture_match"], daily_check.MIN_MATCH)
+        self.assertIn("does not match the reference", r["reasons"][0])
+        self.assertEqual(daily_check.compare(scene(), scene(shift_px=(3, 0)))["verdict"], "RECALIBRATE")  # a real move
+
     def test_other_camera_means_recalibrate(self):
         r = daily_check.compare(scene(), scene(serial="999"))
         self.assertEqual(r["verdict"], "RECALIBRATE")

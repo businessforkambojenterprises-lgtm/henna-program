@@ -1,0 +1,65 @@
+/* Henna Studio PC - home page and Admin page, as on the Pi (user 2026-10-24: "it should have same home page and admin
+   page like pis studio"). From the raspberry-pi branch's webui/pi_touch.css, its home + Admin part only (no touch
+   sizes, no portrait bottom bar); laid out for the laptop screen. Added by webui_server_pc.py after the page's own
+   styles. */
+
+/* ---- home ---- */
+#btnmachine,#btncal{display:none!important}               /* machine and calibration live in Admin */
+/* the job's steps are not needed on the home and Admin pages (as on the Pi): the page uses the whole width */
+body:has(#v-welcome:not([hidden])) .rail,body:has(#v-calib:not([hidden])) .rail{display:none}
+body:has(#v-welcome:not([hidden])) .shell,body:has(#v-calib:not([hidden])) .shell{grid-template-columns:minmax(0,1fr);
+  max-width:1100px}
+#v-welcome > .head, #v-welcome .cols > .card:first-child{display:none}
+#v-welcome .cols.even{grid-template-columns:minmax(0,1fr)}  /* New job is a tile now: Recent jobs full width */
+#pihome .pih{font-size:24px;margin:4px 0 8px}
+.pichips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.pitiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.pitile{display:flex;flex-direction:column;justify-content:flex-end;gap:4px;min-height:96px;padding:16px;border-radius:14px;
+  border:1px solid var(--line);background:var(--panel);color:inherit;text-align:left;font:inherit;cursor:pointer}
+.pitile:hover{border-color:var(--accent)}
+.pitile b{font-size:18px}
+.pitile span{font-size:13px;opacity:.75}
+.pitile.big{grid-column:span 3;min-height:110px;background:var(--accent-bg);border-color:var(--accent)}
+.pi-hide{display:none!important}
+.pistep{display:flex;gap:6px;align-items:center;flex:1;max-width:320px}
+.pistep .btn{min-width:44px;min-height:40px;font-size:20px;padding:0}
+.pistep input{flex:1;min-height:40px;text-align:center;font-size:16px}
+#mlist .hint, #mlist br{display:none}                      /* machine name + calibrated chip only */
+#piadmin .dlg{max-width:420px}
+input[type=password]{width:100%;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2)}
+
+/* ---- one Admin page (Pi 2026-10-18): tabs in one row, the Position card (state, X Y Z, what is needed, one tick,
+   Home / Move / Jog), calibration buttons in even rows. The daily check (operators) shows only the Position card
+   and the check. ---- */
+.pihead{display:flex;justify-content:space-between;align-items:center;margin:2px 0 10px}
+.pihead h1{font-size:22px;margin:0}
+.pitabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.pitab{min-height:42px;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:inherit;
+  font:inherit;font-size:14px;font-weight:650;cursor:pointer}
+.pitab.on{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+#pipagemsg:empty{display:none}
+#pipos{margin-bottom:12px;border:2px solid var(--accent)}
+.pipostop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pipostop b{font-size:16px}
+#piposxyz{font-size:14px;margin-top:6px;letter-spacing:.2px}
+.pineed{margin:8px 0;font-size:14px;line-height:1.45}
+.pi-ok{color:var(--ok,#2e7d32);font-weight:650}
+.pisafe{margin:4px 0 8px;padding:8px;border-radius:10px;background:var(--accent-bg)}
+.pisafe span{font-size:14px;line-height:1.35}
+.pibtns{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:8px;max-width:640px}
+.pibtns .btn{padding:8px 6px;font-size:14px;white-space:normal;line-height:1.2}
+.pipane > .card{margin-bottom:12px}
+.pineedline{margin:6px 0 0;font-weight:600}
+.pineedline.pi-okline{color:var(--ok,#2e7d32)}
+#calibcard .hint b{font-weight:700}
+#picaljog{min-height:36px}
+body.pi-daily #pitabs,body.pi-daily #pilockbtn,body.pi-daily #calrefcard{display:none!important}
+.pipane[data-pane=paste]:not([hidden]),.pipane[data-pane=pin]:not([hidden]){
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;
+  margin-bottom:12px;max-width:720px}
+.pipane h2{font-size:16px;margin:0 0 4px}
+@media (max-width:700px){
+  .pitiles{grid-template-columns:1fr 1fr}
+  .pitile.big{grid-column:span 2}
+  .pitabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
