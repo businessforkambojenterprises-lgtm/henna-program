@@ -1,0 +1,72 @@
+{
+  "schema": "henna_machines/1",
+  "note": "One entry per physical machine. A machine's calibration belongs to that machine only. Change only with the user's approval.",
+  "decided_by": "user 2026-10-13: two named machines; keep the belt-drive calibration exactly as it is; the ball-screw machine gets its own new calibration; 2026-10-13: per-machine motion values (scan position, travel Z, Z floor) and calibration mode approved",
+  "machines": [
+    {
+      "id": "belt-drive",
+      "name": "Belt drive (first machine)",
+      "drive": "belt",
+      "calibration": "current_calibration.json",
+      "work_area_mm": [
+        225.0,
+        176.0
+      ],
+      "notes": "calibrated 2026-10-05 to 2026-10-07 (X/Y block-corrected, Z k 141.47, depth scale g 0.979); unchanged",
+      "motion": {
+        "scan_pose_mpos": [
+          145.8,
+          42.6,
+          -40.0
+        ],
+        "travel_z": -20.0,
+        "firmware_z_floor": -97.0,
+        "source": "copied from current_calibration.json (unchanged); the values fixed in the machine link until v24"
+      }
+    },
+    {
+      "id": "ball-screw",
+      "name": "Ball screw (new machine)",
+      "drive": "ball screw",
+      "calibration": "machines/ball-screw/calibration_20261022-092143.json",
+      "work_area_mm": [
+        225.0,
+        213.0
+      ],
+      "notes": "added 2026-10-13 (the belt-drive calibration put the nozzle about 10 cm from the hand, video 20261013_100612); CALIBRATED 2026-10-14 12:57 after raising the arm bracket 16.9 mm and fitting a longer nozzle (X/Y rms 0.93 mm, scale 1.004, confirmed on a block-top dot at 1-2 mm; Z k 141.50 mm, spread 0.60 mm; approved by Harsh). First calibration 10:33 retired. Z carriage travel about 41 mm (floor -40); paper/bed about Z-62.5, out of reach. Its calibration lists the belt-drive's depth-scale file (g 0.979) - used by the planner, not measured on this machine. Controller (read 2026-10-13): MKS DLC32 V2.2.6, steps/mm X403.5 Y409.6 Z400 (X/Y from 400 on 2026-10-14 after the 7-dot fit, camera-checked X 19.98-20.00/20, Y 40.21-40.24/40; Z: Z was 100 until 2026-10-13 15:51 - Z moved 1/5 of commanded; 500 at 15:51, 435 at 16:01 from ruler checks, 390 from camera checks, 400 on 2026-10-14 after the print was found 3 % small), max travel X400 Y250 Z299, max rate X/Y 1000 Z 300 mm/min, soft + hard limits on | 2026-10-21/22: nozzle mount moved - tip 71 mm above the bed at Z 0, 31 mm at Z -40 (vernier, 40 mm travel checked); gantry square (diagonals equal); RECALIBRATED 2026-10-22 09:21 (X/Y 7 dots rms 0.79 mm, scale 0.998; Z k 140.73, spread 0.70 mm; approved by Harsh); new daily-check reference; travel Z -5 -> -1 (machine_travel_z_set.py). Calibration made on the Pi, copied to the PC 2026-10-24.",
+      "work_area_status": "MEASURED 20261024-162305 (machine_work_area_set.py): Y: at Y 176 the gantry travels 42 mm more (operator, ruler) - end about Y 218, 5 mm margin; X unchanged; was [225.0, 176.0]",
+      "motion": {
+        "scan_pose_mpos": [
+          65.7,
+          80.0,
+          -0.5
+        ],
+        "travel_z": -0.5,
+        "firmware_z_floor": -49.0,
+        "source": "since 2026-10-22: scan X65.7 Y80 Z-5 (unchanged), floor -40 (Z carriage end about -41.2), travel Z -1 (was -5); calibration k 140.73 puts the bed at about Z-71",
+        "travel_z_changed": "travel Z -1 -> -0.5 (20261024-142628, machine_travel_z_set.py; scan position and floor unchanged)",
+        "scan_z_changed": "scan Z -1 -> -0.5 (20261024-152708, machine_scan_z_set.py; X/Y, travel Z and floor unchanged)",
+        "z_home_moved": "Z home switch moved up 9 mm (20261024-143450, machine_z_home_moved.py): floor -40 -> -49; travel Z and scan position unchanged as numbers"
+      },
+      "calibration_mode": "recalibration started in Studio 2026-10-18T14:29:14",
+      "z_room_mm": "Z travel 40 mm (Z 0 to the floor Z -40); tip 71 mm above the bed at Z 0, 31 mm at the floor; travel Z -1 = 70 mm above the bed: skin up to about 61 mm under travel moves; reach: skin from about 25 mm (6 mm nozzle height) - since 2026-10-22",
+      "approved": {
+        "by": "Harsh",
+        "time": "2026-10-22T09:21:43",
+        "file": "machines/ball-screw/calibration_20261022-092143.json"
+      },
+      "previous_calibrations": [
+        {
+          "file": "machines/ball-screw/calibration_20261014-103339.json",
+          "retired_by": "Harsh Maurya",
+          "time": "2026-10-14T11:31:23"
+        },
+        {
+          "file": "machines/ball-screw/calibration_20261014-125733.json",
+          "retired_by": "harsh",
+          "time": "2026-10-18T14:29:14"
+        }
+      ]
+    }
+  ]
+}

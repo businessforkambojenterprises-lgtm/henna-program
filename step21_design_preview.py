@@ -106,6 +106,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", required=True)
     a = ap.parse_args()
+    from henna_preview.machine_motion import apply_active_work_area
+    apply_active_work_area(ROOT)                          # the active machine's measured X/Y box (2026-10-24)
     cfg = _j(a.config)
     p = {k: cfg[k] for k in ("standoff_mm", "floor_above_skin_mm", "draw_feed_mm_min", "travel_feed_mm_min",
                              "travel_z", "firmware_z_floor")}
