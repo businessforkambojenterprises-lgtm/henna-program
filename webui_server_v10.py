@@ -108,8 +108,8 @@ def scan_record(params):
         info = camera.record(path, seconds)
     except Exception as e:
         # SDK, SQLite and frame-reader failures must also leave no selectable scan.
-        if os.path.exists(path):
-            os.replace(path, path + ".rejected")   # kept for inspection, never listed or used
+        from henna_preview.web_recorder import reject
+        reject(path)                               # kept for inspection, never listed or used
         log_row(LOG_FILE, 0, "Web scan refused", st["mpos"], "web page Record", "usable recording", str(e), "REFUSED", name)
         raise
     d = new_dir("scan")

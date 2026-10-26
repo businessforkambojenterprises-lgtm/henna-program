@@ -74,6 +74,10 @@ def verify_recording(path, expected_units=EXPECTED_DEPTH_UNITS):
         units = float(ds.get_depth_scale())
     finally:
         pipe.stop()
+        # the playback device holds the file open until it is freed - free it now, or a refused scan cannot be
+        # renamed to .rejected on Windows (2026-10-26: WinError 32 hid "only 19 frame pairs recorded")
+        ds = prof = pipe = cfg = None
+        gc.collect()
     if abs(units - expected_units) > expected_units * 1e-3:
         raise CameraError(f"recording says depth units {units:g} m, expected {expected_units:g} m - not used")
     if n_opts < MIN_OPTIONS:
@@ -92,6 +96,22 @@ def verify_recording(path, expected_units=EXPECTED_DEPTH_UNITS):
         raise CameraError(f"median depth {med:.0f} mm is not plausible for the capture pose - not used")
     return {"depth_units_m": units, "camera_settings": n_opts, "frame_counts": counts, "frame_pairs": pairs,
             "median_depth_mm": round(med, 1), "middle_frame": pairs // 2}
+
+
+def reject(path):
+    """A refused recording -> path + '.rejected' (kept for inspection, never listed). Never raises: a file Windows
+    still holds open is retried once after freeing objects, then left as it is - the scan's own error must be the
+    message the operator sees, not the rename's. -> the new path, or None."""
+    if not os.path.exists(path):
+        return None
+    for attempt in range(2):
+        try:
+            os.replace(path, path + ".rejected")
+            return path + ".rejected"
+        except OSError:
+            gc.collect()
+            time.sleep(0.5)
+    return None
 
 
 def _depth_rgb(depth, lo=120.0, hi=230.0, units=EXPECTED_DEPTH_UNITS):
