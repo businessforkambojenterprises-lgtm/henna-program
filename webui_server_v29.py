@@ -868,6 +868,168 @@ def quick_rescan(params):
     return _follow_and_prepare(job, src, "Quick re-scan", allow_move=True)
 
 
+# ---- Scan & start and Re-scan and continue (user 2026-10-26: "whole process is too slow for someone to rest hand,
+# thats why hand moves" -> "build 1 and 2"). Scan & start: the safety ticks first, the hand in place, ONE press - Quick
+# re-scan's steps and then the same Start as the Start button (every check, the hand check right after the scan), no
+# minute of reading and clicking in between. Re-scan and continue: after a run was stopped (the hand moved and the
+# watch paused it; STOP; hand away; Home; hand back), the same, with only the strokes not drawn yet - the design's rest
+# (henna_preview/continue_run.py) keeps the original size and place, so it follows the hand like the whole design.
+CONT_DIR = os.path.join(base.ROOT, "outputs", "continue_designs")
+_DESIGNS = v11.designs
+
+
+def designs_with_rests():
+    """v11's designs and the rests of stopped runs - so the design check accepts a rest (the page's gallery keeps
+    v11's list: the GET route below)."""
+    out = _DESIGNS()
+    return {"designs": out["designs"] + [v11.design_entry(p) for p in sorted(glob.glob(os.path.join(CONT_DIR, "*.svg")))]}
+
+
+v11.designs = designs_with_rests
+_RECORD_RUN = v14._record_run
+
+
+def _record_run(job_id, run_id, error, snap):
+    """v14's run record plus where the head was last while the run ran or was held (the link notes it)."""
+    _RECORD_RUN(job_id, run_id, error, snap)
+    prog = (snap or {}).get("program") or {}
+    if prog.get("last_mpos") is None:
+        return
+    with v14._runs_lock:
+        job = v11.job_load(job_id)
+        r = next((x for x in job.get("runs", []) if x.get("id") == run_id), None)
+        if r is not None:
+            r.update(last_mpos=prog["last_mpos"], last_acked=prog.get("last_acked"))
+            v11.job_save(job)
+
+
+v14._record_run = _record_run                               # v20's run start looks it up when the run ends
+
+
+def _start_now(job_id, what, prep):
+    """The Start button's run(), right after prep passed (every check of Start runs again)."""
+    try:
+        return run({"job": job_id, "confirm_prosthetic": True, "confirm_unmoved": True, "confirm_clear": True,
+                    "confirm_estop": True})
+    except Exception as e:                                  # noqa: BLE001 - say what was done; Start can follow
+        raise ValueError(f"{what}: prepared ({', '.join(prep['done'])}) but the start was refused: {e}") from None
+
+
+def _hand_job(params, what):
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    if job.get("subject") not in ("prosthetic", v28.REAL):
+        raise ValueError(f"{what} is for prosthetic and real-hand jobs")
+    _ticks(params)
+    if params.get("air_run"):
+        raise ValueError(f"{what} is for a hand under the machine - an air run starts with Start")
+    return job
+
+
+def scan_and_start(params):
+    job = _hand_job(params, "Scan & start")
+    try:
+        src = _placement_of(job)
+    except ValueError as e:
+        raise ValueError(f"{e} - Scan & start repeats the steps you have done") from None
+    if src["program"] is None:
+        raise ValueError("write the program once first (step 4) - Scan & start writes it again on the new scan")
+    prep = _follow_and_prepare(job, src, "Scan & start", allow_move=True, write_program=True)
+    out = _start_now(job["id"], "Scan & start", prep)
+    _log("Scan & start", (machine.status() or {}).get("mpos"), "Quick re-scan, then Start",
+         "the run starts right after the checks on the new scan", f"hand moved {prep['followed']['shift_mm']} mm; "
+         f"{', '.join(prep['done'])}", "started", v11.job_load(job["id"])["steps"]["scan"]["name"],
+         f"Studio v29; job {job['id']}")
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"]})
+
+
+def _program_lines_of_run(r):
+    pd = v10.out_dir("program", r["program"])
+    path = os.path.join(pd, str(r.get("file") or ""))
+    if not (os.path.basename(path) == r.get("file") and base.is_inside(path, base.OUT_ROOT) and os.path.isfile(path)):
+        raise cr_error("the stopped run's program file is not there any more")
+    with open(path, encoding="ascii") as f:
+        lines = _command_lines(f.read())
+    if r.get("lines") is not None and len(lines) != int(r["lines"]):
+        raise cr_error("the stopped run's program file is not the one that ran")
+    return lines
+
+
+def cr_error(text):
+    from henna_preview.continue_run import ContinueError
+    return ContinueError(text)
+
+
+def continue_point(job):
+    """Where the job's last run stopped: {run, from (0-based stroke of the job's design), strokes, how, base, total}."""
+    from henna_preview import continue_run as cr
+    runs = job.get("runs") or []
+    pr = job["steps"].get("program") or {}
+    if not runs:
+        raise cr_error("this job has not run yet")
+    r = runs[-1]
+    if r.get("result") == "running":
+        raise cr_error("a run is going")
+    if r.get("result") == "finished":
+        raise cr_error("the last run finished - nothing to continue")
+    if r.get("program") != pr.get("program"):
+        raise cr_error("the program was written again after the last run - Scan & start draws the whole design")
+    lines = _program_lines_of_run(r)
+    start = r.get("start_mpos") or job["steps"]["scan"]["mpos"]       # a run starts at the scan position
+    k, n, how = cr.stopped_stroke(lines, r.get("last_mpos"), r.get("last_acked"), start)
+    design = job["steps"]["design"]
+    placed = design_strokes(design)
+    pos, spans = cr.positions(lines), cr.strokes_of(lines)
+    if len(placed) != n or any(np.hypot(*(pos[a][:2] - np.asarray(p[0], float))) > 0.05
+                               for (a, _), p in zip(spans, placed)):
+        raise cr_error("the program's strokes do not match the design - Scan & start draws the whole design")
+    with open(os.path.join(base.ROOT, design["svg"]), encoding="utf-8") as f:
+        text = f.read()
+    _, before, _ = cr.rest_svg(text, 0, design["svg"])     # strokes an earlier continue already left out
+    return {"run": r["id"], "from": k, "strokes": n, "how": how, "base": before, "total": before + n,
+            "svg_text": text}
+
+
+def continue_view(q):
+    try:
+        job = v11.job_load(q.get("job", [""])[0])
+        cp = continue_point(job)
+    except ValueError as e:
+        return {"available": False, "reason": str(e)}
+    if cp["from"] >= cp["strokes"]:
+        return {"available": False, "reason": "every stroke was drawn"}
+    return {"available": True, "from_stroke": cp["base"] + cp["from"] + 1, "total": cp["total"], "redo": cp["how"] == "redo"}
+
+
+def rescan_continue(params):
+    from henna_preview import continue_run as cr
+    what = "Re-scan and continue"
+    job = _hand_job(params, what)
+    cp = continue_point(job)
+    if cp["from"] >= cp["strokes"]:
+        raise ValueError("every stroke was drawn - nothing to continue")
+    src = _placement_of(job)
+    if src["program"] is None:
+        raise ValueError("write the program once first (step 4)")
+    svg_rel = src["design"]["svg"]
+    text, from_total, orig = cr.rest_svg(cp["svg_text"], cp["from"], svg_rel)
+    os.makedirs(CONT_DIR, exist_ok=True)
+    path = os.path.join(CONT_DIR, f"{job['id']}-rest-from-{from_total + 1}.svg")
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    src["design"]["svg"] = os.path.relpath(path, base.ROOT).replace("\\", "/")
+    prep = _follow_and_prepare(job, src, what, allow_move=True, write_program=True)
+    out = _start_now(job["id"], what, prep)
+    redo = cp["how"] == "redo"
+    _log(what, (machine.status() or {}).get("mpos"), "Quick re-scan with the strokes not drawn yet, then Start",
+         "the rest follows the hand; every check on the new scan", f"run {cp['run']} stopped in stroke "
+         f"{cp['base'] + cp['from'] + 1} of {cp['total']} ({'drawn again from its start' if redo else 'not started'}); "
+         f"{orig} from stroke {from_total + 1}; hand moved {prep['followed']['shift_mm']} mm", "started",
+         v11.job_load(job["id"])["steps"]["scan"]["name"], f"Studio v29; job {job['id']}")
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"]},
+                continued={"from_stroke": from_total + 1, "total": cp["total"], "redo": redo})
+
+
 # ---- Setups (user 2026-10-22: "this process takes long time, we need to make it faster" -> "yes" to Repeat job):
 # a job that passed is saved as a named setup - the hand points, the outline, the design placement and the program
 # settings. A new job from a setup needs only: Move to scan position, the hand in the jig, Scan & prepare (scan, hand,
@@ -914,6 +1076,12 @@ def setup_save(params):
     if not 2 <= len(name) <= 60:
         raise ValueError("give the setup a name (2 to 60 characters)")
     src = _placement_of(job, need_pass=True)
+    try:                                                    # a continued run's design is a rest: save the whole one
+        from henna_preview.continue_run import original_of
+        with open(os.path.join(base.ROOT, src["design"]["svg"]), encoding="utf-8") as f:
+            src["design"]["svg"] = original_of(f.read(), src["design"]["svg"])
+    except OSError:
+        pass
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:50] or "setup"
     sid = f"{slug}-{stamp}"
@@ -1167,13 +1335,17 @@ class Handler(v28.Handler):
                                            "/api/studio/setups": setups_list,
                                            "/api/studio/hand": hand_view,
                                            "/api/studio/follow": follow_view,
-                                           "/api/studio/progress": progress_view})
+                                           "/api/studio/progress": progress_view,
+                                           "/api/studio/continue": continue_view,
+                                           "/api/studio/designs": lambda q: _DESIGNS()})
     POST_API = dict(v28.Handler.POST_API, **{
         "/api/studio/check_design": (check_design, _CHECK_DESIGN[1]),
         "/api/studio/program": (program, v28.Handler.POST_API["/api/studio/program"][1]),
         "/api/machine/run": (run, v28.Handler.POST_API["/api/machine/run"][1]),
         "/api/machine/resume": (resume, _RESUME[1]),
         "/api/studio/quick_rescan": (quick_rescan, True),
+        "/api/studio/scan_and_start": (scan_and_start, True),
+        "/api/studio/rescan_continue": (rescan_continue, True),
         "/api/studio/setup_save": (setup_save, True),
         "/api/studio/exit": (studio_exit, False),
         "/api/studio/setup_delete": (setup_delete, False),

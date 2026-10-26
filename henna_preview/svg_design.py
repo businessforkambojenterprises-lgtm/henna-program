@@ -216,6 +216,10 @@ def _style(el, inherited):
     return s
 
 
+FROM_STROKE_ATTR = "data-henna-from-stroke"
+ORIGINAL_ATTR = "data-henna-original"
+
+
 def read_svg(path):
     """-> {'strokes': [{'points', 'closed', 'source', 'filled_only'}], 'ignored': [...]} in SVG user units."""
     try:
@@ -262,7 +266,18 @@ def read_svg(path):
     walk(root, np.eye(3), {})
     if not strokes:
         raise SvgDesignError("no drawable lines found in the SVG")
-    return {"strokes": strokes, "ignored": sorted(set(ignored))}
+    # the rest of a stopped run (Studio "Re-scan and continue", 2026-10-26): a copy of the design whose root says
+    # FROM_STROKE_ATTR="n" - the first n strokes were drawn already. They still set the size and the centre (place),
+    # so the rest lands exactly where it was; place() leaves them out.
+    try:
+        skip = int(root.get(FROM_STROKE_ATTR) or 0)
+    except ValueError:
+        raise SvgDesignError(f"{FROM_STROKE_ATTR} must be a whole number")
+    if not 0 <= skip < len(strokes):
+        raise SvgDesignError(f"{FROM_STROKE_ATTR}={skip}: the design has {len(strokes)} strokes")
+    for i, st in enumerate(strokes):
+        st["skip"] = i < skip
+    return {"strokes": strokes, "ignored": sorted(set(ignored)), "from_stroke": skip}
 
 
 # ---------- placement in machine X/Y ----------
@@ -285,7 +300,8 @@ def resample(points, closed, spacing):
 
 
 def place(design, fit_mm, centre_xy, rotation_deg=0.0, spacing_mm=0.5):
-    """Scale the whole design to fit fit_mm (largest side), centre it on centre_xy, rotate.
+    """Scale the whole design to fit fit_mm (largest side), centre it on centre_xy, rotate. Strokes marked "skip"
+    (already drawn - read_svg FROM_STROKE_ATTR) count for the size and centre but are not returned.
 
     SVG y points down; machine Y is taken as -y so the design keeps its look in an X-right/Y-up view.
     -> list of {'plan' (N, 2) machine mm, 'closed', 'source', 'length_mm'}, scale (mm per SVG unit).
@@ -303,6 +319,8 @@ def place(design, fit_mm, centre_xy, rotation_deg=0.0, spacing_mm=0.5):
     R = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
     out = []
     for s in design["strokes"]:
+        if s.get("skip"):
+            continue
         q = (s["points"] - mid) * k
         q[:, 1] = -q[:, 1]
         q = (R @ q.T).T + np.asarray(centre_xy, float)

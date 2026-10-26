@@ -456,6 +456,10 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
        <button class="btn" id="runpause" type="button" disabled>Pause</button>
       </div>
       <button class="btn stop block" id="runstop" type="button" style="margin-top:10px;padding:12px" disabled>STOP</button>
+      <button class="btn primary block" id="runscanstart" type="button" style="margin-top:10px">Scan &amp; start</button>
+      <p class="hint" style="margin:4px 0 0">The fastest start: put the hand in place and press - it scans, moves the design with the hand, checks everything and starts the run straight away (about a minute). The hand only has to stay still from here to the end.</p>
+      <button class="btn block" id="runcontinue" type="button" style="margin-top:10px" hidden>Re-scan and continue</button>
+      <p class="hint" id="runcontinuehint" style="margin:4px 0 0" hidden></p>
       <button class="btn block" id="runrescan" type="button" style="margin-top:10px">Quick re-scan - the hand moved</button>
       <p class="hint" style="margin:4px 0 0">Scans again with the hand where it is now, moves the outline and the design with the hand, checks them on the new scan and writes the program again - about a minute. Keep the hand still.</p>
       <p class="hint">Pause holds the motion and stops the paste; Resume turns the paste on first, then moves on. STOP holds and resets the controller (paste off) - home again afterwards.</p>
@@ -659,7 +663,7 @@ async function loadRun(keep){const r=await api(`/api/studio/hand?job=${encodeURI
 function reachInfo(r){const a=r.reach;if(!a||r.suggestion_kind==='palm'){$('reachinfo').textContent='';return}
  const b=a.bed_z,mm=z=>b==null?`Z ${z}`:`${Math.round(z-b)} mm above the bed`;
  $('reachinfo').textContent=`The suggestion keeps to skin the nozzle can reach: from ${mm(a.lowest_skin_z)} to ${mm(a.highest_skin_z)}. Lower parts (fingers lying low) and taller parts (heel of the palm, wrist) are left out - a design there would be refused.`}
-const PB_EXPECT=[[/Quick re-scan|Scan & prepare/,60],[/Planning every stroke/,35],[/Writing and re-reading the program/,25],
+const PB_EXPECT=[[/Quick re-scan|Scan & prepare|Scan & start|Re-scan and continue/,60],[/Planning every stroke/,35],[/Writing and re-reading the program/,25],
  [/Recording/,25],[/Finding the hand|Detecting the hand/,12],[/Checking measured depth/,5],[/Dispenser on/,2],
  [/Checking the program file/,6],[/Loading the scan/,3],[/Saving/,3],[/Writing the name/,2],[/Checking/,4]];
 const PB_TIMERS=new Map();
@@ -667,7 +671,7 @@ function pbExpect(t){for(const [r,s] of PB_EXPECT)if(r.test(t))return s;return 1
 function pbStop(el){const st=PB_TIMERS.get(el);if(st){clearInterval(st.timer);PB_TIMERS.delete(el)}}
 function pbRun(el,t,wrapCls){pbStop(el);
  el.innerHTML=`<div class="${wrapCls||''}"><div>${esc(t)}</div><div class="pbar"><div class="pbfill"></div></div><div class="pbpct">0%</div></div>`;
- const st={t0:Date.now(),exp:pbExpect(t),srv:/Quick re-scan|Scan & prepare/.test(t),pct:0,busy:false};
+ const st={t0:Date.now(),exp:pbExpect(t),srv:/Quick re-scan|Scan & prepare|Scan & start|Re-scan and continue/.test(t),pct:0,busy:false};
  const tick=async()=>{const f=el.querySelector('.pbfill'),c=el.querySelector('.pbpct');if(!f||!c){pbStop(el);return}
   let p=95*(1-Math.exp(-1.7*(Date.now()-st.t0)/1000/st.exp));
   if(st.srv&&!st.busy){st.busy=true;try{const g=await api('/api/studio/progress');
@@ -837,6 +841,22 @@ $('pgrun').onclick=async()=>{
  try{const r=await api('/api/studio/program',Object.assign({job:JOB.id,confirm_prosthetic:true,confirm_unmoved:true,draw_feed_mm_min:+$('pgfeed').value},dispChoice()));setJob(r.job);showProgOut();feedNote();msg('msgpg','good','Program ready. Continue to Run.')}
  catch(e){msg('msgpg','err',e.message)}finally{$('pgrun').disabled=false}};
 $('toRun').onclick=()=>go('run');
+let CONT=null,contJob=null;
+async function contLoad(){if(!JOB||!['prosthetic','realhand'].includes(JOB.subject)){CONT=null;runShow();return}
+ const id=JOB.id;try{const c=await api('/api/studio/continue?job='+encodeURIComponent(id));if(JOB&&JOB.id===id){CONT=c;contJob=id}}catch(e){CONT=null}runShow()}
+function contShow(){const ok=!!CONT&&CONT.available&&contJob===(JOB&&JOB.id);$('runcontinue').hidden=!ok;$('runcontinuehint').hidden=!ok;
+ if(!ok)return;$('runcontinue').textContent=`Re-scan and continue - from stroke ${CONT.from_stroke} of ${CONT.total}`;
+ $('runcontinuehint').textContent=`The last run stopped${CONT.redo?` in stroke ${CONT.from_stroke} - it is drawn again from its start`:` before stroke ${CONT.from_stroke}`}. Home first (hand away), put the hand back, then press: it scans, moves the strokes not drawn yet onto the hand and starts.`}
+async function scanStartGo(path,what,text){if(machineBusy()||running())return;
+ if(!confirm(text+' Nothing else is in the travel area and you are at the emergency stop?'))return;
+ ['runscanstart','runcontinue','runrescan'].forEach(id=>$(id).disabled=true);runAction='start';
+ msg('msgrun','info',what+': scan, hand, outline, design check, program, then the run starts - about a minute. Keep the hand still.');
+ try{const r=await api(path,{job:JOB.id,confirm_clear:true,confirm_estop:true});const {job,hand_check_warning,prepared,continued,...m}=r;
+  lastRunJob=job.id;lastRunState='running';setJob(job);machineAccept(m);
+  msg('msgrun',hand_check_warning?'warn':'good',hand_check_warning||(continued?`Continuing from stroke ${continued.from_stroke} of ${continued.total}`:'Started')+` - the hand moved ${prepared.followed.shift_mm} mm since the last scan and the design followed it.`);CONT=null;renderRunHist()}
+ catch(e){msg('msgrun','err',e.message);reloadJob(1)}finally{runAction='';['runscanstart','runcontinue','runrescan'].forEach(id=>$(id).disabled=false);machSeen=0;machPoll();runShow()}}
+$('runscanstart').onclick=()=>scanStartGo('/api/studio/scan_and_start','Scan & start','Scan & start: the head goes to the scan position if it is not there, scans the hand, moves the design with it, checks everything and STARTS THE RUN straight away.');
+$('runcontinue').onclick=()=>scanStartGo('/api/studio/rescan_continue','Re-scan and continue',`Re-scan and continue: scans the hand, moves the strokes not drawn yet (from stroke ${CONT?CONT.from_stroke:'?'}) onto it, checks everything and STARTS THE RUN straight away.`);
 $('runrescan').onclick=async()=>{if(machineBusy()||running())return;
  if(!confirm('Quick re-scan: the head goes to the scan position if it is not there, records a new scan and moves the outline and the design with the hand. Nothing else is in the travel area and you are at the emergency stop?'))return;
  $('runrescan').disabled=true;msg('msgrun','info','Quick re-scan: scan, hand, outline, design check and program - about a minute. Keep the hand still.');
@@ -860,7 +880,7 @@ function showRun(){const p=JOB.steps.program,s=JOB.steps;
   .map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
  const st=scanTime(s.scan.name);$('scanage').textContent=st?`Scan taken ${ago(st)}.`:'';
  if(st&&Date.now()-st>30*60000)$('scanage').textContent+=' The prosthetic settles 0.25–1 mm in about 30 min - consider a new scan.';
- msg('msgrun','','');renderRunHist();runShow();saveSetShow()}
+ msg('msgrun','','');renderRunHist();runShow();saveSetShow();contLoad()}
 function saveSetShow(){const d=JOB.steps.design;$('savesetcard').hidden=!(['prosthetic','realhand'].includes(JOB.subject)&&d&&d.verdict==='PASS');msg('msgsaveset','','')}
 $('savesetgo').onclick=async()=>{const n=$('savesetname').value.trim();if(n.length<2){msg('msgsaveset','err','Give the setup a name.');return}
  $('savesetgo').disabled=true;try{await api('/api/studio/setup_save',{job:JOB.id,name:n});$('savesetname').value='';msg('msgsaveset','good',`Saved "${n}". It is under Repeat a setup on the welcome page.`)}
@@ -891,11 +911,12 @@ function runShow(){if(VIEW!=='run'||!JOB||!JOB.steps.program)return;const p=prog
  $('runbarfill').style.width=pct+'%';$('runbar').setAttribute('aria-valuenow',pct);$('runbar').classList.toggle('finishing',act&&finishing(p));
  $('runstats').innerHTML=stat('Progress',show?(act&&finishing(p)?'Finishing…':`${pct}%`):'–')+stat('Lines sent',show?`${p.done} / ${p.total}`:'–')+stat('Elapsed',show?mmss(p.elapsed_s):'–')
   +stat('Nozzle Z',m.mpos?fmt(m.mpos[2],2):'–');
- $('runstart').disabled=!canStart()||!!runAction;$('runpause').disabled=!act||!!runAction;$('runpause').textContent=act&&p&&p.paused?'Resume':'Pause';
+ $('runstart').disabled=!canStart()||!!runAction;contShow();
+ $('runscanstart').disabled=!!runAction||act||!!busy||!fresh||!m.connected||!m.homed||m.state!=='Idle'||!progOk();$('runcontinue').disabled=$('runscanstart').disabled;$('runpause').disabled=!act||!!runAction;$('runpause').textContent=act&&p&&p.paused?'Resume':'Pause';
  $('runstop').disabled=!act||runAction==='stop';
  RUN_TICKS.forEach(id=>$(id).disabled=!!runAction);
  $('rungo').disabled=!canStart()||!!runAction||!RUN_TICKS.every(id=>$(id).checked);
- const now=p&&p.state||'';if(lastRunState==='running'&&now&&now!=='running'&&mine)reloadJob(6);lastRunState=now}
+ const now=p&&p.state||'';if(lastRunState==='running'&&now&&now!=='running'&&mine){reloadJob(6);setTimeout(contLoad,1500)}lastRunState=now}
 let WATCHST=null;
 function watchShow(){const el=$('watchline');if(VIEW!=='run'||!JOB||JOB.subject!=='realhand'||!WATCHST||WATCHST.job!==JOB.id){el.className='msg';el.textContent='';return}
  const w=WATCHST,l=w.last||{},n=l.median_dz_mm==null?'':` · ${l.median_dz_mm>=0?'+':''}${fmt(l.median_dz_mm,1)} mm · ${Math.round(100*(l.seen_share||0))} % seen`;

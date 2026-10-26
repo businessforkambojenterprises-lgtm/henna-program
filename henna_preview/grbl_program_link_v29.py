@@ -145,7 +145,10 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
                     self._bf_most = max(int(b.group(1)), getattr(self, "_bf_most", None) or 0)
         m = SETTING_RE.fullmatch(text or "")
         if m is None:
-            return super()._handle(text, generation)
+            super()._handle(text, generation)
+            if b is not None or (text or "").startswith("<"):
+                self._note_position(generation)
+            return
         with self._lock:
             if generation != self._generation or self._ser is None:
                 return
@@ -153,6 +156,17 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
             if getattr(self, "_settings_seen", None) is not None:
                 self._settings_seen[int(m.group(1))] = m.group(2)
             self._changed.notify_all()
+
+    def _note_position(self, generation):
+        """While a program runs or is held: where the head is and how many lines were acknowledged then - after a STOP
+        it tells which stroke the run stopped in (Studio "Re-scan and continue", 2026-10-26)."""
+        with self._lock:
+            r = self._run
+            if (generation != self._generation or r is None or r.get("state") != "running" or self.mpos is None
+                    or self.state not in ("Run", "Hold")):
+                return
+            r["last_mpos"] = [round(float(v), 3) for v in self.mpos]
+            r["last_acked"] = int(r["acked"])
 
     def read_settings(self, timeout=5.0):
         owner = self._new_operation("settings")
@@ -205,6 +219,9 @@ class GrblProgramLinkV29(GrblProgramLinkV26):
         out = super().status()
         with self._lock:
             cfg = self._paste_cfg_locked()
+            if out.get("program") is not None and self._run is not None:
+                out["program"]["last_mpos"] = self._run.get("last_mpos")
+                out["program"]["last_acked"] = self._run.get("last_acked")
             if out.get("program") is not None and cfg:
                 out["program"]["paste"] = {"dispenser": cfg["dispenser"], "label": cfg["label"],
                                            "stopped_in_pause": bool(self._run.get("paste_stopped")),
