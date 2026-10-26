@@ -133,5 +133,71 @@ class StudioTests(unittest.TestCase):
             v29._FOLLOWER.update(fol)
 
 
+class SteadierAndRecordedTests(unittest.TestCase):
+    """2026-10-24 ("keep on building camera's live work"): the median of the last 3 pictures, a following record."""
+
+    def test_one_noisy_picture_does_not_move_the_nozzle(self):
+        ref = hw.Reference(skin(-30.0))
+        frames = [(100.0, skin(-30.0)), (100.1, skin(-27.0)), (100.2, skin(-30.0))]   # one frame 3 mm off
+        f = follow.Follower(ref, lambda: frames, -49.0, -0.5, clock=lambda: 100.3)
+        self.assertEqual(f.adjust(LINE), LINE)
+        frames[2] = (100.2, skin(-28.5))                         # two of three agree: 1.5 mm higher
+        frames[0] = (100.0, skin(-28.5))
+        self.assertNotEqual(f.adjust(LINE), LINE)
+
+    def test_the_record_and_its_file(self):
+        import csv
+        import tempfile
+        ref = hw.Reference(skin(-30.0))
+        f = follow.Follower(ref, lambda: [(100.0, skin(-29.0))], -49.0, -0.5, clock=lambda: 100.0)
+        for _ in range(3):
+            f.adjust(LINE)
+        f.adjust("G53 G0 Z-0.500")
+        self.assertEqual(len(f.record), 3)                        # drawing lines only
+        path = follow.save_record(f, os.path.join(tempfile.mkdtemp(), "f", "run_follow.csv"))
+        with open(path, encoding="utf-8") as fh:
+            rows = list(csv.reader(fh))
+        self.assertEqual(rows[0], ["t_s", "x", "y", "checked_z", "measured_change_mm", "applied_dz_mm"])
+        self.assertEqual([r[5] for r in rows[1:]], ["0.3", "0.6", "0.9"])
+        self.assertIsNone(follow.save_record(follow.Follower(ref, lambda: None, -49, -0.5), path))
+
+
+class AirRunEmptyBedTests(unittest.TestCase):
+    """2026-10-24: an air run paused 5 times "something is in the design area" with nothing there - the hand lies on
+    the jig's raised piece, which under thin fingers is less than 10 mm below the scanned skin. Against the empty bed
+    (the daily reference) only something more than 3 mm above it counts."""
+
+    def test_the_raised_jig_is_empty_a_hand_is_not(self):
+        ref = hw.Reference(skin(-30.0))                            # the scanned fingers
+        empty = hw.Reference(skin(-36.0))                          # the jig piece under them: 6 mm lower
+        live_empty = skin(-36.0)
+        self.assertEqual(hw.evaluate(hw.air_reference(ref), live_empty, (120.0, 100.0, -10.0))["verdict"], "moved")
+        r = hw.evaluate(hw.air_reference(ref, empty), live_empty, (120.0, 100.0, -10.0))
+        self.assertEqual(r["verdict"], "ok")
+        self.assertTrue(r["vs_empty_bed"])
+        r = hw.evaluate(hw.air_reference(ref, empty), skin(-31.0), (120.0, 100.0, -10.0))   # a hand: 5 mm above
+        self.assertEqual(r["verdict"], "moved")
+        self.assertIn("more than 3 mm above the empty bed", hw.message(r))
+
+    def test_no_empty_bed_from_before_the_z_home_move(self):
+        import json
+        import tempfile
+        import webui_server_v29 as v29
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "outputs", "calibration", "ball-screw", "reference"))
+        with open(os.path.join(d, "outputs", "calibration", "ball-screw", "reference", "reference.json"), "w") as f:
+            json.dump({"created": "2026-10-22T09:25:15", "mpos": [65.7, 80.0, -5.0]}, f)
+        saved = (v29.base.ROOT, v29.v10.cal, v29.v28.v26.profiles.active_id, dict(v29._EMPTY))
+        v29.base.ROOT = d
+        v29.v10.cal = lambda: {"z_home_moved_at": "2026-10-24T14:34:50"}
+        v29.v28.v26.profiles.active_id = lambda: "ball-screw"
+        try:
+            self.assertIsNone(v29._empty_bed())                     # made in the old Z numbers: the old rule
+        finally:
+            v29.base.ROOT, v29.v10.cal, v29.v28.v26.profiles.active_id, e = saved
+            v29._EMPTY.clear()
+            v29._EMPTY.update(e)
+
+
 if __name__ == "__main__":
     unittest.main()

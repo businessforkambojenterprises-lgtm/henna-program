@@ -110,11 +110,12 @@ def reference(job):
 
 # The newest live picture as machine points, for live height following (henna_preview/follow.py, 2026-10-24):
 # (time.monotonic() of the picture, (N, 3) points). Set by every check_sample.
-LIVE = {"t": None, "pts": None}
+LIVE = {"t": None, "pts": None, "recent": collections.deque(maxlen=3)}
 
 
 def live_points():
-    return (LIVE["t"], LIVE["pts"]) if LIVE["t"] is not None else None
+    """The newest live pictures, newest last: [(time.monotonic(), (N, 3) points), ...] (up to 3), or None."""
+    return list(LIVE["recent"]) if LIVE["t"] is not None else None
 
 
 def check_sample(ref, sample, head):
@@ -122,6 +123,7 @@ def check_sample(ref, sample, head):
     pts = hw.machine_points(sample["depth"], sample["scale"], rays_for(sample["intr"], sample["depth"].shape, sample["stride"]),
                             head, p["R"], p["t"], p["k"], p["depth_fn"])
     LIVE["t"], LIVE["pts"] = time.monotonic() - max(0.0, time.time() - float(sample["t"])), pts
+    LIVE["recent"].append((LIVE["t"], pts))
     return hw.evaluate(ref, pts, head)
 
 
