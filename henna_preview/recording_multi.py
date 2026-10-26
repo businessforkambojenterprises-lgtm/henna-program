@@ -14,13 +14,25 @@ Offline playback only: the file is opened read-only and no live camera is used.
 """
 import os
 import time
-import warnings
 
 import numpy as np
 
 from henna_preview.depth_surface import VALID, classify_depth, raw_to_mm, status_counts
 from henna_preview.recording import (RECORDING_EXT, RecordingError, check_frame_index, intrinsics_dict,
                                      require_streams)
+
+
+def nanmedian0(a):
+    """np.nanmedian(a, axis=0), the same numbers (NaN where a pixel has none), ~3x faster: one sort along the
+    frames (NaN sorts last), then the middle value or the mean of the two middle ones (2026-10-26: numpy's masked
+    median was ~2.6 s of a 4 s scan read)."""
+    srt = np.sort(a, axis=0)
+    n = np.isfinite(a).sum(axis=0)
+    lo = np.take_along_axis(srt, np.maximum((n - 1) // 2, 0)[None], 0)[0]
+    hi = np.take_along_axis(srt, np.maximum(n // 2, 0)[None], 0)[0]
+    out = np.where(n % 2 == 1, lo, (lo + hi) / 2.0)
+    out[n == 0] = np.nan
+    return out
 
 
 def median_depth(stack_raw, depth_scale_m, min_valid_frac=0.8, max_mad_mm=1.0):
@@ -30,10 +42,8 @@ def median_depth(stack_raw, depth_scale_m, min_valid_frac=0.8, max_mad_mm=1.0):
         raise RecordingError("need a stack of depth frames shaped (N, H, W)")
     m = np.where(s > 0, s, np.nan)
     valid_frac = np.isfinite(m).mean(axis=0)
-    with warnings.catch_warnings():  # never-measured pixels give all-NaN slices; they stay NaN
-        warnings.simplefilter("ignore", RuntimeWarning)
-        med = np.nanmedian(m, axis=0)
-        mad = np.nanmedian(np.abs(m - med), axis=0)
+    med = nanmedian0(m)
+    mad = nanmedian0(np.abs(m - med))
     status = classify_depth(raw_to_mm(med, depth_scale_m), valid_frac, raw_to_mm(mad, depth_scale_m),
                             min_valid_frac, max_mad_mm)
     out = np.where(status == VALID, med, 0.0)
@@ -45,15 +55,57 @@ def median_depth(stack_raw, depth_scale_m, min_valid_frac=0.8, max_mad_mm=1.0):
     return out, status, info
 
 
+# The same median read is needed by several steps of one job (Studio's path check, the design check, the program,
+# the hand watch) - each read the recording again (2026-10-26: "read the file only once ... share"). The result is
+# kept in CACHE_DIR, named by the recording's path, size and modification time and the window and thresholds, so a
+# different or changed file is never mixed up; separate processes (step 22, step 23) share it the same way.
+CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs", "frame_cache")
+CACHE_KEEP = 40
+_ARRAYS = ("depth_raw_aligned", "depth_status", "colour_rgb", "depth_raw_single_middle")
+
+
+def _cache_path(path, start, count, min_valid_frac, max_mad_mm):
+    import hashlib
+    st = os.stat(path)
+    key = f"v1|{os.path.normcase(path)}|{st.st_size}|{st.st_mtime_ns}|{start}|{count}|{min_valid_frac!r}|{max_mad_mm!r}"
+    return os.path.join(CACHE_DIR, hashlib.sha1(key.encode("utf-8")).hexdigest() + ".npz")
+
+
+def _cache_load(cpath):
+    import json
+    try:
+        with np.load(cpath, allow_pickle=False) as z:
+            out = {k: z[k] for k in _ARRAYS}
+            out.update(json.loads(str(z["meta_json"])))
+        return out
+    except (OSError, KeyError, ValueError):
+        return None
+
+
+def _cache_save(cpath, fr):
+    import json
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        meta = {k: v for k, v in fr.items() if k not in _ARRAYS}
+        tmp = cpath[:-4] + f".{os.getpid()}.tmp.npz"
+        np.savez(tmp, meta_json=json.dumps(meta), **{k: fr[k] for k in _ARRAYS})
+        os.replace(tmp, cpath)
+        old = sorted((os.path.join(CACHE_DIR, f) for f in os.listdir(CACHE_DIR) if f.endswith(".npz")),
+                     key=os.path.getmtime)
+        for f in old[:-CACHE_KEEP]:
+            os.remove(f)
+    except (OSError, TypeError, ValueError):
+        pass                                             # no cache: the next read plays the file again
+
+
 def read_frames_median(path, start, count, min_valid_frac=0.8, max_mad_mm=1.0):
     """Play the recording (not real-time) and median `count` aligned depth frames from pair `start`.
 
     Returns a frame dict shaped like recording.read_frame (colour and metadata of the middle
     frame) whose depth_raw_aligned is the median depth, plus depth_raw_single_middle (that one
     frame's own depth, for comparison) and 'multi' (window, thresholds, pixel status counts).
+    A read of the same file, window and thresholds done before comes from CACHE_DIR.
     """
-    import pyrealsense2 as rs
-
     path = os.path.abspath(path)
     if not path.lower().endswith(RECORDING_EXT):
         raise RecordingError("only .bag or .db3 recordings are accepted")
@@ -62,6 +114,17 @@ def read_frames_median(path, start, count, min_valid_frac=0.8, max_mad_mm=1.0):
     check_frame_index(start)
     if not isinstance(count, int) or count < 1:
         raise RecordingError("frame count must be a whole number of 1 or more")
+    cpath = _cache_path(path, start, count, min_valid_frac, max_mad_mm)
+    fr = _cache_load(cpath) if os.path.isfile(cpath) else None
+    if fr is not None:
+        return fr
+    fr = _read_frames_median(path, start, count, min_valid_frac, max_mad_mm)
+    _cache_save(cpath, fr)
+    return fr
+
+
+def _read_frames_median(path, start, count, min_valid_frac, max_mad_mm):
+    import pyrealsense2 as rs
 
     t0 = time.perf_counter()
     cfg = rs.config()
