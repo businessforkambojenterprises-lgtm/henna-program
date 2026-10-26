@@ -922,6 +922,59 @@ def _start_now(job_id, what, prep):
         raise ValueError(f"{what}: prepared ({', '.join(prep['done'])}) but the start was refused: {e}") from None
 
 
+def _wait_homed(timeout_s=150.0):
+    end = time.monotonic() + timeout_s
+    while time.monotonic() < end:
+        st = machine.status()
+        if not st.get("busy"):
+            if st.get("homed"):
+                return st
+            raise MachineError("homing did not finish - check the machine, then Home in the top bar")
+        time.sleep(0.25)
+    raise MachineError("homing took too long")
+
+
+def get_ready(params):
+    """Connect (if needed), Home (if needed), Move to scan position (if not there) - one press with no hand under the
+    machine (user 2026-10-26: "Home with Z first ... this should be auto"). Homing never starts by itself: its way to
+    the home corner is not path-checked, so the hand must be away - the same two ticks as Home."""
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    v13_ticks = {"confirm_clear": params.get("confirm_clear"), "confirm_estop": params.get("confirm_estop")}
+    if v13_ticks["confirm_clear"] is not True or v13_ticks["confirm_estop"] is not True:
+        raise ValueError("Confirm that no hand or object is under the machine and that you are at the emergency stop")
+    done = []
+    try:
+        st = machine.status()
+        if not st.get("connected"):
+            PROGRESS.update({"op": "Get ready", "step": "connecting", "from": 0, "to": 10, "expect_s": 3.0,
+                             "started": time.time()})
+            _route("/api/machine/connect")({})
+            done.append("connected")
+            st = machine.status()
+        if not st.get("homed"):
+            PROGRESS.update({"op": "Get ready", "step": "homing", "from": 10, "to": 70, "expect_s": 30.0,
+                             "started": time.time()})
+            _route("/api/machine/home")(dict(v13_ticks))
+            _wait_homed()
+            done.append("homed")
+            st = machine.status()
+        if not st.get("capture_ready"):
+            PROGRESS.update({"op": "Get ready", "step": "the move to the scan position", "from": 70, "to": 99,
+                             "expect_s": 15.0, "started": time.time()})
+            _route("/api/machine/scan_position")(dict(v13_ticks, job=job["id"]))
+            _wait_at_scan_position()
+            done.append("at the scan position")
+    except Exception as e:                                  # noqa: BLE001 - which part, what was done
+        raise ValueError(f"Get ready stopped: {e} (done: {', '.join(done) or 'nothing'})") from None
+    finally:
+        PROGRESS.update(op=None, step=None)
+    _log("Get ready", (machine.status() or {}).get("mpos"), "connect / home / scan position as needed",
+         "machine homed and at the scan position", ", ".join(done) or "already ready", "ready", "",
+         f"Studio v29; job {job['id']}; no hand under the machine (ticked)")
+    return dict(v14.machine_status(), done=done)
+
+
 def _hand_job(params, what):
     params = params or {}
     job = v11.job_load(params.get("job"))
@@ -1373,6 +1426,7 @@ class Handler(v28.Handler):
         "/api/machine/resume": (resume, _RESUME[1]),
         "/api/studio/quick_rescan": (quick_rescan, True),
         "/api/studio/scan_and_start": (scan_and_start, True),
+        "/api/studio/get_ready": (get_ready, True),
         "/api/studio/rescan_continue": (rescan_continue, True),
         "/api/studio/setup_save": (setup_save, True),
         "/api/studio/exit": (studio_exit, False),
