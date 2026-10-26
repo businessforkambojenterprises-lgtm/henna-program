@@ -146,6 +146,30 @@ class QuickRescanTests(unittest.TestCase):
             v29._way_to_scan_position_clear = saved
         self.assertEqual(self.calls, [])                          # nothing moved
 
+    def test_progress_for_the_page_bar(self):
+        # user 2026-10-24: "loading bars with 0 to 100% for better waiting" - each step reports its share of the bar
+        seen = []
+        route = self.v29._route
+
+        def spy(path):
+            fn = route(path)
+
+            def call(p):
+                pr = self.v29.progress_view()
+                seen.append((pr["step"], pr["from"], pr["to"]))
+                return fn(p)
+            return call
+        self.v29._route = spy
+        self.run_it()
+        self.assertEqual([s[0] for s in seen], ["the scan", "the hand detection", "the outline", "the design check",
+                                                "writing the program"])
+        self.assertEqual([s[1] for s in seen], sorted(s[1] for s in seen))            # the bar only goes forward
+        self.assertTrue(all(0 <= a <= b <= 99 for _, a, b in seen))
+        self.assertIsNone(self.v29.progress_view()["op"])                             # cleared at the end
+        page = open(os.path.join(ROOT, "webui", "studio_v29.html"), encoding="utf-8").read()
+        self.assertIn("api('/api/studio/progress')", page)
+        self.assertNotIn('<span class="spin"></span> ${esc(t)}`:esc', page.split("const msgSpin=msg;")[1])
+
     def test_needs_the_steps_and_the_ticks(self):
         with self.assertRaisesRegex(ValueError, "emergency stop"):
             self.v29.quick_rescan({"job": self.job["id"]})

@@ -1,7 +1,8 @@
 """Live gap under the nozzle (user 2026-10-24: "I want realsense to check realtime distance for better accuracy" ->
 "build A, pause below 4 mm or above 9 mm"): while the nozzle DRAWS (its planned gap is the nozzle height), the gap
-measured live under it must stay 4-9 mm, else the hand watch pauses (verdict "gap"); jumps, rises, air runs and jobs
-without a nozzle height are not judged; Studio gives the watch the job's nozzle height."""
+measured live under it is reported and logged (the pause below 4 / above 9 mm was removed on the user's request before
+live height following); jumps, rises, air runs and jobs without a nozzle height are not judged; Studio gives the watch
+the job's nozzle height."""
 import copy
 import os
 import sys
@@ -32,14 +33,12 @@ class GapTests(unittest.TestCase):
         self.assertAlmostEqual(r["near_gap_mm"], 6.0)
         self.assertAlmostEqual(r["planned_gap_mm"], 6.0)
 
-    def test_too_close_or_too_far_while_drawing_pauses(self):
+    def test_too_close_or_too_far_is_reported_not_paused(self):
+        # the pause below 4 / above 9 mm was removed (user 2026-10-24: "Remove the live gap pause"); the numbers stay
         r = hw.evaluate(self.ref, skin(-27.5), (120.0, 100.0, -24.0))       # skin 2.5 mm higher: gap 3.5
-        self.assertEqual(r["verdict"], "gap")
-        self.assertIn("3.5 mm above the skin under it (planned 6 mm; allowed 4 to 9 mm", hw.message(r))
-        r = hw.evaluate(self.ref, skin(-33.5), (120.0, 100.0, -24.0))       # skin 3.5 mm lower: gap 9.5
-        self.assertEqual(r["verdict"], "gap")
-        for z in (-28.0, -33.0):                                            # gap 4 / 9: still allowed
-            self.assertEqual(hw.evaluate(self.ref, skin(z), (120.0, 100.0, -24.0))["verdict"], "ok", z)
+        self.assertEqual(r["verdict"], "ok")
+        self.assertAlmostEqual(r["near_gap_mm"], 3.5)
+        self.assertTrue(r["drawing"])
 
     def test_not_judged_on_jumps_in_air_runs_or_without_a_height(self):
         r = hw.evaluate(self.ref, skin(-30.0), (120.0, 100.0, -1.0))         # at travel height: planned 29 mm
@@ -52,7 +51,7 @@ class GapTests(unittest.TestCase):
         plain.standoff_mm = None
         self.assertEqual(hw.evaluate(plain, skin(-27.5), (120.0, 100.0, -24.0))["verdict"], "ok")
 
-    def test_studio_gives_the_watch_the_nozzle_height_and_pauses_on_it(self):
+    def test_studio_gives_the_watch_the_nozzle_height(self):
         import webui_server_v28 as v28
         import webui_server_v29 as v29
         saved = v29._REFERENCE
@@ -65,7 +64,8 @@ class GapTests(unittest.TestCase):
             v29._REFERENCE = saved
         self.assertIs(v28.reference, v29.reference_with_gap)
         import inspect
-        self.assertIn('("moved", "near", "gap")', inspect.getsource(v28.Watch._loop))
+        self.assertIn('("moved", "near")', inspect.getsource(v28.Watch._loop))
+        self.assertNotIn('"near", "gap"', inspect.getsource(v28.Watch._loop))
 
 
 if __name__ == "__main__":

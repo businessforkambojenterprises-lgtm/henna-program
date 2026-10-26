@@ -153,6 +153,10 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .seg button.on{color:#1d1c1a}}
 @media (max-width:1180px){.machine .mono{display:none}}
 @media (max-width:900px){.top{flex-wrap:wrap;row-gap:8px;padding:10px 16px}.machine{flex-wrap:wrap}}
+.pbar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin:8px 0 4px}
+.pbfill{height:100%;width:0;background:var(--accent);border-radius:6px;transition:width .3s linear}
+.pbpct{font-variant-numeric:tabular-nums;font-size:13px;font-weight:650;text-align:right}
+.edbar{width:min(70%,420px);text-align:left}
 </style>
 </head>
 <body>
@@ -649,13 +653,30 @@ $('toHand').onclick=()=>go('region');
 /* ---------- 2 hand & region ---------- */
 let RUN=null,poly=[],edited=false,checked=false,dragI=-1;const imgC=new Image(),imgH=new Image(),ed=$('ed'),ex=ed.getContext('2d');
 function handInfo(){const h=JOB.steps.hand;$('handinfo').textContent=h?`Hand found · confidence ${fmt(h.score)} · frame ${h.frame} · ${h.landmarks_on_missing_depth} of 21 landmarks on missing depth`:'Not detected yet'}
-async function loadRun(keep){const r=await api(`/api/studio/hand?job=${encodeURIComponent(JOB.id)}&margin=${$('margin').value}`);RUN=r;$('margin').oninput();reachInfo(r);ed.width=r.width;ed.height=r.height;
+async function loadRun(keep){const r=await api(`/api/studio/hand?job=${encodeURIComponent(JOB.id)}&margin=${$('margin').value}`);pbStop($('edph'));RUN=r;$('margin').oninput();reachInfo(r);ed.width=r.width;ed.height=r.height;
  await Promise.all([new Promise(ok=>{imgC.onload=ok;imgC.src=r.colour}),new Promise(ok=>{imgH.onload=ok;imgH.src=r.holes})]);
  if(!keep){poly=r.suggestion?r.suggestion.map(p=>p.slice()):[];edited=false}$('edph').hidden=true;ed.hidden=false;invalidate();drawEd()}
 function reachInfo(r){const a=r.reach;if(!a||r.suggestion_kind==='palm'){$('reachinfo').textContent='';return}
  const b=a.bed_z,mm=z=>b==null?`Z ${z}`:`${Math.round(z-b)} mm above the bed`;
  $('reachinfo').textContent=`The suggestion keeps to skin the nozzle can reach: from ${mm(a.lowest_skin_z)} to ${mm(a.highest_skin_z)}. Lower parts (fingers lying low) and taller parts (heel of the palm, wrist) are left out - a design there would be refused.`}
-function edBlank(t){$('reachinfo').textContent='';RUN=null;poly=[];edited=false;ex.clearRect(0,0,ed.width,ed.height);ed.hidden=true;$('edph').hidden=false;$('edph').innerHTML=`<span><span class="spin"></span> ${t}</span>`}
+const PB_EXPECT=[[/Quick re-scan|Scan & prepare/,60],[/Planning every stroke/,35],[/Writing and re-reading the program/,25],
+ [/Recording/,25],[/Finding the hand|Detecting the hand/,12],[/Checking measured depth/,5],[/Dispenser on/,2],
+ [/Checking the program file/,6],[/Loading the scan/,3],[/Saving/,3],[/Writing the name/,2],[/Checking/,4]];
+const PB_TIMERS=new Map();
+function pbExpect(t){for(const [r,s] of PB_EXPECT)if(r.test(t))return s;return 10}
+function pbStop(el){const st=PB_TIMERS.get(el);if(st){clearInterval(st.timer);PB_TIMERS.delete(el)}}
+function pbRun(el,t,wrapCls){pbStop(el);
+ el.innerHTML=`<div class="${wrapCls||''}"><div>${esc(t)}</div><div class="pbar"><div class="pbfill"></div></div><div class="pbpct">0%</div></div>`;
+ const st={t0:Date.now(),exp:pbExpect(t),srv:/Quick re-scan|Scan & prepare/.test(t),pct:0,busy:false};
+ const tick=async()=>{const f=el.querySelector('.pbfill'),c=el.querySelector('.pbpct');if(!f||!c){pbStop(el);return}
+  let p=95*(1-Math.exp(-1.7*(Date.now()-st.t0)/1000/st.exp));
+  if(st.srv&&!st.busy){st.busy=true;try{const g=await api('/api/studio/progress');
+   if(g.op){p=g.from+(g.to-g.from)*Math.min(0.95,(g.now-g.started)/Math.max(0.5,g.expect_s))}}catch(e){}st.busy=false}
+  st.pct=Math.min(99,Math.max(st.pct,Math.round(p)));f.style.width=st.pct+'%';c.textContent=st.pct+'%'};
+ st.timer=setInterval(tick,300);PB_TIMERS.set(el,st);tick()}
+const msgSpin=msg;
+msg=function(id,kind,t){const m=$(id);pbStop(m);if(kind!=='info')return msgSpin(id,kind,t);m.className='msg info';pbRun(m,t||'')};
+function edBlank(t){$('reachinfo').textContent='';RUN=null;poly=[];edited=false;ex.clearRect(0,0,ed.width,ed.height);ed.hidden=true;$('edph').hidden=false;pbRun($('edph'),t,'edbar')}
 async function showRegion(){handInfo();if(!RUN||!JOB.steps.hand||RUN.run!==JOB.steps.hand.run)edBlank(JOB.steps.hand?'Loading the scan…':'Finding the hand (about 10 s)…');$('regstats').innerHTML='';msg('msgreg','','');$('toDesign').disabled=!JOB.steps.region;
  if(JOB.steps.region){$('regstate').className='chip c-ok';$('regstate').textContent='Accepted'}
  try{if(!JOB.steps.hand){$('edph').hidden=false;$('edph').innerHTML='<span><span class="spin"></span> Finding the hand (about 10 s)…</span>';await detect()}
@@ -879,11 +900,13 @@ let WATCHST=null;
 function watchShow(){const el=$('watchline');if(VIEW!=='run'||!JOB||JOB.subject!=='realhand'||!WATCHST||WATCHST.job!==JOB.id){el.className='msg';el.textContent='';return}
  const w=WATCHST,l=w.last||{},n=l.median_dz_mm==null?'':` · ${l.median_dz_mm>=0?'+':''}${fmt(l.median_dz_mm,1)} mm · ${Math.round(100*(l.seen_share||0))} % seen`;
  if(w.paused_by_watch){el.className='msg err';el.textContent=`Paused by the hand watch: ${w.paused_by_watch}. Check the hand, then Resume - Studio checks it again first.`}
- else if(w.active){const gp=l.drawing&&l.near_gap_mm!=null?` · gap under the nozzle ${fmt(l.near_gap_mm,1)} mm (planned ${fmt(l.planned_gap_mm,1)}, allowed 4-9)`:'';
-  el.className='msg '+(w.verdict==='ok'?'good':'warn');el.textContent=`Hand watch: ${w.verdict==='ok'?'hand still':w.verdict}${n}${gp}`}
+ else if(w.active){const gp=l.drawing&&l.near_gap_mm!=null?` · gap under the nozzle ${fmt(l.near_gap_mm,1)} mm (planned ${fmt(l.planned_gap_mm,1)})`:'',fo=FOLST&&FOLST.active&&FOLST.dz_mm!=null?` · following ${FOLST.dz_mm>=0?'+':''}${fmt(FOLST.dz_mm,1)} mm`:'';
+  el.className='msg '+(w.verdict==='ok'?'good':'warn');el.textContent=`Hand watch: ${w.verdict==='ok'?'hand still':w.verdict}${n}${gp}${fo}`}
  else{const g=w.gap||{},gs=g.n?` Gap under the nozzle while drawing: min ${fmt(g.min,1)}, mean ${fmt(g.sum/g.n,1)}, max ${fmt(g.max,1)} mm (${g.n} readings).`:'';
   el.className='msg info';el.textContent=`Hand watch ended${w.ended?' at '+w.ended.replace('T',' '):''}.${gs}`}}
-setInterval(async()=>{if(VIEW!=='run'||!JOB||JOB.subject!=='realhand')return;try{WATCHST=await api('/api/studio/watch')}catch(e){}watchShow()},500);
+let FOLST=null;
+setInterval(async()=>{if(VIEW!=='run'||!JOB||JOB.subject!=='realhand')return;try{WATCHST=await api('/api/studio/watch')}catch(e){}
+ try{FOLST=WATCHST&&WATCHST.active?await api('/api/studio/follow'):null}catch(e){FOLST=null}watchShow()},500);
 async function reloadJob(tries){try{const j=await api('/api/studio/job?id='+encodeURIComponent(JOB.id));setJob(j);if(VIEW==='run')renderRunHist();
   if(tries>1&&runsOfProgram().some(r=>r.result==='running')&&!running())setTimeout(()=>reloadJob(tries-1),700)}catch(e){}}
 $('runstart').onclick=()=>{if(!canStart())return;RUN_TICKS.forEach(id=>$(id).checked=false);$('rair').checked=false;$('rairbox').hidden=JOB.subject!=='realhand';msg('msgrundlg','','');runShow();$('dlgrun').showModal()};

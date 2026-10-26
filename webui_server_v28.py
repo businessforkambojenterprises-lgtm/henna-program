@@ -108,10 +108,20 @@ def reference(job):
     return _refs[key]
 
 
+# The newest live picture as machine points, for live height following (henna_preview/follow.py, 2026-10-24):
+# (time.monotonic() of the picture, (N, 3) points). Set by every check_sample.
+LIVE = {"t": None, "pts": None}
+
+
+def live_points():
+    return (LIVE["t"], LIVE["pts"]) if LIVE["t"] is not None else None
+
+
 def check_sample(ref, sample, head):
     p = _parts()
     pts = hw.machine_points(sample["depth"], sample["scale"], rays_for(sample["intr"], sample["depth"].shape, sample["stride"]),
                             head, p["R"], p["t"], p["k"], p["depth_fn"])
+    LIVE["t"], LIVE["pts"] = time.monotonic() - max(0.0, time.time() - float(sample["t"])), pts
     return hw.evaluate(ref, pts, head)
 
 
@@ -145,6 +155,9 @@ def hand_check(job, samples=PRESTART_SAMPLES):
 
 
 # ---------- the watch during a real-hand run ----------
+WATCH_END_NOTES = []                                      # callables -> text for the end-of-run log row
+
+
 class Watch:
     def __init__(self):
         self.lock = threading.Lock()
@@ -216,7 +229,7 @@ class Watch:
                         gs["sum"] += g
                         gs["min"] = g if gs["min"] is None else min(gs["min"], g)
                         gs["max"] = g if gs["max"] is None else max(gs["max"], g)
-                if res["verdict"] in ("moved", "near", "gap"):
+                if res["verdict"] in ("moved", "near"):
                     self._pause(job, hw.message(res), head)
                 elif res["verdict"] == "unseen":
                     unseen_since = unseen_since or now
@@ -232,13 +245,21 @@ class Watch:
                 self.state["active"] = False
                 self.state["ended"] = dt.datetime.now().isoformat(timespec="seconds")
                 gs = dict(self.state.get("gap") or {})
-            if gs.get("n"):                                       # how close the heights really were (2026-10-24)
+            extra = []
+            for hook in WATCH_END_NOTES:                          # e.g. Studio v29's live height following
                 try:
+                    t = hook()
+                except Exception:                                 # noqa: BLE001 - a note never stops the shutdown
+                    t = None
+                if t:
+                    extra.append(t)
+            if gs.get("n") or extra:                              # how close the heights really were (2026-10-24)
+                try:
+                    gap = (f"{gs['n']} readings: min {gs['min']:.1f} mm, mean {gs['sum'] / gs['n']:.1f} mm, "
+                           f"max {gs['max']:.1f} mm" if gs.get("n") else "no gap readings")
                     _log("Hand watch: gap under the nozzle while drawing", None, "camera, live",
-                         f"between {hw.GAP_MIN_MM:g} and {hw.GAP_MAX_MM:g} mm",
-                         f"{gs['n']} readings: min {gs['min']:.1f} mm, mean {gs['sum'] / gs['n']:.1f} mm, "
-                         f"max {gs['max']:.1f} mm", "recorded", job["steps"]["scan"]["name"],
-                         f"Studio v28 real-hand watch; job {job['id']}")
+                         "the planned nozzle height", "; ".join([gap] + extra), "recorded",
+                         job["steps"]["scan"]["name"], f"Studio v28 real-hand watch; job {job['id']}")
                 except Exception:                                 # noqa: BLE001 - a log row never stops the shutdown
                     pass
 
