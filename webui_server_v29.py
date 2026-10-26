@@ -723,11 +723,33 @@ def _follow_and_prepare(job, src, what, allow_move=False, write_program=None):
     """Scan the hand where it is now and repeat src's outline, design and program on it, through the page's own routes
     (every guard): [move to the scan position], scan, hand, outline + design moved with the hand (follow_hand), the
     design check on the new scan, the program. Stops at the first refusal, naming the step."""
+    try:
+        return _follow_and_prepare_steps(job, src, what, allow_move, write_program)
+    finally:
+        PROGRESS.update(op=None, step=None)
+
+
+# Progress of Quick re-scan / Scan & prepare for the page's bar (user 2026-10-24: "remove these [spinners] and loading
+# bars with 0 to 100% for better waiting"): each step's share of the bar and its usual time - the page fills the bar
+# within the step by time and never past the step's end until the next step starts.
+PROGRESS = {"op": None, "step": None, "from": 0, "to": 0, "expect_s": 0.0, "started": None}
+STEP_SHARE = {"the move to the scan position": (0, 15, 10.0), "the scan": (15, 40, 15.0),
+              "the hand detection": (40, 55, 10.0), "following the hand": (55, 58, 1.0), "the outline": (58, 65, 3.0),
+              "the design check": (65, 85, 25.0), "writing the program": (85, 99, 20.0)}
+
+
+def progress_view(_=None):
+    return dict(PROGRESS, now=time.time())
+
+
+def _follow_and_prepare_steps(job, src, what, allow_move, write_program):
     from henna_preview import follow_hand
     jid, done, p = job["id"], [], v28._parts()
     design = src["design"]
 
     def step(name, fn):
+        a, b, sec = STEP_SHARE.get(name, (PROGRESS.get("to") or 0, PROGRESS.get("to") or 0, 1.0))
+        PROGRESS.update({"op": what, "step": name, "from": a, "to": b, "expect_s": sec, "started": time.time()})
         try:
             return fn()
         except Exception as e:                              # noqa: BLE001 - the step's own message, which step
@@ -1105,7 +1127,8 @@ class Handler(v28.Handler):
                                            "/api/studio/active_job": lambda q: dict(_ACTIVE),
                                            "/api/studio/setups": setups_list,
                                            "/api/studio/hand": hand_view,
-                                           "/api/studio/follow": follow_view})
+                                           "/api/studio/follow": follow_view,
+                                           "/api/studio/progress": progress_view})
     POST_API = dict(v28.Handler.POST_API, **{
         "/api/studio/check_design": (check_design, _CHECK_DESIGN[1]),
         "/api/studio/program": (program, v28.Handler.POST_API["/api/studio/program"][1]),
