@@ -94,8 +94,8 @@ def legacy_scan(params):
             v10.check_pose(st["mpos"], tuple(v10.cal()["capture_pose_mpos"]))
             info = v10.camera.record(path, seconds)
     except Exception as exc:
-        if os.path.exists(path):
-            os.replace(path, path + ".rejected")
+        from henna_preview.web_recorder import reject
+        reject(path)
         v10.log_row(v10.LOG_FILE, 0, "Web scan refused", st["mpos"] if st else None,
                     "Studio Record", "usable recording and fixed head", str(exc), "REFUSED", name)
         raise

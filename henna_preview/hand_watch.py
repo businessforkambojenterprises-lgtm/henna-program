@@ -24,7 +24,8 @@ LIMIT_MM = 4.0              # user 2026-10-22: "widen tolerance" (was 2 mm / 20 
 MOVED_SHARE = 0.40          # for minutes; the 6 mm nozzle height keeps 2 mm, and "near" (NEAR_MM) still pauses at 1.5
 NEAR_MM = 1.5
 NEAR_XY_MM = 3.0            # skin right under the tip; the planner already lifts the tip over nearby higher skin
-MIN_SEEN = 0.20
+MIN_SEEN = 0.20                     # of the design area INSIDE the camera's current view (2026-10-26, see evaluate)
+MIN_IN_VIEW = 0.05                  # and at least this much of the whole design area must be in view at all
 MIN_POINTS = 30
 CELL_MM = 1.0
 CLEAR_MM = 10.0
@@ -94,6 +95,10 @@ class Reference:
         for c, s, e in zip(cells, start, list(start[1:]) + [len(flat)]):
             self.z[c] = float(np.median(z[s:e]))
         self.cells = int(np.isfinite(self.z).sum())
+        idx = np.flatnonzero(np.isfinite(self.z))
+        ix, iy = np.divmod(idx, self.ny)
+        self.cell_xy = np.column_stack([self.x0 + (ix + 0.5) * CELL_MM, self.y0 + (iy + 0.5) * CELL_MM])
+        self.cell_id = idx
 
     def _cells(self, pts):
         return (np.floor((pts[:, 0] - self.x0) / CELL_MM).astype(int),
@@ -140,8 +145,17 @@ def evaluate(ref, live_pts, tool_xyz):
     zr, cell = ref.lookup(live_pts) if len(live_pts) else (np.array([]), np.array([], int))
     m = np.isfinite(zr)
     out["points"] = int(m.sum())
-    out["seen_share"] = round(len(np.unique(cell[m])) / max(1, ref.cells), 3)
-    if out["points"] < MIN_POINTS or out["seen_share"] < MIN_SEEN:
+    # seen = of the design-area cells inside the camera's CURRENT view (the box of the live points) - with the head low
+    # the camera sees only a patch around the nozzle (2026-10-26: an air run at Z -37 over a palm-only area paused "17 %
+    # seen" with nothing wrong; Resume could not pass either). At least MIN_IN_VIEW of the whole area must be in view.
+    in_view = ref.cells
+    if len(live_pts) and getattr(ref, "cell_xy", None) is not None:
+        lo, hi = live_pts[:, :2].min(axis=0), live_pts[:, :2].max(axis=0)
+        cx = ref.cell_xy
+        in_view = int(((cx[:, 0] >= lo[0]) & (cx[:, 0] <= hi[0]) & (cx[:, 1] >= lo[1]) & (cx[:, 1] <= hi[1])).sum())
+    out["in_view_share"] = round(in_view / max(1, ref.cells), 3)
+    out["seen_share"] = round(len(np.unique(cell[m])) / max(1, in_view), 3)
+    if out["points"] < MIN_POINTS or out["seen_share"] < MIN_SEEN or out["in_view_share"] < MIN_IN_VIEW:
         return dict(out, verdict="unseen")
     dz = live_pts[m, 2] - zr[m]
     out["median_dz_mm"] = round(float(np.median(dz)), 2)
