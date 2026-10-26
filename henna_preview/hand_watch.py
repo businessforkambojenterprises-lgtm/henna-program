@@ -29,6 +29,11 @@ MIN_POINTS = 30
 CELL_MM = 1.0
 CLEAR_MM = 10.0
 CLEAR_SHARE = 0.98
+# Air run against the EMPTY bed (2026-10-24: an air run paused 5 times "something is in the design area 5-23 %" with
+# nothing there - the hand lies ON the jig's raised hand piece, and without the hand the piece under the fingers is less
+# than CLEAR_MM below the scanned skin). With an empty-bed reference (the daily check's, bed as every day, no hand):
+# a cell is "not clear" only when the live surface stands more than EMPTY_MM above the empty bed there.
+EMPTY_MM = 3.0
 # Live gap under the nozzle while it draws (user 2026-10-24: "I want realsense to check realtime distance for better
 # accuracy"): the tip's height above the highest live skin within NEAR_XY_MM of it (near_gap_mm), marked "drawing"
 # while its planned gap (tip Z - the scanned skin under it) is the nozzle height within DRAW_BAND_MM. Shown and logged
@@ -102,10 +107,12 @@ class Reference:
         return z, np.where(inside, ix * self.ny + iy, -1)
 
 
-def air_reference(ref):
-    """The same scanned skin, for an air run: evaluate() then requires the area empty (see the module text)."""
+def air_reference(ref, empty=None):
+    """The same scanned skin, for an air run: evaluate() then requires the area empty (see the module text).
+    empty: a Reference of the EMPTY bed (machine cells) - then "empty" means at most EMPTY_MM above it."""
     a = copy.copy(ref)
     a.expect_clear = True
+    a.empty = empty
     return a
 
 
@@ -139,6 +146,19 @@ def evaluate(ref, live_pts, tool_xyz):
     dz = live_pts[m, 2] - zr[m]
     out["median_dz_mm"] = round(float(np.median(dz)), 2)
     if clear:
+        empty = getattr(ref, "empty", None)
+        if empty is not None:
+            ze, _ = empty.lookup(live_pts[m])
+            k = np.isfinite(ze)
+            if k.sum() >= MIN_POINTS:
+                above = live_pts[m][k, 2] - ze[k]
+                out["share_off"] = round(float(np.mean(above > EMPTY_MM)), 3)   # share standing above the empty bed
+                out["vs_empty_bed"] = True
+                if out["share_off"] > 1 - CLEAR_SHARE:
+                    return dict(out, verdict="moved",
+                                text=f"something is in the design area ({100 * out['share_off']:.0f} % of it more "
+                                     f"than {EMPTY_MM:g} mm above the empty bed) - an air run needs it empty")
+                return dict(out, verdict="ok")
         out["share_off"] = round(float(np.mean(dz > -CLEAR_MM)), 3)          # share NOT clearly below the skin
         if out["share_off"] > 1 - CLEAR_SHARE:
             return dict(out, verdict="moved",

@@ -516,10 +516,41 @@ def _prosthetic_start(job, params):
 # ---- air run for a real-hand job (user 2026-10-22: "yes" to an "Air run (no hand)" option instead of removing the
 # hand check): the same program, every real-hand rule, but the camera requires the design area EMPTY before Start and
 # while it runs (henna_preview/hand_watch.py: air_reference) - a hand or anything else there refuses / pauses.
+_EMPTY = {"key": None, "ref": None}
+
+
+def _empty_bed():
+    """The empty bed as machine cells, for air runs (hand_watch EMPTY_MM): the daily check's reference recording (bed
+    as every day, no hand - "Set the reference"). None (the old "below the scanned skin" rule) when there is none, or it
+    was made before the Z home switch moved (its heights are in the old numbers)."""
+    from henna_preview import hand_watch as hw
+    try:
+        ref_dir = os.path.join(base.ROOT, "outputs", "calibration", v28.v26.profiles.active_id(), "reference")
+        meta_path, rec = os.path.join(ref_dir, "reference.json"), os.path.join(ref_dir, "reference.db3")
+        with open(meta_path, encoding="utf-8") as f:
+            meta = json.load(f)
+        moved_at = v10.cal().get("z_home_moved_at")
+        if moved_at and str(meta.get("created", "")) < moved_at:
+            return None
+        key = (rec, os.path.getmtime(rec))
+        if _EMPTY["key"] != key:
+            fr = v28.v26._median_frame(rec)
+            raw = fr["depth_raw_aligned"]
+            sub = raw[::v28.REF_STRIDE, ::v28.REF_STRIDE]
+            p = v28._parts()
+            pts = hw.machine_points(sub, fr["depth_scale_m_per_unit"],
+                                    v28.rays_for(fr["colour_intrinsics"], sub.shape, v28.REF_STRIDE),
+                                    meta["mpos"], p["R"], p["t"], p["k"], p["depth_fn"])
+            _EMPTY.update(key=key, ref=hw.Reference(pts))
+        return _EMPTY["ref"]
+    except Exception:                                       # noqa: BLE001 - no usable empty bed: the old rule
+        return None
+
+
 def air_check(job, samples=v28.PRESTART_SAMPLES):
     """Right before Start / Resume of an air run: the design area must be empty. -> last result; raises when not."""
     from henna_preview import hand_watch as hw
-    ref = hw.air_reference(v28.reference(job))
+    ref = hw.air_reference(v28.reference(job), _empty_bed())
     st = machine.status()
     if not st.get("connected") or st.get("mpos") is None:
         raise MachineError("Connect the machine first")
@@ -552,7 +583,7 @@ def _air_start(job, params):
          "design area empty (no hand)", f"median {res['median_dz_mm']} mm below the scanned skin; "
          f"{100 * res['share_off']:.0f} % not clear; {100 * res['seen_share']:.0f} % seen", "ok",
          job["steps"]["scan"]["name"], f"Studio v29 air run; job {job['id']}")
-    v28.WATCH.start(job, hw.air_reference(v28.reference(job)))
+    v28.WATCH.start(job, hw.air_reference(v28.reference(job), _empty_bed()))
     with v28.WATCH.lock:
         v28.WATCH.state["air_run"] = True
     return dict(out, air_run=True)
@@ -597,6 +628,7 @@ def _arm_follow(job):
 
 
 def _follow_note():
+    from henna_preview import follow
     f, _FOLLOWER["current"] = _FOLLOWER["current"], None
     if f is None:
         return None
@@ -604,8 +636,15 @@ def _follow_note():
     if not st["lines"]:
         return None
     rng = (f"{st['min_dz']:+.1f} to {st['max_dz']:+.1f} mm" if st["followed"] else "none")
+    path = None
+    try:                                                    # every line's plan / measurement / correction
+        path = follow.save_record(f, os.path.join(base.ROOT, "outputs", "follow",
+                                                  dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "_follow.csv"))
+    except OSError:
+        path = None
     return (f"live height following: {st['followed']} of {st['lines']} drawing lines moved ({rng}; band "
-            f"-{follow_band()[0]:g}/+{follow_band()[1]:g} mm), {st['unseen']} not seen")
+            f"-{follow_band()[0]:g}/+{follow_band()[1]:g} mm), {st['unseen']} not seen"
+            + (f"; record {os.path.relpath(path, base.ROOT)}" if path else ""))
 
 
 def follow_band():

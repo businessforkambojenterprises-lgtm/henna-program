@@ -22,6 +22,7 @@ import numpy as np
 DOWN_MM = 1.0
 UP_MM = 2.0
 STEP_MM = 0.3
+MAX_RECORD = 50000                  # lines kept for the run's following file
 DEADBAND_MM = 0.6                   # smaller differences are measuring noise: with the hand unchanged, the live spot
                                     # around a line and the scan's 1 mm grid differ by up to about +-0.6 mm on sloped
                                     # skin (real program 2026-10-24: -0.54 .. +0.66, mean 0.00) - not followed
@@ -50,22 +51,27 @@ def skin_change(ref, pts, x, y, radius=RADIUS_MM):
 
 
 class Follower:
-    """adjust(line) -> the line to send. live() -> (time.monotonic() of the picture, (N, 3) machine points) or None."""
+    """adjust(line) -> the line to send. live() -> the newest pictures, newest last: [(time.monotonic(), (N, 3) machine
+    points), ...] (or one such pair, or None). The skin's change is the MEDIAN over the fresh pictures (at most
+    MAX_AGE_S old; 2026-10-24: up to 3) - one noisy frame does not move the nozzle. record: every drawing line's plan,
+    measurement and correction, for the run's following file (henna_preview/follow.save_record)."""
 
     def __init__(self, ref, live, floor_z, travel_z, clock=time.monotonic):
         self.ref, self.live, self.clock = ref, live, clock
         self.floor_z, self.travel_z = float(floor_z), float(travel_z)
         self.dz = 0.0
         self.stats = {"lines": 0, "followed": 0, "min_dz": None, "max_dz": None, "unseen": 0}
+        self.record = []
 
     def _measured(self, x, y):
         got = self.live()
         if not got:
             return None
-        t, pts = got
-        if self.clock() - float(t) > MAX_AGE_S:
-            return None
-        return skin_change(self.ref, pts, x, y)
+        frames = [got] if isinstance(got, tuple) else list(got)
+        now = self.clock()
+        changes = [c for t, pts in frames if now - float(t) <= MAX_AGE_S
+                   for c in [skin_change(self.ref, pts, x, y)] if c is not None]
+        return float(np.median(changes)) if changes else None
 
     def adjust(self, line):
         g = parse_g1(line)
@@ -73,7 +79,7 @@ class Follower:
             return line
         x, y, z, f = g
         self.stats["lines"] += 1
-        want = self._measured(x, y)
+        measured = want = self._measured(x, y)
         if want is None:
             self.stats["unseen"] += 1
             want = 0.0                                      # not seen: drift back to the plan
@@ -85,6 +91,11 @@ class Follower:
         new_z = round(z + self.dz, 3)
         if new_z < self.floor_z or new_z >= self.travel_z:
             self.dz = 0.0
+            new_z = z
+        if len(self.record) < MAX_RECORD:
+            self.record.append((round(self.clock(), 3), x, y, z, None if measured is None else round(measured, 3),
+                                round(new_z - z, 3)))
+        if new_z == z:
             return line
         if abs(self.dz) > 1e-9:
             self.stats["followed"] += 1
@@ -104,3 +115,20 @@ def line_ok(orig, new, floor_z, travel_z):
         return False
     dz = b[2] - a[2]
     return -DOWN_MM - 1e-6 <= dz <= UP_MM + 1e-6 and b[2] >= float(floor_z) - 1e-9 and b[2] < float(travel_z)
+
+
+def save_record(follower, path):
+    """The run's following file (CSV): one row per drawing line - time, X, Y, checked Z, measured skin change (empty =
+    not seen), applied correction. -> path, or None when there is nothing to save."""
+    import csv
+    import os
+    if follower is None or not follower.record:
+        return None
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["t_s", "x", "y", "checked_z", "measured_change_mm", "applied_dz_mm"])
+        t0 = follower.record[0][0]
+        for t, x, y, z, m, dz in follower.record:
+            w.writerow([round(t - t0, 3), x, y, z, "" if m is None else m, dz])
+    return path
