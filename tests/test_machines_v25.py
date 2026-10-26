@@ -118,10 +118,10 @@ class LinkCommandTests(unittest.TestCase):
     def test_ball_screw_route(self):
         cmds, pos = self.run_route("ball-screw")
         mo = ball_screw_motion()          # travel Z (-1 since 2026-10-22) and scan Z (-1 since 2026-10-24) as registered
-        travel, scan_z = mo["travel_z"], mo["scan_pose_mpos"][2]
+        travel, (sx, sy, scan_z) = mo["travel_z"], mo["scan_pose_mpos"]   # X/Y: machine_scan_xy_set.py (2026-10-26)
         self.assertEqual(cmds, ["$HZ", "$H", f"$J=G21 G90 G53 Z{travel:.3f} F300",
-                                "$J=G21 G90 G53 X65.700 Y80.000 F1000", f"$J=G21 G90 G53 Z{scan_z:.3f} F300"])
-        self.assertEqual(pos, [65.7, 80.0, scan_z])
+                                f"$J=G21 G90 G53 X{sx:.3f} Y{sy:.3f} F1000", f"$J=G21 G90 G53 Z{scan_z:.3f} F300"])
+        self.assertEqual(pos, [sx, sy, scan_z])
 
 
 def ball_screw_motion():
