@@ -165,7 +165,7 @@ class SteadierAndRecordedTests(unittest.TestCase):
 class AirRunEmptyBedTests(unittest.TestCase):
     """2026-10-24: an air run paused 5 times "something is in the design area" with nothing there - the hand lies on
     the jig's raised piece, which under thin fingers is less than 10 mm below the scanned skin. Against the empty bed
-    (the daily reference) only something more than 3 mm above it counts."""
+    (the daily reference) only something more than EMPTY_MM above it counts, per 5 mm square (2026-10-26)."""
 
     def test_the_raised_jig_is_empty_a_hand_is_not(self):
         ref = hw.Reference(skin(-30.0))                            # the scanned fingers
@@ -175,9 +175,23 @@ class AirRunEmptyBedTests(unittest.TestCase):
         r = hw.evaluate(hw.air_reference(ref, empty), live_empty, (120.0, 100.0, -10.0))
         self.assertEqual(r["verdict"], "ok")
         self.assertTrue(r["vs_empty_bed"])
-        r = hw.evaluate(hw.air_reference(ref, empty), skin(-31.0), (120.0, 100.0, -10.0))   # a hand: 5 mm above
+        r = hw.evaluate(hw.air_reference(ref, empty), skin(-26.0), (120.0, 100.0, -10.0))   # a hand: 10 mm above
         self.assertEqual(r["verdict"], "moved")
-        self.assertIn("more than 3 mm above the empty bed", hw.message(r))
+        self.assertIn("more than 6 mm above the empty bed", hw.message(r))
+
+    def test_scattered_depth_noise_is_empty(self):
+        """2026-10-26: the saved picture of a false pause - noise blotches 3-4.6 mm high all over an empty bed."""
+        rng = np.random.default_rng(4)
+        ref, empty = hw.Reference(skin(-30.0)), hw.Reference(skin(-36.0))
+        live = skin(-36.0)
+        live[:, 2] += rng.normal(0.0, 1.0, len(live))
+        spots = rng.random(len(live)) < 0.03
+        live[spots, 2] += 4.0                                       # 3 % of the points 4 mm high
+        r = hw.evaluate(hw.air_reference(ref, empty), live, (120.0, 100.0, -10.0))
+        self.assertEqual(r["verdict"], "ok", r)
+        finger = (np.abs(live[:, 0] - 115) < 6) & (np.abs(live[:, 1] - 100) < 6)
+        live[finger, 2] = -36.0 + 13.0                              # a fingertip: 12 x 12 mm, 13 mm high
+        self.assertEqual(hw.evaluate(hw.air_reference(ref, empty), live, (120.0, 100.0, -10.0))["verdict"], "moved")
 
     def test_no_empty_bed_from_before_the_z_home_move(self):
         import json
@@ -213,8 +227,10 @@ class SeenInViewTests(unittest.TestCase):
         self.assertGreater(r["seen_share"], 0.9)
         tiny = skin(-30.0, x=(100, 104), y=(80, 84))                       # only 1 % of the area in view
         self.assertEqual(hw.evaluate(ref, tiny, (120.0, 100.0, -24.0))["verdict"], "unseen")
-        holey = np.vstack([skin(-30.0, x=(100, 140), y=(80, 82)), skin(-30.0, x=(100, 140), y=(118, 120))])
+        holey = np.vstack([skin(-30.0, x=(100, 140), y=(80, 82)), skin(-30.0, x=(139, 140), y=(80, 120))])
         self.assertEqual(hw.evaluate(ref, holey, (120.0, 100.0, -24.0))["verdict"], "unseen")  # in view, not seen
+        sparse = skin(-30.0)[::8]                          # one point every 4 mm along X: few per 1 mm cell
+        self.assertEqual(hw.evaluate(ref, sparse, (120.0, 100.0, -24.0))["verdict"], "ok")   # 2026-10-26: "20 % seen"
 
 
 if __name__ == "__main__":

@@ -120,11 +120,14 @@ def live_points():
 
 def check_sample(ref, sample, head):
     p = _parts()
+    grow = hw.AIR_HEAD_GROW_PX if getattr(ref, "expect_clear", False) else hw.HEAD_GROW_PX
     pts = hw.machine_points(sample["depth"], sample["scale"], rays_for(sample["intr"], sample["depth"].shape, sample["stride"]),
-                            head, p["R"], p["t"], p["k"], p["depth_fn"])
+                            head, p["R"], p["t"], p["k"], p["depth_fn"], head_grow_px=grow)
     LIVE["t"], LIVE["pts"] = time.monotonic() - max(0.0, time.time() - float(sample["t"])), pts
     LIVE["recent"].append((LIVE["t"], pts))
-    return hw.evaluate(ref, pts, head)
+    res = hw.evaluate(ref, pts, head)
+    LIVE["last_sample"] = (sample, list(head), res)        # kept for the picture saved when the watch pauses
+    return res
 
 
 def _fresh_sample(after_t, timeout):
@@ -158,6 +161,27 @@ def hand_check(job, samples=PRESTART_SAMPLES):
 
 # ---------- the watch during a real-hand run ----------
 WATCH_END_NOTES = []                                      # callables -> text for the end-of-run log row
+
+
+def _save_pause_picture(job, reason):
+    """The depth picture the watch judged last, with its head position and result (2026-10-26: an air run paused
+    "something is in the design area" with the bed empty - so the next one can be looked at, not guessed)."""
+    last = LIVE.get("last_sample")
+    if not last:
+        return None
+    sample, head, res = last
+    if not {"width", "height", "fx"} <= set(sample.get("intr") or {}):
+        return None                                         # not a camera picture (a made-up test sample)
+    try:
+        out = os.path.join(base.ROOT, "outputs", "watch_pauses")
+        os.makedirs(out, exist_ok=True)
+        path = os.path.join(out, dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "_pause.npz")
+        np.savez_compressed(path, depth=sample["depth"], meta_json=json.dumps(
+            {"job": job["id"], "reason": reason, "head": head, "result": res, "scale": sample["scale"],
+             "intr": sample["intr"], "stride": sample["stride"], "t": sample["t"]}, default=str))
+        return path
+    except Exception:                                       # noqa: BLE001 - saving never stops the pause
+        return None
 
 
 class Watch:
@@ -197,8 +221,10 @@ class Watch:
         except MachineError as e:
             with self.lock:
                 self.state["pause_error"] = str(e)
+        saved = _save_pause_picture(job, reason)
         _log("Hand watch: PAUSED the run", mpos, "feed hold (Pause)", "hand still under the nozzle", reason, "paused",
-             job["steps"]["scan"]["name"], f"Studio v28 real-hand watch; job {job['id']}")
+             job["steps"]["scan"]["name"], f"Studio v28 real-hand watch; job {job['id']}"
+             + (f"; picture {os.path.relpath(saved, base.ROOT)}" if saved else ""))
 
     def _loop(self, job, ref):
         hist = collections.deque(maxlen=60)

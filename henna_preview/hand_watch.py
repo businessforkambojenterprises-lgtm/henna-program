@@ -34,7 +34,12 @@ CLEAR_SHARE = 0.98
 # nothing there - the hand lies ON the jig's raised hand piece, and without the hand the piece under the fingers is less
 # than CLEAR_MM below the scanned skin). With an empty-bed reference (the daily check's, bed as every day, no hand):
 # a cell is "not clear" only when the live surface stands more than EMPTY_MM above the empty bed there.
-EMPTY_MM = 3.0
+EMPTY_MM = 6.0
+# ... judged per EMPTY_BLOCK_MM square (the median of its points), not per point (2026-10-26: an air run paused "2 %
+# of it more than 3 mm above the empty bed" at the scan position with the bed empty - the saved picture: single-picture
+# depth noise in small blotches all over the view, 1.7 % of 5 mm squares 3-4.6 mm high, the highest 4.6 mm; a hand is
+# 13 mm and more above the table). EMPTY_MM was 3 mm per point.
+EMPTY_BLOCK_MM = 5.0
 # Live gap under the nozzle while it draws (user 2026-10-24: "I want realsense to check realtime distance for better
 # accuracy"): the tip's height above the highest live skin within NEAR_XY_MM of it (near_gap_mm), marked "drawing"
 # while its planned gap (tip Z - the scanned skin under it) is the nozzle height within DRAW_BAND_MM. Shown and logged
@@ -43,6 +48,11 @@ EMPTY_MM = 3.0
 GAP_MIN_MM = 4.0                    # the 2026-10-24 limits, kept for the log's reference only
 GAP_MAX_MM = 9.0
 DRAW_BAND_MM = 1.5
+# Air runs: the head's outline in the picture is grown this much more (2026-10-26: an air run with the head low over
+# the design paused "2-3 % more than 3 mm above the empty bed" with the bed empty - the D405's in-between depths along
+# the nozzle's edge stand above the bed, and an air run allows only 2 %). Real-hand runs keep HEAD_GROW_PX.
+HEAD_GROW_PX = 3
+AIR_HEAD_GROW_PX = 25                # a box size: about 12 px each side (HEAD_GROW_PX 3: about 1 px)
 
 
 def ray_table(intr, shape, stride):
@@ -60,11 +70,11 @@ def ray_table(intr, shape, stride):
     return rx, ry
 
 
-def machine_points(depth_raw, scale, rays, head, R, t, k, depth_fn, mask=None):
+def machine_points(depth_raw, scale, rays, head, R, t, k, depth_fn, mask=None, head_grow_px=HEAD_GROW_PX):
     """(N, 3) machine X, Y, skin Z of the valid depth pixels below the tip's own depth (never the nozzle)."""
     from henna_preview.head_mask import head_pixels
     d_mm = depth_raw.astype(float) * float(scale) * 1000.0
-    ok = (depth_raw > 0) & ~head_pixels(depth_raw, scale, k, depth_fn, grow_px=3)   # the tip itself reads ~k+1.4 mm
+    ok = (depth_raw > 0) & ~head_pixels(depth_raw, scale, k, depth_fn, grow_px=head_grow_px)  # the tip reads ~k+1.4 mm
     if mask is not None:
         ok &= mask
     d = d_mm[ok]
@@ -121,6 +131,25 @@ def air_reference(ref, empty=None):
     return a
 
 
+SEEN_BLOCK_MM = 4.0
+
+
+def _squares(xy):
+    g = np.floor(np.asarray(xy, float)[:, :2] / SEEN_BLOCK_MM).astype(np.int64)
+    return g[:, 0] * 1_000_003 + g[:, 1]
+
+
+def _raised_share(pts, above):
+    """Share of the EMPTY_BLOCK_MM squares (with points) whose median height above the empty bed exceeds EMPTY_MM."""
+    g = np.floor(pts[:, :2] / EMPTY_BLOCK_MM).astype(np.int64)
+    key = g[:, 0] * 1_000_003 + g[:, 1]
+    order = np.argsort(key, kind="stable")
+    key, a = key[order], above[order]
+    _, start = np.unique(key, return_index=True)
+    meds = np.array([np.median(x) for x in np.split(a, start[1:])])
+    return float(np.mean(meds > EMPTY_MM)) if len(meds) else 0.0
+
+
 def evaluate(ref, live_pts, tool_xyz):
     """-> {'verdict': ok|moved|near|unseen, numbers...} for one live picture."""
     clear = getattr(ref, "expect_clear", False)
@@ -148,13 +177,20 @@ def evaluate(ref, live_pts, tool_xyz):
     # seen = of the design-area cells inside the camera's CURRENT view (the box of the live points) - with the head low
     # the camera sees only a patch around the nozzle (2026-10-26: an air run at Z -37 over a palm-only area paused "17 %
     # seen" with nothing wrong; Resume could not pass either). At least MIN_IN_VIEW of the whole area must be in view.
+    # counted on SEEN_BLOCK_MM squares (2026-10-26: on 1 mm cells the watch's points - about one every 2 mm - fill at
+    # most ~25 %, so a clear view of an air run read "20 % seen" and paused; the same picture is ~70 % on 4 mm squares)
     in_view = ref.cells
     if len(live_pts) and getattr(ref, "cell_xy", None) is not None:
         lo, hi = live_pts[:, :2].min(axis=0), live_pts[:, :2].max(axis=0)
         cx = ref.cell_xy
-        in_view = int(((cx[:, 0] >= lo[0]) & (cx[:, 0] <= hi[0]) & (cx[:, 1] >= lo[1]) & (cx[:, 1] <= hi[1])).sum())
+        inside = (cx[:, 0] >= lo[0]) & (cx[:, 0] <= hi[0]) & (cx[:, 1] >= lo[1]) & (cx[:, 1] <= hi[1])
+        in_view = int(inside.sum())
+        view_sq = np.unique(_squares(cx[inside]))
+        seen_sq = np.intersect1d(np.unique(_squares(live_pts[m])), view_sq) if m.any() else np.array([])
+        out["seen_share"] = round(len(seen_sq) / max(1, len(view_sq)), 3)
+    else:
+        out["seen_share"] = round(len(np.unique(cell[m])) / max(1, in_view), 3)
     out["in_view_share"] = round(in_view / max(1, ref.cells), 3)
-    out["seen_share"] = round(len(np.unique(cell[m])) / max(1, in_view), 3)
     if out["points"] < MIN_POINTS or out["seen_share"] < MIN_SEEN or out["in_view_share"] < MIN_IN_VIEW:
         return dict(out, verdict="unseen")
     dz = live_pts[m, 2] - zr[m]
@@ -166,7 +202,7 @@ def evaluate(ref, live_pts, tool_xyz):
             k = np.isfinite(ze)
             if k.sum() >= MIN_POINTS:
                 above = live_pts[m][k, 2] - ze[k]
-                out["share_off"] = round(float(np.mean(above > EMPTY_MM)), 3)   # share standing above the empty bed
+                out["share_off"] = round(_raised_share(live_pts[m][k], above), 3)   # squares standing above the bed
                 out["vs_empty_bed"] = True
                 if out["share_off"] > 1 - CLEAR_SHARE:
                     return dict(out, verdict="moved",
