@@ -199,5 +199,23 @@ class AirRunEmptyBedTests(unittest.TestCase):
             v29._EMPTY.update(e)
 
 
+class SeenInViewTests(unittest.TestCase):
+    """2026-10-26: an air run at Z -37 over a palm-only area paused "the camera cannot see the design area (17 % seen)"
+    with nothing wrong - with the head low the camera sees only a patch around the nozzle. Seen is now judged on the part
+    of the area inside the camera's view; a camera that sees almost none of the area still counts as unseen."""
+
+    def test_a_patch_in_view_is_seen(self):
+        ref = hw.Reference(skin(-30.0))                                    # 40 x 40 mm area
+        patch = skin(-30.0, x=(115, 127), y=(95, 107))                     # the camera sees 12 x 12 mm of it
+        r = hw.evaluate(ref, patch, (120.0, 100.0, -24.0))
+        self.assertEqual(r["verdict"], "ok")
+        self.assertLess(r["in_view_share"], 0.2)
+        self.assertGreater(r["seen_share"], 0.9)
+        tiny = skin(-30.0, x=(100, 104), y=(80, 84))                       # only 1 % of the area in view
+        self.assertEqual(hw.evaluate(ref, tiny, (120.0, 100.0, -24.0))["verdict"], "unseen")
+        holey = np.vstack([skin(-30.0, x=(100, 140), y=(80, 82)), skin(-30.0, x=(100, 140), y=(118, 120))])
+        self.assertEqual(hw.evaluate(ref, holey, (120.0, 100.0, -24.0))["verdict"], "unseen")  # in view, not seen
+
+
 if __name__ == "__main__":
     unittest.main()
