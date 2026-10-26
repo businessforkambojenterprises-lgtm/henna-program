@@ -90,14 +90,96 @@ def to_rs_intrinsics(d):
     return i
 
 
-def deproject_mm(us, vs, depth_m, intr_dict):
-    """SDK deprojection (includes the stated lens model). Returns (N, 3) millimetres."""
+def _deproject_sdk(us, vs, depth_m, intr_dict):
     import pyrealsense2 as rs
     intr = to_rs_intrinsics(intr_dict)
     out = np.empty((len(us), 3))
     for k, (u, v, z) in enumerate(zip(us, vs, depth_m)):
         out[k] = rs.rs2_deproject_pixel_to_point(intr, [float(u), float(v)], float(z))
-    return out * 1000.0
+    return out
+
+
+def _deproject_numpy(us, vs, depth_m, intr_dict):
+    """librealsense's rs2_deproject_pixel_to_point for 'none' and 'inverse_brown_conrady' (its 10 iterations), on
+    whole arrays. -> (N, 3) metres, or None for another lens model."""
+    model = str(intr_dict.get("model", "none")).split(".")[-1]
+    if model not in ("none", "inverse_brown_conrady"):
+        return None
+    c = [float(v) for v in intr_dict.get("coeffs") or [0.0] * 5]
+    x = (np.asarray(us, float) - float(intr_dict["ppx"])) / float(intr_dict["fx"])
+    y = (np.asarray(vs, float) - float(intr_dict["ppy"])) / float(intr_dict["fy"])
+    if model == "inverse_brown_conrady":
+        xo, yo = x, y
+        for _ in range(10):
+            r2 = x * x + y * y
+            icdist = 1.0 / (1.0 + ((c[4] * r2 + c[1]) * r2 + c[0]) * r2)
+            xq, yq = x / icdist, y / icdist
+            dx = 2 * c[2] * xq * yq + c[3] * (r2 + 2 * xq * xq)
+            dy = 2 * c[3] * xq * yq + c[2] * (r2 + 2 * yq * yq)
+            x, y = (xo - dx) * icdist, (yo - dy) * icdist
+    z = np.asarray(depth_m, float)
+    return np.column_stack([x * z, y * z, z])
+
+
+def _deproject_one(u, v, z, intr_dict):
+    """The same formula for one pixel in plain floats (a numpy call per pixel costs more than the maths)."""
+    model = str(intr_dict.get("model", "none")).split(".")[-1]
+    c = [float(q) for q in intr_dict.get("coeffs") or [0.0] * 5]
+    x = (float(u) - float(intr_dict["ppx"])) / float(intr_dict["fx"])
+    y = (float(v) - float(intr_dict["ppy"])) / float(intr_dict["fy"])
+    if model == "inverse_brown_conrady":
+        xo, yo = x, y
+        for _ in range(10):
+            r2 = x * x + y * y
+            icdist = 1.0 / (1.0 + ((c[4] * r2 + c[1]) * r2 + c[0]) * r2)
+            xq, yq = x / icdist, y / icdist
+            dx = 2 * c[2] * xq * yq + c[3] * (r2 + 2 * xq * xq)
+            dy = 2 * c[3] * xq * yq + c[2] * (r2 + 2 * yq * yq)
+            x, y = (xo - dx) * icdist, (yo - dy) * icdist
+    z = float(z)
+    return (x * z, y * z, z)
+
+
+_FAST_OK = {}
+SMALL = 16                    # up to this many pixels: plain floats
+FAST_CHECK_MM = 1e-3          # the array version must agree with the SDK this closely, else the SDK is used
+
+
+def _lens_key(intr_dict):
+    return (str(intr_dict.get("model")), float(intr_dict["fx"]), float(intr_dict["fy"]), float(intr_dict["ppx"]),
+            float(intr_dict["ppy"]), tuple(float(q) for q in intr_dict.get("coeffs") or ()),
+            intr_dict.get("width"), intr_dict.get("height"))
+
+
+def _fast_ok(intr_dict):
+    """Checked once per lens: the array version against the SDK on pixels across the whole picture."""
+    key = _lens_key(intr_dict)
+    if key not in _FAST_OK:
+        w, h = float(intr_dict.get("width", 848)), float(intr_dict.get("height", 480))
+        g = np.linspace(0.0, 1.0, 7)
+        us, vs = np.meshgrid(g * (w - 1), g * (h - 1))
+        z = np.linspace(0.08, 0.5, us.size)
+        fast = _deproject_numpy(us.ravel(), vs.ravel(), z, intr_dict)
+        one = None if fast is None else np.array([_deproject_one(a, b, c, intr_dict)
+                                                  for a, b, c in zip(us.ravel(), vs.ravel(), z)])
+        try:
+            sdk = _deproject_sdk(us.ravel(), vs.ravel(), z, intr_dict)
+            _FAST_OK[key] = fast is not None and max(float(np.abs(fast - sdk).max()),
+                                                     float(np.abs(one - sdk).max())) * 1000.0 <= FAST_CHECK_MM
+        except ImportError:
+            _FAST_OK[key] = fast is not None    # no SDK on this computer: the published formula
+    return _FAST_OK[key]
+
+
+def deproject_mm(us, vs, depth_m, intr_dict):
+    """SDK deprojection (includes the stated lens model). Returns (N, 3) millimetres. On whole arrays when the lens
+    model allows it and that version agreed with the SDK for this lens (2026-10-26: one pixel at a time through the
+    SDK was ~13 s of the 16 s program step)."""
+    if len(us) and _fast_ok(intr_dict):
+        if len(us) <= SMALL:
+            return np.array([_deproject_one(u, v, z, intr_dict) for u, v, z in zip(us, vs, depth_m)]) * 1000.0
+        return _deproject_numpy(us, vs, depth_m, intr_dict) * 1000.0
+    return _deproject_sdk(us, vs, depth_m, intr_dict) * 1000.0
 
 
 def load_bundle(run_dir):

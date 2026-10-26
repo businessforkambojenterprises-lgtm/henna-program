@@ -785,14 +785,18 @@ def _follow_and_prepare_steps(job, src, what, allow_move, write_program):
     from henna_preview import follow_hand
     jid, done, p = job["id"], [], v28._parts()
     design = src["design"]
+    timing, t_all = {}, time.monotonic()                     # seconds per step (2026-10-26: "wind up in 2-3 min")
 
     def step(name, fn):
         a, b, sec = STEP_SHARE.get(name, (PROGRESS.get("to") or 0, PROGRESS.get("to") or 0, 1.0))
         PROGRESS.update({"op": what, "step": name, "from": a, "to": b, "expect_s": sec, "started": time.time()})
+        t0 = time.monotonic()
         try:
             return fn()
         except Exception as e:                              # noqa: BLE001 - the step's own message, which step
             raise ValueError(f"{what} stopped at {name}: {e} (done: {', '.join(done) or 'nothing'})") from None
+        finally:
+            timing[name] = round(timing.get(name, 0.0) + time.monotonic() - t0, 1)
 
     st = machine.status()
     if not st.get("capture_ready"):
@@ -842,12 +846,15 @@ def _follow_and_prepare_steps(job, src, what, allow_move, write_program):
         step("writing the program", lambda: _route("/api/studio/program")(pp))
         done.append("program written")
     job = v11.job_load(jid)
+    timing["total"] = round(time.monotonic() - t_all, 1)
     _log(what, (machine.status() or {}).get("mpos"), "scan, hand, outline, design, program",
          "the design follows the hand; all checks on the new scan", f"hand moved {f['shift_mm']} mm, turned "
-         f"{f['turn_deg']:+.1f} deg (fit {f['machine']['rms']:.1f} mm); {', '.join(done)}", "ready",
-         job["steps"]["scan"]["name"], f"Studio v29; job {jid}")
+         f"{f['turn_deg']:+.1f} deg (fit {f['machine']['rms']:.1f} mm); {', '.join(done)}; seconds "
+         + ", ".join(f"{k} {v:g}" for k, v in timing.items()), "ready", job["steps"]["scan"]["name"],
+         f"Studio v29; job {jid}")
     return {"job": v14.job_view(job), "followed": {"shift_mm": f["shift_mm"], "turn_deg": f["turn_deg"],
-                                                   "fit_mm": round(f["machine"]["rms"], 2)}, "done": done}
+                                                   "fit_mm": round(f["machine"]["rms"], 2)}, "done": done,
+            "timing_s": timing}
 
 
 def _ticks(params):
@@ -940,7 +947,7 @@ def scan_and_start(params):
          "the run starts right after the checks on the new scan", f"hand moved {prep['followed']['shift_mm']} mm; "
          f"{', '.join(prep['done'])}", "started", v11.job_load(job["id"])["steps"]["scan"]["name"],
          f"Studio v29; job {job['id']}")
-    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"]})
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")})
 
 
 def _program_lines_of_run(r):
@@ -1026,7 +1033,7 @@ def rescan_continue(params):
          f"{cp['base'] + cp['from'] + 1} of {cp['total']} ({'drawn again from its start' if redo else 'not started'}); "
          f"{orig} from stroke {from_total + 1}; hand moved {prep['followed']['shift_mm']} mm", "started",
          v11.job_load(job["id"])["steps"]["scan"]["name"], f"Studio v29; job {job['id']}")
-    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"]},
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")},
                 continued={"from_stroke": from_total + 1, "total": cp["total"], "redo": redo})
 
 
@@ -1129,6 +1136,27 @@ def setup_prepare(params):
     _ticks(params)
     st = _load_setup(job["setup"]["id"])
     return _follow_and_prepare(job, st, "Scan & prepare", allow_move=False, write_program=True)
+
+
+def setup_start(params):
+    """Scan & start for a job made from a setup (user 2026-10-26: "wind up everything in 2 to 3 minutes" -> "build 1
+    and 2"): Scan & prepare, then the Start button's run - choose the setup, Move to scan position, hand in, one press."""
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    if not job.get("setup"):
+        raise ValueError("this job was not made from a setup")
+    _ticks(params)
+    if params.get("air_run"):
+        raise ValueError("Scan & start is for a hand under the machine - an air run starts with Start")
+    st = _load_setup(job["setup"]["id"])
+    prep = _follow_and_prepare(job, st, "Scan & start", allow_move=False, write_program=True)
+    out = _start_now(job["id"], "Scan & start", prep)
+    _log("Scan & start (setup)", (machine.status() or {}).get("mpos"), "Scan & prepare, then Start",
+         "the run starts right after the checks on the new scan", f"setup {job['setup']['name']}; hand "
+         f"{prep['followed']['shift_mm']} mm from the setup's hand; seconds "
+         + ", ".join(f"{k} {v:g}" for k, v in (prep.get("timing_s") or {}).items()), "started",
+         v11.job_load(job["id"])["steps"]["scan"]["name"], f"Studio v29; job {job['id']}")
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")})
 
 
 def dispense_test(params):
@@ -1351,6 +1379,7 @@ class Handler(v28.Handler):
         "/api/studio/setup_delete": (setup_delete, False),
         "/api/studio/setup_job": (setup_job, False),
         "/api/studio/setup_prepare": (setup_prepare, True),
+        "/api/studio/setup_start": (setup_start, True),
         "/api/machine/dispense_test": (dispense_test, False),
         "/api/studio/job_new": (job_new, _JOB_NEW[1]),
         "/api/machine/jog": (jog, _JOG[1]),
