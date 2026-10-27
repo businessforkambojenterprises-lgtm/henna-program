@@ -271,7 +271,6 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
     <input id="capprover" placeholder="Name of the person approving" style="width:100%">
     <label class="check"><input type="checkbox" id="capdots"><span>Every dot in the scan picture is the right dot.</span></label>
     <label class="check"><input type="checkbox" id="captouch"><span>Every touch was made with the paper strip just pinched.</span></label>
-    <label class="check"><input type="checkbox" id="capair"><span>The first program on this machine will be an air run (no hand).</span></label>
     <button class="btn primary block" id="capgo" type="button" disabled>Approve this calibration</button>
     <button class="btn small ghost" id="creset" type="button" style="margin-top:10px">Start the calibration over</button>
     <div class="msg" id="msgcalib"></div></div>
@@ -426,7 +425,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
     <div class="card">
      <h2>Confirm</h2><p class="sub">Programs are for the prosthetic hand only.</p>
      <label class="f" for="pgfeed" style="margin-top:4px">Drawing speed</label><select id="pgfeed"></select>
-     <div class="hint" id="pgfeedhint">Default 600 mm/min; 300 to 1200 allowed. The first run at a new speed should be an air run (no hand). The drop down to the hand always stays at 300.</div>
+     <div class="hint" id="pgfeedhint">Default 600 mm/min; 300 to 1200 allowed. Watch the first run at a new speed closely. The drop down to the hand always stays at 300.</div>
      <label class="f" for="pgdisp" style="margin-top:10px">Paste</label>
      <select id="pgdisp"><option value="none">None - hover only, no paste</option><option value="pneumatic">Pneumatic (air valve)</option><option value="servo_ssr">Servo dispenser (SSR)</option></select>
      <div id="pgdelays" class="row" style="gap:10px;margin-top:6px" hidden>
@@ -515,7 +514,6 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
  <div class="foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="scanmovego" disabled>Move to scan position</button></div></div></dialog>
 <dialog id="dlgrun"><div class="dlg"><h2>Start the hover run</h2><p class="sub">The head rises to travel height, then follows the design at the nozzle height you chose above the measured skin. No dispensing. Before it starts, the camera checks that the hand is where it was scanned; on a real hand it keeps watching and pauses the machine if the hand moves.</p>
  <label class="check"><input type="checkbox" id="rclear"><span>Nothing else is in the travel area, no paste in the dispenser, and I am at the emergency stop.</span></label>
- <label class="check" id="rairbox" hidden><input type="checkbox" id="rair"><span>Air run - no hand under the machine. The camera checks that the design area is empty instead of looking for the hand.</span></label>
  <div class="msg" id="msgrundlg"></div>
  <div class="foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="rungo" disabled>Start run</button></div></div></dialog>
 <dialog id="dlgjog"><div class="dlg"><h2>Jog</h2><p class="sub" id="jogsub">Moves stay at travel height or higher, so the nozzle cannot reach a hand. Only a checked program lowers the nozzle.</p>
@@ -956,10 +954,10 @@ setInterval(async()=>{if(VIEW!=='run'||!JOB||JOB.subject!=='realhand')return;try
  try{FOLST=WATCHST&&WATCHST.active?await api('/api/studio/follow'):null}catch(e){FOLST=null}watchShow()},500);
 async function reloadJob(tries){try{const j=await api('/api/studio/job?id='+encodeURIComponent(JOB.id));setJob(j);if(VIEW==='run')renderRunHist();
   if(tries>1&&runsOfProgram().some(r=>r.result==='running')&&!running())setTimeout(()=>reloadJob(tries-1),700)}catch(e){}}
-$('runstart').onclick=()=>{if(!canStart())return;RUN_TICKS.forEach(id=>$(id).checked=false);$('rair').checked=false;$('rairbox').hidden=JOB.subject!=='realhand';msg('msgrundlg','','');runShow();$('dlgrun').showModal()};
+$('runstart').onclick=()=>{if(!canStart())return;RUN_TICKS.forEach(id=>$(id).checked=false);msg('msgrundlg','','');runShow();$('dlgrun').showModal()};
 RUN_TICKS.forEach(id=>$(id).onchange=runShow);
 $('rungo').onclick=async()=>{if($('rungo').disabled)return;runAction='start';runShow();msg('msgrundlg','info','Checking the program file and starting…');
- try{const air=JOB.subject==='realhand'&&$('rair').checked;const r=await api('/api/machine/run',Object.assign({job:JOB.id,confirm_prosthetic:true,confirm_unmoved:true,confirm_clear:true,confirm_estop:true},air?{air_run:true,confirm_air_run:true}:{}));
+ try{const r=await api('/api/machine/run',{job:JOB.id,confirm_prosthetic:true,confirm_unmoved:true,confirm_clear:true,confirm_estop:true});
   const {job,hand_check_warning,...m}=r;lastRunJob=job.id;lastRunState='running';setJob(job);machineAccept(m);$('dlgrun').close();msg('msgrun',hand_check_warning?'warn':'',hand_check_warning||'');renderRunHist()}
  catch(e){msg('msgrundlg','err',e.message)}finally{runAction='';runShow()}};
 $('runpause').onclick=async()=>{const p=prog();if(!running()||!p)return;runAction='pause';runShow();
@@ -1190,8 +1188,8 @@ function calibCardShow(){if(VIEW!=='calib')return;const m=MACH||{},fresh=machFre
  $('czsave').disabled=!(s.z_scan&&$('ctfeeler').checked&&ready&&m.mpos&&m.mpos[2]<s.travel_z);
  $('czfit').disabled=!(s.z_scan&&(s.z_touches||[]).length>=2)||!!busy;
  const good=s.xy_fit&&s.xy_fit.verdict==='GOOD'&&s.z_fit&&s.z_fit.verdict==='GOOD';
- $('capgo').disabled=!(good&&$('capdots').checked&&$('captouch').checked&&$('capair').checked&&$('capprover').value.trim().length>=2)||!!busy}
-['ctargets','ctfeeler','capdots','captouch','capair','maddok','mrecalok','suaok','susok'].forEach(id=>$(id).onchange=calibCardShow);
+ $('capgo').disabled=!(good&&$('capdots').checked&&$('captouch').checked&&$('capprover').value.trim().length>=2)||!!busy}
+['ctargets','ctfeeler','capdots','captouch','maddok','mrecalok','suaok','susok'].forEach(id=>$(id).onchange=calibCardShow);
 ['capprover','maddname','mrecalby','suax','suay','sutip','suscz'].forEach(id=>$(id).oninput=calibCardShow);
 document.querySelectorAll('[data-cxy]').forEach(b=>b.onclick=async()=>{if(b.disabled)return;const[a,d,st]=b.dataset.cxy.split(',');msg('msgcalib','','');
  try{await machineCommand('/api/calibration/jog_xy',{axis:a,direction:+d,step_mm:+st,confirm_targets_only:true},'jog')}catch(e){msg('msgcalib','err',e.message)}finally{calibCardShow()}});
@@ -1209,7 +1207,7 @@ $('czfit').onclick=()=>calStep('/api/calibration/z_fit',{},'Fitting Z (reads the
 $('creset').onclick=()=>{if(confirm('Start the calibration over? The current session is kept in the history.'))calStep('/api/calibration/session_reset',{confirm_reset:true},'Starting over…','New calibration session.')};
 async function machStep(path,body,box,good){msg(box,'info','Saving…');try{MACHINES=await api(path,body);renderMachines();msg(box,'good',good);CAL=null;try{await loadCal()}catch(e){}
  try{CALST=await api('/api/calibration/status');renderCalStatus()}catch(e){}await loadCalSession()}catch(e){msg(box,'err',e.message)}finally{calibCardShow()}}
-$('capgo').onclick=()=>machStep('/api/calibration/approve',{approver:$('capprover').value,confirm_dots:true,confirm_touches:true,confirm_air_run:true},'msgcalib','Calibration approved - this machine is unlocked. First program: an air run.');
+$('capgo').onclick=()=>machStep('/api/calibration/approve',{approver:$('capprover').value,confirm_dots:true,confirm_touches:true},'msgcalib','Calibration approved - this machine is unlocked.');
 $('maddgo').onclick=async()=>{await machStep('/api/machines/add',{name:$('maddname').value,drive:$('madddrive').value,confirm_new:true},'msgmachine','Machine added - choose it, then set it up.');$('maddok').checked=false;$('maddname').value='';$('madddrive').value=''};
 $('mrecalgo').onclick=()=>machStep('/api/machines/recalibrate',{by:$('mrecalby').value,confirm_recalibrate:true},'msgmachine','Recalibration started - the machine is locked until the new calibration is approved.');
 $('suago').onclick=()=>machStep('/api/machines/setup_area',{work_area_x:+$('suax').value,work_area_y:+$('suay').value,confirm_measured:true},'msgsetup','Work area saved - X/Y jog works now.');

@@ -159,7 +159,7 @@
     daily: ['The bed is empty and set up as at the reference - no hand, no person - and I am at the emergency stop.',
             ['calclear', 'calestop', 'calempty']]
   };
-  var ALL_SAFE = ['ctargets', 'calclear', 'calestop', 'calempty'], APPROVE = ['capdots', 'captouch', 'capair'];
+  var ALL_SAFE = ['ctargets', 'calclear', 'calestop', 'calempty'], APPROVE = ['capdots', 'captouch'];
   var STEPS_XY = '<b>1</b> Tape the dot sheet flat under the camera. <b>2</b> <b>Move to scan position</b> (top of the ' +
     'page). <b>3</b> <b>Record dot-sheet scan</b>. <b>4</b> For each dot: choose it in the list; <b>Jog</b> over it at ' +
     'travel height; lower with <b>Z-</b>; centre the tip with the X/Y nudge; check from the front and the side; ' +
@@ -329,7 +329,7 @@
     var ap = document.createElement('label');
     ap.className = 'check';
     ap.innerHTML = '<input type="checkbox" id="piapok"><span>I checked: every dot in the picture is the right dot, every ' +
-      'touch had the paper strip just pinched, and the first program on this machine will be an air run (no hand).</span>';
+      'touch had the paper strip just pinched.</span>';
     $id('capgo').parentNode.insertBefore(ap, $id('capgo'));
     $id('piapok').onchange = function () {
       APPROVE.forEach(function (id) { $id(id).checked = $id('piapok').checked; });

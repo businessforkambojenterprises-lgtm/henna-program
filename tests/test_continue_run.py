@@ -119,12 +119,10 @@ class StudioTests(unittest.TestCase):
         mocks[3].assert_called_once()
         self.assertTrue(all(mocks[3].call_args.args[0][k] for k in ("confirm_clear", "confirm_estop")))
 
-    def test_scan_and_start_needs_the_ticks_and_no_air_run(self):
+    def test_scan_and_start_needs_the_ticks(self):
         with patch.object(self.v29.v11, "job_load", return_value=self.job):
             with self.assertRaisesRegex(ValueError, "emergency stop"):
                 self.v29.scan_and_start({"job": self.job["id"]})
-            with self.assertRaisesRegex(ValueError, "air run"):
-                self.v29.scan_and_start(dict(self.ticks, air_run=True))
 
     def test_a_refused_start_says_what_was_prepared(self):
         self._start([patch.object(self.v29, "run", side_effect=ValueError("Hand check: the hand moved"))])

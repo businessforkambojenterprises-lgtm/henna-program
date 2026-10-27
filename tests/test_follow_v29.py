@@ -100,13 +100,12 @@ class StudioTests(unittest.TestCase):
     def test_only_watched_real_hand_runs_follow(self):
         import webui_server_v29 as v29
         armed = []
-        saved = (v29.v11.job_load, v29._z_home_check, v29.v28.run, v29._air_start, v29._prosthetic_start,
+        saved = (v29.v11.job_load, v29._z_home_check, v29.v28.run, v29._prosthetic_start,
                  getattr(v29.machine, "arm_follow", None), v29.v28.reference, v29.v10.cal, dict(v29._FOLLOWER))
         job = {"id": "j", "subject": "realhand", "steps": {"program": {}, "design": {"standoff_mm": 6.0}}}
         v29.v11.job_load = lambda jid: job
         v29._z_home_check = lambda j: None
         v29.v28.run = lambda p: {"started": "real"}
-        v29._air_start = lambda j, p: {"started": "air"}
         v29._prosthetic_start = lambda j, p: {"started": "prosthetic"}
         v29.machine.arm_follow = lambda fn, floor, travel: armed.append(fn is not None)
         v29.v28.reference = lambda j: hw.Reference(skin(-30.0))
@@ -116,14 +115,11 @@ class StudioTests(unittest.TestCase):
             self.assertEqual(armed, [True, False])                # armed for the run, cleared after it
             self.assertIsNotNone(v29.follow_view()["dz_mm"])
             armed.clear()
-            v29.run({"job": "j", "air_run": True})
-            self.assertEqual(armed, [False])                      # an air run never follows
-            armed.clear()
             job["subject"] = "prosthetic"
             v29.run({"job": "j"})
             self.assertEqual(armed, [False])
         finally:
-            (v29.v11.job_load, v29._z_home_check, v29.v28.run, v29._air_start, v29._prosthetic_start, arm,
+            (v29.v11.job_load, v29._z_home_check, v29.v28.run, v29._prosthetic_start, arm,
              v29.v28.reference, v29.v10.cal, fol) = saved
             if arm is None:
                 del v29.machine.arm_follow
@@ -192,25 +188,6 @@ class AirRunEmptyBedTests(unittest.TestCase):
         finger = (np.abs(live[:, 0] - 115) < 6) & (np.abs(live[:, 1] - 100) < 6)
         live[finger, 2] = -36.0 + 13.0                              # a fingertip: 12 x 12 mm, 13 mm high
         self.assertEqual(hw.evaluate(hw.air_reference(ref, empty), live, (120.0, 100.0, -10.0))["verdict"], "moved")
-
-    def test_no_empty_bed_from_before_the_z_home_move(self):
-        import json
-        import tempfile
-        import webui_server_v29 as v29
-        d = tempfile.mkdtemp()
-        os.makedirs(os.path.join(d, "outputs", "calibration", "ball-screw", "reference"))
-        with open(os.path.join(d, "outputs", "calibration", "ball-screw", "reference", "reference.json"), "w") as f:
-            json.dump({"created": "2026-10-22T09:25:15", "mpos": [65.7, 80.0, -5.0]}, f)
-        saved = (v29.base.ROOT, v29.v10.cal, v29.v28.v26.profiles.active_id, dict(v29._EMPTY))
-        v29.base.ROOT = d
-        v29.v10.cal = lambda: {"z_home_moved_at": "2026-10-24T14:34:50"}
-        v29.v28.v26.profiles.active_id = lambda: "ball-screw"
-        try:
-            self.assertIsNone(v29._empty_bed())                     # made in the old Z numbers: the old rule
-        finally:
-            v29.base.ROOT, v29.v10.cal, v29.v28.v26.profiles.active_id, e = saved
-            v29._EMPTY.clear()
-            v29._EMPTY.update(e)
 
 
 class SeenInViewTests(unittest.TestCase):
