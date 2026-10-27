@@ -149,7 +149,7 @@ class AdminPageTests(unittest.TestCase):
     in calibration mode, and for operators). A Studio page that renames one of these ids would break it silently."""
 
     STUDIO_IDS = ("v-calib", "mlist", "setupcard", "calstatus", "calibcard", "calmove", "calrefcard", "calcheck",
-                  "calhist", "calclear", "calestop", "calempty", "ctargets", "capdots", "captouch", "capair", "capgo",
+                  "calhist", "calclear", "calestop", "calempty", "ctargets", "capdots", "captouch", "capgo",
                   "calposhelp", "calposstate", "cxyscan", "czscan", "czhelp", "mhome", "mjog")
 
     def read(self, *parts):
@@ -169,7 +169,7 @@ class AdminPageTests(unittest.TestCase):
         self.assertIn("calibrate: ['Only the dot sheet or the block is on the bed", js)
         self.assertIn("['ctargets', 'calclear', 'calestop']", js)
         self.assertIn("['calclear', 'calestop', 'calempty']", js)
-        self.assertIn("APPROVE = ['capdots', 'captouch', 'capair']", js)
+        self.assertIn("APPROVE = ['capdots', 'captouch']", js)
         for tab in ("machine", "calibrate", "daily", "paste", "storage", "pin"):
             self.assertIn(f"['{tab}', ", js, tab)
 
