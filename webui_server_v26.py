@@ -385,9 +385,9 @@ def approve(params):
     approver = " ".join(str(params.get("approver") or "").split())
     if len(approver) < 2:
         raise ValueError("Type the name of the person approving this calibration")
+    # (no "first program will be an air run" tick - air runs were removed, user 2026-10-27)
     for k, text in (("confirm_dots", "every dot in the scan picture is the right dot"),
-                    ("confirm_touches", "every touch was made with the paper strip just pinched"),
-                    ("confirm_air_run", "the first program on this machine will be an air run (no hand)")):
+                    ("confirm_touches", "every touch was made with the paper strip just pinched")):
         if params.get(k) is not True:
             raise ValueError(f"Confirm: {text}")
     s = _session(m).load()

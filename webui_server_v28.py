@@ -2,7 +2,7 @@
 
 New job type "realhand" (Real hand - hover run). The camera-only "person" job stays as it was. A realhand job uses
 the prosthetic pipeline (scan, region, design check, program, run - all the v10-v27 checks) plus:
-  - standoff at least REAL_MIN_STANDOFF_MM (6 mm) and drawing speed REAL_FEED_MM_MIN (300 mm/min);
+  - standoff at least REAL_MIN_STANDOFF_MM (6 mm until 2026-10-27, now the machine's 1 mm) and drawing speed REAL_FEED_MM_MIN (300 mm/min, now the default only);
   - the v27 travel clearance over the hand, as for the prosthetic;
   - a camera check right before Start (every machine job): the hand must be where it was scanned
     (henna_preview/hand_watch.py), else Start is refused - this replaces the "hand has not moved" tick;
@@ -37,8 +37,9 @@ from henna_preview.web_recorder import CameraService
 STUDIO_HTML = os.path.join(base.WEB_DIR, "studio_v28.html")
 REAL = "realhand"
 MACHINE_JOBS = ("prosthetic", REAL)
-REAL_MIN_STANDOFF_MM = 6.0
-REAL_FEED_MM_MIN = 300
+REAL_MIN_STANDOFF_MM = 1.0       # user 2026-10-27 "unlock speed and height options": was 6 mm - now the machine's own
+REAL_FEED_MM_MIN = 300           # lowest (as the prosthetic); 300 mm/min is the default speed, no longer the only one
+REAL_DEFAULT_STANDOFF_MM = 6.0
 WATCH_PERIOD_S = 0.2
 NO_PICTURE_S = 1.5
 UNSEEN_S = 1.5
@@ -47,7 +48,7 @@ PRESTART_TIMEOUT_S = 8.0
 REF_STRIDE = 2
 
 machine = v26.machine
-v11.SUBJECTS[REAL] = "real hand - hover run watched by the camera (no paste)"
+v11.SUBJECTS[REAL] = "real hand - the full henna job, watched by the camera (paste as chosen in Program)"
 
 
 def machine_job_only(job):
@@ -120,11 +121,14 @@ def live_points():
 
 def check_sample(ref, sample, head):
     p = _parts()
+    grow = hw.AIR_HEAD_GROW_PX if getattr(ref, "expect_clear", False) else hw.HEAD_GROW_PX
     pts = hw.machine_points(sample["depth"], sample["scale"], rays_for(sample["intr"], sample["depth"].shape, sample["stride"]),
-                            head, p["R"], p["t"], p["k"], p["depth_fn"])
+                            head, p["R"], p["t"], p["k"], p["depth_fn"], head_grow_px=grow)
     LIVE["t"], LIVE["pts"] = time.monotonic() - max(0.0, time.time() - float(sample["t"])), pts
     LIVE["recent"].append((LIVE["t"], pts))
-    return hw.evaluate(ref, pts, head)
+    res = hw.evaluate(ref, pts, head)
+    LIVE["last_sample"] = (sample, list(head), res)        # kept for the picture saved when the watch pauses
+    return res
 
 
 def _fresh_sample(after_t, timeout):
@@ -158,6 +162,27 @@ def hand_check(job, samples=PRESTART_SAMPLES):
 
 # ---------- the watch during a real-hand run ----------
 WATCH_END_NOTES = []                                      # callables -> text for the end-of-run log row
+
+
+def _save_pause_picture(job, reason):
+    """The depth picture the watch judged last, with its head position and result (2026-10-26: an air run paused
+    "something is in the design area" with the bed empty - so the next one can be looked at, not guessed)."""
+    last = LIVE.get("last_sample")
+    if not last:
+        return None
+    sample, head, res = last
+    if not {"width", "height", "fx"} <= set(sample.get("intr") or {}):
+        return None                                         # not a camera picture (a made-up test sample)
+    try:
+        out = os.path.join(base.ROOT, "outputs", "watch_pauses")
+        os.makedirs(out, exist_ok=True)
+        path = os.path.join(out, dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "_pause.npz")
+        np.savez_compressed(path, depth=sample["depth"], meta_json=json.dumps(
+            {"job": job["id"], "reason": reason, "head": head, "result": res, "scale": sample["scale"],
+             "intr": sample["intr"], "stride": sample["stride"], "t": sample["t"]}, default=str))
+        return path
+    except Exception:                                       # noqa: BLE001 - saving never stops the pause
+        return None
 
 
 class Watch:
@@ -197,8 +222,10 @@ class Watch:
         except MachineError as e:
             with self.lock:
                 self.state["pause_error"] = str(e)
+        saved = _save_pause_picture(job, reason)
         _log("Hand watch: PAUSED the run", mpos, "feed hold (Pause)", "hand still under the nozzle", reason, "paused",
-             job["steps"]["scan"]["name"], f"Studio v28 real-hand watch; job {job['id']}")
+             job["steps"]["scan"]["name"], f"Studio v28 real-hand watch; job {job['id']}"
+             + (f"; picture {os.path.relpath(saved, base.ROOT)}" if saved else ""))
 
     def _loop(self, job, ref):
         hist = collections.deque(maxlen=60)
@@ -307,8 +334,7 @@ def program(params):
     p = dict(params, confirm_prosthetic=True, confirm_unmoved=True)       # from the job type; writing moves nothing
     if job["subject"] == REAL:
         _real_rules(job, (job["steps"].get("design") or {}).get("standoff_mm", 0))
-        p["draw_feed_mm_min"] = REAL_FEED_MM_MIN
-    return _INNER["/api/studio/program"](p)
+    return _INNER["/api/studio/program"](p)                # the speed chosen on the page (300 to 1200 mm/min)
 
 
 def run(params):
@@ -318,8 +344,6 @@ def run(params):
         raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
     if job["subject"] == REAL:
         _real_rules(job, (job["steps"].get("design") or {}).get("standoff_mm", 0))
-        if float((job["steps"].get("program") or {}).get("draw_feed_mm_min", REAL_FEED_MM_MIN)) > REAL_FEED_MM_MIN:
-            raise ValueError(f"A real hand runs at {REAL_FEED_MM_MIN} mm/min - write the program again")
     res = hand_check(job)                                  # replaces the "hand has not moved" tick
     out = _INNER["/api/machine/run"](dict(params, confirm_prosthetic=True, confirm_unmoved=True))
     _log("Hand check before Start", (machine.status() or {}).get("mpos"), "camera, 3 pictures", "hand where it was scanned",

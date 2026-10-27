@@ -21,6 +21,41 @@ def camera_xy_for_tool(tool_xy, head_xy, R, t):
     return np.linalg.solve(R, np.asarray(tool_xy, float) - np.asarray(head_xy, float) - np.asarray(t, float))
 
 
+_CLOUDS = []                  # [(raw array, scale, lens, (H, W, 3) mm)] - the last few frames
+
+
+def _cloud(raw, scale, intr):
+    """Every pixel's measured 3D point (mm), computed once per frame (2026-10-26: the hop planning re-projected the
+    same window for each of ~24,000 points). The same deprojection as before, so the same pixels are found."""
+    for r, sc, lens, c in _CLOUDS:
+        if r is raw and sc == scale and lens == intr:
+            return c
+    h, w = raw.shape
+    vs, us = np.nonzero(raw > 0)
+    c = np.full((h, w, 3), np.nan)
+    if len(us):
+        c[vs, us] = deproject_mm(us, vs, raw[vs, us].astype(float) * scale, intr)
+    _CLOUDS.insert(0, (raw, scale, dict(intr), c))
+    del _CLOUDS[3:]
+    return c
+
+
+def _window_depth_mm(raw, scale, u, v, window):
+    """dot_camera_mm's depth (the median of the measured pixels within +/-window px, in mm) without the deprojection
+    it does not need here - only the depth is used (2026-10-26: ~97,000 calls in one program)."""
+    h, w = raw.shape
+    u, v = int(round(u)), int(round(v))
+    if not (0 <= u < w and 0 <= v < h):
+        raise CalibrationError("clicked point is outside the image")
+    vals = sorted(raw[max(0, v - window):v + window + 1, max(0, u - window):u + window + 1].ravel().tolist())
+    vals = [x for x in vals if x > 0]
+    if not vals:
+        return None
+    n = len(vals)
+    med = float(vals[n // 2]) if n % 2 else (vals[n // 2 - 1] + vals[n // 2]) / 2.0
+    return med * scale * 1000.0
+
+
 def find_pixel(frame, cam_xy, search=8, start_z=200.0):
     """Pixel whose measured 3D point lies closest (in camera X/Y) to cam_xy."""
     raw, scale, intr = frame["depth_raw_aligned"], frame["depth_scale_m_per_unit"], frame["colour_intrinsics"]
@@ -29,10 +64,9 @@ def find_pixel(frame, cam_xy, search=8, start_z=200.0):
     for _ in range(4):  # pinhole guess, refined with measured depth near the guess
         u = intr["fx"] * cam_xy[0] / z + intr["ppx"]
         v = intr["fy"] * cam_xy[1] / z + intr["ppy"]
-        p, n = dot_camera_mm(raw, scale, intr, (u, v), window=3)
-        if p is None:
+        z = _window_depth_mm(raw, scale, u, v, 3)
+        if z is None:
             raise CalibrationError("no measured depth where the touch spot should be")
-        z = p[2]
     u0, v0 = int(round(u)), int(round(v))
     vs, us = np.mgrid[max(0, v0 - search):min(h, v0 + search + 1), max(0, u0 - search):min(w, u0 + search + 1)]
     us, vs = us.ravel(), vs.ravel()
@@ -40,7 +74,8 @@ def find_pixel(frame, cam_xy, search=8, start_z=200.0):
     us, vs = us[ok], vs[ok]
     if not len(us):
         raise CalibrationError("no measured depth near the touch spot")
-    pts = deproject_mm(us, vs, raw[vs, us].astype(float) * scale, intr)
+    cloud = _cloud(raw, scale, intr)
+    pts = cloud[vs, us]
     d = np.hypot(pts[:, 0] - cam_xy[0], pts[:, 1] - cam_xy[1])
     i = int(np.argmin(d))
     return {"pixel_uv": [int(us[i]), int(vs[i])], "xy_miss_mm": round(float(d[i]), 2)}

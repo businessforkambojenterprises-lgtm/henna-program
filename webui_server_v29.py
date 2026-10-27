@@ -193,7 +193,7 @@ def path_measure(job, design=None, standoff_mm=None):
         keep = np.hypot(*(xy - np.asarray(head[:2])).T) > pc.HEAD_FOOTPRINT_MM
         approach, _, rated = travel_route.choose(head[:2], plan["strokes"][0][0], xy, z, pc.MARGIN_MM, keep)
         if standoff_mm is None:
-            standoff_mm = (design or s.get("design") or {}).get("standoff_mm") or v28.REAL_MIN_STANDOFF_MM
+            standoff_mm = (design or s.get("design") or {}).get("standoff_mm") or v28.REAL_DEFAULT_STANDOFF_MM
         limit = float(v10.cal()["travel_z"]) - (max(float(standoff_mm), float(v27.HOP_CLEARANCE_MM)) + tc.MARGIN_MM)
         st = plan["strokes"]
         for i in range(len(st) - 1):
@@ -290,7 +290,7 @@ def reference_with_gap(job):
     """The hand watch's reference with the job's nozzle height, so the watch judges the live gap under the nozzle while
     it draws (hand_watch GAP_MIN_MM / GAP_MAX_MM; user 2026-10-24: "build A, pause below 4 mm or above 9 mm")."""
     ref = _REFERENCE(job)
-    ref.standoff_mm = float((job["steps"].get("design") or {}).get("standoff_mm") or v28.REAL_MIN_STANDOFF_MM)
+    ref.standoff_mm = float((job["steps"].get("design") or {}).get("standoff_mm") or v28.REAL_DEFAULT_STANDOFF_MM)
     return ref
 
 
@@ -513,158 +513,44 @@ def _prosthetic_start(job, params):
     return dict(out, hand_check_warning=warning) if warning else out
 
 
-# ---- air run for a real-hand job (user 2026-10-22: "yes" to an "Air run (no hand)" option instead of removing the
-# hand check): the same program, every real-hand rule, but the camera requires the design area EMPTY before Start and
-# while it runs (henna_preview/hand_watch.py: air_reference) - a hand or anything else there refuses / pauses.
-_EMPTY = {"key": None, "ref": None}
-
-
-def _empty_bed():
-    """The empty bed as machine cells, for air runs (hand_watch EMPTY_MM): the daily check's reference recording (bed
-    as every day, no hand - "Set the reference"). None (the old "below the scanned skin" rule) when there is none, or it
-    was made before the Z home switch moved (its heights are in the old numbers)."""
-    from henna_preview import hand_watch as hw
-    try:
-        ref_dir = os.path.join(base.ROOT, "outputs", "calibration", v28.v26.profiles.active_id(), "reference")
-        meta_path, rec = os.path.join(ref_dir, "reference.json"), os.path.join(ref_dir, "reference.db3")
-        with open(meta_path, encoding="utf-8") as f:
-            meta = json.load(f)
-        moved_at = v10.cal().get("z_home_moved_at")
-        if moved_at and str(meta.get("created", "")) < moved_at:
-            return None
-        key = (rec, os.path.getmtime(rec))
-        if _EMPTY["key"] != key:
-            fr = v28.v26._median_frame(rec)
-            raw = fr["depth_raw_aligned"]
-            sub = raw[::v28.REF_STRIDE, ::v28.REF_STRIDE]
-            p = v28._parts()
-            pts = hw.machine_points(sub, fr["depth_scale_m_per_unit"],
-                                    v28.rays_for(fr["colour_intrinsics"], sub.shape, v28.REF_STRIDE),
-                                    meta["mpos"], p["R"], p["t"], p["k"], p["depth_fn"])
-            _EMPTY.update(key=key, ref=hw.Reference(pts))
-        return _EMPTY["ref"]
-    except Exception:                                       # noqa: BLE001 - no usable empty bed: the old rule
-        return None
-
-
-def air_check(job, samples=v28.PRESTART_SAMPLES):
-    """Right before Start / Resume of an air run: the design area must be empty. -> last result; raises when not."""
-    from henna_preview import hand_watch as hw
-    ref = hw.air_reference(v28.reference(job), _empty_bed())
-    st = machine.status()
-    if not st.get("connected") or st.get("mpos") is None:
-        raise MachineError("Connect the machine first")
-    t, res = 0.0, None
-    for _ in range(samples):
-        smp = v28._fresh_sample(t, v28.PRESTART_TIMEOUT_S)
-        t = smp["t"]
-        res = v28.check_sample(ref, smp, st["mpos"])
-        if res["verdict"] != "ok":
-            hint = {"unseen": " Move to scan position first, so the camera sees the design area.",
-                    "moved": " Take the hand (and anything else) away for an air run.", "near": " Raise the nozzle."}
-            raise ValueError(f"Air run check: {hw.message(res)}.{hint[res['verdict']]}")
-    return res
-
-
-def _air_start(job, params):
-    """v28's real-hand run with the reversed camera check (the design area must be empty)."""
-    from henna_preview import hand_watch as hw
-    v28.machine_job_only(job)
-    if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
-        raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
-    if params.get("confirm_air_run") is not True:
-        raise ValueError("Confirm the air run: no hand under the machine")
-    v28._real_rules(job, (job["steps"].get("design") or {}).get("standoff_mm", 0))
-    if float((job["steps"].get("program") or {}).get("draw_feed_mm_min", v28.REAL_FEED_MM_MIN)) > v28.REAL_FEED_MM_MIN:
-        raise ValueError(f"A real hand runs at {v28.REAL_FEED_MM_MIN} mm/min - write the program again")
-    res = air_check(job)
-    out = v28._INNER["/api/machine/run"](dict(params, confirm_prosthetic=True, confirm_unmoved=True))
-    _log("Air run check before Start", (machine.status() or {}).get("mpos"), "camera, 3 pictures",
-         "design area empty (no hand)", f"median {res['median_dz_mm']} mm below the scanned skin; "
-         f"{100 * res['share_off']:.0f} % not clear; {100 * res['seen_share']:.0f} % seen", "ok",
-         job["steps"]["scan"]["name"], f"Studio v29 air run; job {job['id']}")
-    v28.WATCH.start(job, hw.air_reference(v28.reference(job), _empty_bed()))
-    with v28.WATCH.lock:
-        v28.WATCH.state["air_run"] = True
-    return dict(out, air_run=True)
-
-
+# ---- (the air run - Start with no hand, the camera requiring the design area empty - was removed, user 2026-10-27:
+# "remove air run from every option"; run() refuses it.)
 def resume(params):
-    """An air run paused by the watch resumes after a fresh EMPTY check (v28's resume would look for the hand)."""
-    w = v28.WATCH.view()
-    if w.get("active") and w.get("paused_by_watch") and w.get("air_run"):
-        job = v11.job_load(w["job"])
-        air_check(job, samples=2)
-        with v28.WATCH.lock:
-            v28.WATCH.state["paused_by_watch"] = None
-        _log("Air run watch: resume after a fresh check", (machine.status() or {}).get("mpos"), "camera, 2 pictures",
-             "design area empty", "ok", "resumed", job["steps"]["scan"]["name"], f"Studio v29 air run; job {job['id']}")
-        return v28._INNER["/api/machine/resume"](params)
     return _RESUME[0](params)
 
 
 _RESUME = v28.Handler.POST_API["/api/machine/resume"]
 
 
-# ---- live height following on a real hand (user 2026-10-24: "Option B - the nozzle follows the skin live" -> "build
-# this", after "Remove the live gap pause"): henna_preview/follow.py moves each drawing line's Z by the skin's change
-# since the scan, measured live just ahead of the tip, inside 1 mm down / 2 mm up of the checked line; the link
-# checks every changed line again and keeps the controller's queue short. Real-hand runs with the watch only.
-_FOLLOWER = {"current": None}
-
-
-def _arm_follow(job):
-    from henna_preview import follow
-    if not hasattr(machine, "arm_follow"):
-        return None
-    try:
-        c = v10.cal()
-        f = follow.Follower(v28.reference(job), v28.live_points, float(c["firmware_z_floor"]), float(c["travel_z"]))
-    except Exception:                                       # noqa: BLE001 - no reference: the checked lines only, and
-        return None                                         # v28's own refusals answer the run as before
-    _FOLLOWER["current"] = f
-    machine.arm_follow(f.adjust, f.floor_z, f.travel_z)
-    return f
-
-
-def _follow_note():
-    from henna_preview import follow
-    f, _FOLLOWER["current"] = _FOLLOWER["current"], None
-    if f is None:
-        return None
-    st = f.stats
-    if not st["lines"]:
-        return None
-    rng = (f"{st['min_dz']:+.1f} to {st['max_dz']:+.1f} mm" if st["followed"] else "none")
-    path = None
-    try:                                                    # every line's plan / measurement / correction
-        path = follow.save_record(f, os.path.join(base.ROOT, "outputs", "follow",
-                                                  dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "_follow.csv"))
-    except OSError:
-        path = None
-    return (f"live height following: {st['followed']} of {st['lines']} drawing lines moved ({rng}; band "
-            f"-{follow_band()[0]:g}/+{follow_band()[1]:g} mm), {st['unseen']} not seen"
-            + (f"; record {os.path.relpath(path, base.ROOT)}" if path else ""))
-
-
-def follow_band():
-    from henna_preview import follow
-    return follow.DOWN_MM, follow.UP_MM
-
-
-v28.WATCH_END_NOTES.append(_follow_note)
-
-
+# ---- (the hand watch during a run and the live height following it fed were removed, user 2026-10-27: "completely
+# remove this feature" -> "The whole hand watch"; henna_preview/follow.py and hand_watch.py are no longer used for runs.)
 def follow_view(_=None):
-    f = _FOLLOWER["current"]
-    return {"active": f is not None, "dz_mm": None if f is None else f.dz, "stats": None if f is None else dict(f.stats)}
+    return {"active": False, "dz_mm": None, "stats": None}
+
+
+def _real_start(job, params):
+    """v28's real-hand start - every program rule and the hand check right before Start (the hand where it was
+    scanned) - WITHOUT the hand watch during the run (user 2026-10-27: "completely remove this feature" -> "The whole
+    hand watch": no camera pauses while it runs - no "too near", "hand moved" or "cannot see") and so without live
+    height following, which needs the watch's pictures. The program's own heights and the emergency stop remain."""
+    v28.machine_job_only(job)
+    if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
+        raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
+    v28._real_rules(job, (job["steps"].get("design") or {}).get("standoff_mm", 0))
+    res = v28.hand_check(job)                               # (speed and height: as chosen - user 2026-10-27 "unlock")
+    out = v28._INNER["/api/machine/run"](dict(params, confirm_prosthetic=True, confirm_unmoved=True))
+    _log("Hand check before Start", (machine.status() or {}).get("mpos"), "camera, 3 pictures",
+         "hand where it was scanned", f"realhand: median {res['median_dz_mm']} mm, {100 * res['share_off']:.0f} % off, "
+         f"{100 * res['seen_share']:.0f} % seen", "ok - no hand watch during the run", job["steps"]["scan"]["name"],
+         f"Studio v29; job {job['id']}")
+    return out
 
 
 def run(params):
     job = v11.job_load(params.get("job"))
     _z_home_check(job)
-    if params.get("air_run") is True and job.get("subject") != v28.REAL:
-        raise ValueError("The air run option is for real-hand jobs - a prosthetic job runs with its own warning-only check")
+    if params.get("air_run"):
+        raise ValueError("Air runs were removed from Studio - a run starts with a hand (or the prosthetic) in place")
     d = (job["steps"].get("program") or {}).get("dispense")
     if d:
         cfg = dict(dispense.settings(d["dispenser"], d["start_s"], d["stop_s"]), output=output_for(d["dispenser"]))
@@ -673,11 +559,8 @@ def run(params):
     try:
         if job.get("subject") == "prosthetic":
             out = _prosthetic_start(job, params)
-        elif params.get("air_run") is True:
-            out = _air_start(job, params)
         else:
-            _arm_follow(job)                                 # a real hand, watched: live height following
-            out = v28.run(params)
+            out = _real_start(job, params)
     finally:
         machine.arm_dispense(None)                           # start_program took it, or the run was refused
         if hasattr(machine, "arm_follow"):
@@ -694,7 +577,7 @@ def run(params):
 # position when the head is elsewhere and the straight way there is clear), scan, hand detection, the outline and
 # the design moved WITH the hand (henna_preview/follow_hand.py), the design check on the NEW scan, and the program
 # again when there was one. It stops at the first refusal with that step's message.
-RESCAN_SECONDS = 3
+RESCAN_SECONDS = 4                      # 3 s gave 56-72 frame pairs (19-24 per second; 60 needed) - 2026-10-27
 
 
 def _route(path):
@@ -785,14 +668,18 @@ def _follow_and_prepare_steps(job, src, what, allow_move, write_program):
     from henna_preview import follow_hand
     jid, done, p = job["id"], [], v28._parts()
     design = src["design"]
+    timing, t_all = {}, time.monotonic()                     # seconds per step (2026-10-26: "wind up in 2-3 min")
 
     def step(name, fn):
         a, b, sec = STEP_SHARE.get(name, (PROGRESS.get("to") or 0, PROGRESS.get("to") or 0, 1.0))
         PROGRESS.update({"op": what, "step": name, "from": a, "to": b, "expect_s": sec, "started": time.time()})
+        t0 = time.monotonic()
         try:
             return fn()
         except Exception as e:                              # noqa: BLE001 - the step's own message, which step
             raise ValueError(f"{what} stopped at {name}: {e} (done: {', '.join(done) or 'nothing'})") from None
+        finally:
+            timing[name] = round(timing.get(name, 0.0) + time.monotonic() - t0, 1)
 
     st = machine.status()
     if not st.get("capture_ready"):
@@ -842,12 +729,15 @@ def _follow_and_prepare_steps(job, src, what, allow_move, write_program):
         step("writing the program", lambda: _route("/api/studio/program")(pp))
         done.append("program written")
     job = v11.job_load(jid)
+    timing["total"] = round(time.monotonic() - t_all, 1)
     _log(what, (machine.status() or {}).get("mpos"), "scan, hand, outline, design, program",
          "the design follows the hand; all checks on the new scan", f"hand moved {f['shift_mm']} mm, turned "
-         f"{f['turn_deg']:+.1f} deg (fit {f['machine']['rms']:.1f} mm); {', '.join(done)}", "ready",
-         job["steps"]["scan"]["name"], f"Studio v29; job {jid}")
+         f"{f['turn_deg']:+.1f} deg (fit {f['machine']['rms']:.1f} mm); {', '.join(done)}; seconds "
+         + ", ".join(f"{k} {v:g}" for k, v in timing.items()), "ready", job["steps"]["scan"]["name"],
+         f"Studio v29; job {jid}")
     return {"job": v14.job_view(job), "followed": {"shift_mm": f["shift_mm"], "turn_deg": f["turn_deg"],
-                                                   "fit_mm": round(f["machine"]["rms"], 2)}, "done": done}
+                                                   "fit_mm": round(f["machine"]["rms"], 2)}, "done": done,
+            "timing_s": timing}
 
 
 def _ticks(params):
@@ -915,14 +805,65 @@ def _start_now(job_id, what, prep):
         raise ValueError(f"{what}: prepared ({', '.join(prep['done'])}) but the start was refused: {e}") from None
 
 
+def _wait_homed(timeout_s=150.0):
+    end = time.monotonic() + timeout_s
+    while time.monotonic() < end:
+        st = machine.status()
+        if not st.get("busy"):
+            if st.get("homed"):
+                return st
+            raise MachineError("homing did not finish - check the machine, then Home in the top bar")
+        time.sleep(0.25)
+    raise MachineError("homing took too long")
+
+
+def get_ready(params):
+    """Connect (if needed), Home (if needed), Move to scan position (if not there) - one press with no hand under the
+    machine (user 2026-10-26: "Home with Z first ... this should be auto"). Homing never starts by itself: its way to
+    the home corner is not path-checked, so the hand must be away - the same two ticks as Home."""
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    v13_ticks = {"confirm_clear": params.get("confirm_clear"), "confirm_estop": params.get("confirm_estop")}
+    if v13_ticks["confirm_clear"] is not True or v13_ticks["confirm_estop"] is not True:
+        raise ValueError("Confirm that no hand or object is under the machine and that you are at the emergency stop")
+    done = []
+    try:
+        st = machine.status()
+        if not st.get("connected"):
+            PROGRESS.update({"op": "Get ready", "step": "connecting", "from": 0, "to": 10, "expect_s": 3.0,
+                             "started": time.time()})
+            _route("/api/machine/connect")({})
+            done.append("connected")
+            st = machine.status()
+        if not st.get("homed"):
+            PROGRESS.update({"op": "Get ready", "step": "homing", "from": 10, "to": 70, "expect_s": 30.0,
+                             "started": time.time()})
+            _route("/api/machine/home")(dict(v13_ticks))
+            _wait_homed()
+            done.append("homed")
+            st = machine.status()
+        if not st.get("capture_ready"):
+            PROGRESS.update({"op": "Get ready", "step": "the move to the scan position", "from": 70, "to": 99,
+                             "expect_s": 15.0, "started": time.time()})
+            _route("/api/machine/scan_position")(dict(v13_ticks, job=job["id"]))
+            _wait_at_scan_position()
+            done.append("at the scan position")
+    except Exception as e:                                  # noqa: BLE001 - which part, what was done
+        raise ValueError(f"Get ready stopped: {e} (done: {', '.join(done) or 'nothing'})") from None
+    finally:
+        PROGRESS.update(op=None, step=None)
+    _log("Get ready", (machine.status() or {}).get("mpos"), "connect / home / scan position as needed",
+         "machine homed and at the scan position", ", ".join(done) or "already ready", "ready", "",
+         f"Studio v29; job {job['id']}; no hand under the machine (ticked)")
+    return dict(v14.machine_status(), done=done)
+
+
 def _hand_job(params, what):
     params = params or {}
     job = v11.job_load(params.get("job"))
     if job.get("subject") not in ("prosthetic", v28.REAL):
         raise ValueError(f"{what} is for prosthetic and real-hand jobs")
     _ticks(params)
-    if params.get("air_run"):
-        raise ValueError(f"{what} is for a hand under the machine - an air run starts with Start")
     return job
 
 
@@ -940,7 +881,7 @@ def scan_and_start(params):
          "the run starts right after the checks on the new scan", f"hand moved {prep['followed']['shift_mm']} mm; "
          f"{', '.join(prep['done'])}", "started", v11.job_load(job["id"])["steps"]["scan"]["name"],
          f"Studio v29; job {job['id']}")
-    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"]})
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")})
 
 
 def _program_lines_of_run(r):
@@ -1026,7 +967,7 @@ def rescan_continue(params):
          f"{cp['base'] + cp['from'] + 1} of {cp['total']} ({'drawn again from its start' if redo else 'not started'}); "
          f"{orig} from stroke {from_total + 1}; hand moved {prep['followed']['shift_mm']} mm", "started",
          v11.job_load(job["id"])["steps"]["scan"]["name"], f"Studio v29; job {job['id']}")
-    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"]},
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")},
                 continued={"from_stroke": from_total + 1, "total": cp["total"], "redo": redo})
 
 
@@ -1129,6 +1070,25 @@ def setup_prepare(params):
     _ticks(params)
     st = _load_setup(job["setup"]["id"])
     return _follow_and_prepare(job, st, "Scan & prepare", allow_move=False, write_program=True)
+
+
+def setup_start(params):
+    """Scan & start for a job made from a setup (user 2026-10-26: "wind up everything in 2 to 3 minutes" -> "build 1
+    and 2"): Scan & prepare, then the Start button's run - choose the setup, Move to scan position, hand in, one press."""
+    params = params or {}
+    job = v11.job_load(params.get("job"))
+    if not job.get("setup"):
+        raise ValueError("this job was not made from a setup")
+    _ticks(params)
+    st = _load_setup(job["setup"]["id"])
+    prep = _follow_and_prepare(job, st, "Scan & start", allow_move=False, write_program=True)
+    out = _start_now(job["id"], "Scan & start", prep)
+    _log("Scan & start (setup)", (machine.status() or {}).get("mpos"), "Scan & prepare, then Start",
+         "the run starts right after the checks on the new scan", f"setup {job['setup']['name']}; hand "
+         f"{prep['followed']['shift_mm']} mm from the setup's hand; seconds "
+         + ", ".join(f"{k} {v:g}" for k, v in (prep.get("timing_s") or {}).items()), "started",
+         v11.job_load(job["id"])["steps"]["scan"]["name"], f"Studio v29; job {job['id']}")
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")})
 
 
 def dispense_test(params):
@@ -1259,8 +1219,9 @@ def _reach(job, depth_mm, fx=None):
         return None, None
     c, p = v10.cal(), v28._parts()
     lo, hi = (float(v) for v in c["standoff_mm_allowed"])
-    if job["subject"] == v28.REAL:
-        lo = max(lo, v28.REAL_MIN_STANDOFF_MM)
+    if job["subject"] == v28.REAL:                       # the height the path check will use: the design's, else the
+        lo = max(lo, float((job["steps"].get("design") or {}).get("standoff_mm")   # real-hand starting 6 mm (the
+                               or v28.REAL_DEFAULT_STANDOFF_MM))                    # minimum is 1 mm since 2026-10-27)
         hi = max(hi, lo)
     ok = depth_mm > 0
     d = np.where(ok, depth_mm, 1.0)
@@ -1345,12 +1306,14 @@ class Handler(v28.Handler):
         "/api/machine/resume": (resume, _RESUME[1]),
         "/api/studio/quick_rescan": (quick_rescan, True),
         "/api/studio/scan_and_start": (scan_and_start, True),
+        "/api/studio/get_ready": (get_ready, True),
         "/api/studio/rescan_continue": (rescan_continue, True),
         "/api/studio/setup_save": (setup_save, True),
         "/api/studio/exit": (studio_exit, False),
         "/api/studio/setup_delete": (setup_delete, False),
         "/api/studio/setup_job": (setup_job, False),
         "/api/studio/setup_prepare": (setup_prepare, True),
+        "/api/studio/setup_start": (setup_start, True),
         "/api/machine/dispense_test": (dispense_test, False),
         "/api/studio/job_new": (job_new, _JOB_NEW[1]),
         "/api/machine/jog": (jog, _JOG[1]),

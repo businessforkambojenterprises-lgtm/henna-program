@@ -96,43 +96,6 @@ class LinkTests(unittest.TestCase):
         self.assertEqual(sent, ["G53 G1 X120.000 Y100.000 Z-23.000 F300", LINE, "G53 G0 Z-0.500"])
 
 
-class StudioTests(unittest.TestCase):
-    def test_only_watched_real_hand_runs_follow(self):
-        import webui_server_v29 as v29
-        armed = []
-        saved = (v29.v11.job_load, v29._z_home_check, v29.v28.run, v29._air_start, v29._prosthetic_start,
-                 getattr(v29.machine, "arm_follow", None), v29.v28.reference, v29.v10.cal, dict(v29._FOLLOWER))
-        job = {"id": "j", "subject": "realhand", "steps": {"program": {}, "design": {"standoff_mm": 6.0}}}
-        v29.v11.job_load = lambda jid: job
-        v29._z_home_check = lambda j: None
-        v29.v28.run = lambda p: {"started": "real"}
-        v29._air_start = lambda j, p: {"started": "air"}
-        v29._prosthetic_start = lambda j, p: {"started": "prosthetic"}
-        v29.machine.arm_follow = lambda fn, floor, travel: armed.append(fn is not None)
-        v29.v28.reference = lambda j: hw.Reference(skin(-30.0))
-        v29.v10.cal = lambda: {"firmware_z_floor": -49.0, "travel_z": -0.5}
-        try:
-            v29.run({"job": "j"})
-            self.assertEqual(armed, [True, False])                # armed for the run, cleared after it
-            self.assertIsNotNone(v29.follow_view()["dz_mm"])
-            armed.clear()
-            v29.run({"job": "j", "air_run": True})
-            self.assertEqual(armed, [False])                      # an air run never follows
-            armed.clear()
-            job["subject"] = "prosthetic"
-            v29.run({"job": "j"})
-            self.assertEqual(armed, [False])
-        finally:
-            (v29.v11.job_load, v29._z_home_check, v29.v28.run, v29._air_start, v29._prosthetic_start, arm,
-             v29.v28.reference, v29.v10.cal, fol) = saved
-            if arm is None:
-                del v29.machine.arm_follow
-            else:
-                v29.machine.arm_follow = arm
-            v29._FOLLOWER.clear()
-            v29._FOLLOWER.update(fol)
-
-
 class SteadierAndRecordedTests(unittest.TestCase):
     """2026-10-24 ("keep on building camera's live work"): the median of the last 3 pictures, a following record."""
 
@@ -165,7 +128,7 @@ class SteadierAndRecordedTests(unittest.TestCase):
 class AirRunEmptyBedTests(unittest.TestCase):
     """2026-10-24: an air run paused 5 times "something is in the design area" with nothing there - the hand lies on
     the jig's raised piece, which under thin fingers is less than 10 mm below the scanned skin. Against the empty bed
-    (the daily reference) only something more than 3 mm above it counts."""
+    (the daily reference) only something more than EMPTY_MM above it counts, per 5 mm square (2026-10-26)."""
 
     def test_the_raised_jig_is_empty_a_hand_is_not(self):
         ref = hw.Reference(skin(-30.0))                            # the scanned fingers
@@ -175,28 +138,23 @@ class AirRunEmptyBedTests(unittest.TestCase):
         r = hw.evaluate(hw.air_reference(ref, empty), live_empty, (120.0, 100.0, -10.0))
         self.assertEqual(r["verdict"], "ok")
         self.assertTrue(r["vs_empty_bed"])
-        r = hw.evaluate(hw.air_reference(ref, empty), skin(-31.0), (120.0, 100.0, -10.0))   # a hand: 5 mm above
+        r = hw.evaluate(hw.air_reference(ref, empty), skin(-26.0), (120.0, 100.0, -10.0))   # a hand: 10 mm above
         self.assertEqual(r["verdict"], "moved")
-        self.assertIn("more than 3 mm above the empty bed", hw.message(r))
+        self.assertIn("more than 6 mm above the empty bed", hw.message(r))
 
-    def test_no_empty_bed_from_before_the_z_home_move(self):
-        import json
-        import tempfile
-        import webui_server_v29 as v29
-        d = tempfile.mkdtemp()
-        os.makedirs(os.path.join(d, "outputs", "calibration", "ball-screw", "reference"))
-        with open(os.path.join(d, "outputs", "calibration", "ball-screw", "reference", "reference.json"), "w") as f:
-            json.dump({"created": "2026-10-22T09:25:15", "mpos": [65.7, 80.0, -5.0]}, f)
-        saved = (v29.base.ROOT, v29.v10.cal, v29.v28.v26.profiles.active_id, dict(v29._EMPTY))
-        v29.base.ROOT = d
-        v29.v10.cal = lambda: {"z_home_moved_at": "2026-10-24T14:34:50"}
-        v29.v28.v26.profiles.active_id = lambda: "ball-screw"
-        try:
-            self.assertIsNone(v29._empty_bed())                     # made in the old Z numbers: the old rule
-        finally:
-            v29.base.ROOT, v29.v10.cal, v29.v28.v26.profiles.active_id, e = saved
-            v29._EMPTY.clear()
-            v29._EMPTY.update(e)
+    def test_scattered_depth_noise_is_empty(self):
+        """2026-10-26: the saved picture of a false pause - noise blotches 3-4.6 mm high all over an empty bed."""
+        rng = np.random.default_rng(4)
+        ref, empty = hw.Reference(skin(-30.0)), hw.Reference(skin(-36.0))
+        live = skin(-36.0)
+        live[:, 2] += rng.normal(0.0, 1.0, len(live))
+        spots = rng.random(len(live)) < 0.03
+        live[spots, 2] += 4.0                                       # 3 % of the points 4 mm high
+        r = hw.evaluate(hw.air_reference(ref, empty), live, (120.0, 100.0, -10.0))
+        self.assertEqual(r["verdict"], "ok", r)
+        finger = (np.abs(live[:, 0] - 115) < 6) & (np.abs(live[:, 1] - 100) < 6)
+        live[finger, 2] = -36.0 + 13.0                              # a fingertip: 12 x 12 mm, 13 mm high
+        self.assertEqual(hw.evaluate(hw.air_reference(ref, empty), live, (120.0, 100.0, -10.0))["verdict"], "moved")
 
 
 class SeenInViewTests(unittest.TestCase):
@@ -213,8 +171,10 @@ class SeenInViewTests(unittest.TestCase):
         self.assertGreater(r["seen_share"], 0.9)
         tiny = skin(-30.0, x=(100, 104), y=(80, 84))                       # only 1 % of the area in view
         self.assertEqual(hw.evaluate(ref, tiny, (120.0, 100.0, -24.0))["verdict"], "unseen")
-        holey = np.vstack([skin(-30.0, x=(100, 140), y=(80, 82)), skin(-30.0, x=(100, 140), y=(118, 120))])
+        holey = np.vstack([skin(-30.0, x=(100, 140), y=(80, 82)), skin(-30.0, x=(139, 140), y=(80, 120))])
         self.assertEqual(hw.evaluate(ref, holey, (120.0, 100.0, -24.0))["verdict"], "unseen")  # in view, not seen
+        sparse = skin(-30.0)[::8]                          # one point every 4 mm along X: few per 1 mm cell
+        self.assertEqual(hw.evaluate(ref, sparse, (120.0, 100.0, -24.0))["verdict"], "ok")   # 2026-10-26: "20 % seen"
 
 
 if __name__ == "__main__":

@@ -120,6 +120,22 @@ def wrap_program(original, info):
     return program_with_hops
 
 
+def wrap_plan(original, info, travel_z_of=None):
+    """plan_hops, with the jumps Studio routed round tall skin marked as rises to travel Z instead of low hops
+    (2026-10-27: "program text does not contain exactly the planned low hops" - gap_routes turned a planned low hop into
+    the routed rise, so the script's own count of low hops in the text no longer matched its plan)."""
+    gaps = (info or {}).get("gaps") or []
+
+    def plan_hops(paths, sample_fn, travel_z, *args, **kwargs):
+        hops = original(paths, sample_fn, travel_z, *args, **kwargs)
+        for i, h in enumerate(hops):
+            end, start = paths[i][-1], paths[i + 1][0]
+            if any(_near(g["from"], end) and _near(g["to"], start) for g in gaps):
+                hops[i] = {"z": float(travel_z), "low": False, "reason": "routed round tall skin at travel Z"}
+        return hops
+    return plan_hops if gaps else original
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if not argv or argv[0] not in SCRIPTS:
@@ -137,6 +153,8 @@ def main(argv=None):
     mod.hand_top_from_raw = wrap(mod.hand_top_from_raw, path_top(cfg))
     if hasattr(mod, "program_with_hops"):
         mod.program_with_hops = wrap_program(mod.program_with_hops, approach(cfg))
+    if hasattr(mod, "plan_hops"):
+        mod.plan_hops = wrap_plan(mod.plan_hops, approach(cfg))
     sys.argv = [mod.__file__] + rest
     mod.main()
     return 0
