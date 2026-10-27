@@ -899,6 +899,33 @@ def get_ready(params):
     return dict(v14.machine_status(), done=done)
 
 
+def program_path(q):
+    """The moves of the job's written program for the live view (user 2026-10-27: "i want live visualize like ugs"):
+    {"moves": [[x, y, z, kind], ...] - kind 1 drawing (G1), 0 travel / hop (G0) - one per program line that moves,
+    "line": that move's index among the program's command lines (what the link counts as sent), "start": the scan
+    position}. Read-only, from the same file a run sends (the paste program when there is one)."""
+    from henna_preview.continue_run import AXIS_RE
+    job = v11.job_load(q.get("job", [""])[0])
+    pr = job["steps"].get("program") or {}
+    path = (pr.get("dispense") or {}).get("file") or pr.get("program_file")
+    pd = v10.out_dir("program", pr["program"]) if pr.get("program") else None
+    if not (path and pd and _same(os.path.dirname(path), pd) and os.path.isfile(path)):
+        return {"moves": [], "line": [], "start": None}
+    with open(path, encoding="ascii") as f:
+        lines = _command_lines(f.read())
+    start = [float(v) for v in job["steps"]["scan"]["mpos"]]
+    cur, moves, idx = list(start), [], []
+    for i, ln in enumerate(lines):
+        kind = 1 if ln.startswith("G53 G1 ") else 0 if ln.startswith("G53 G0 ") else None
+        if kind is None:
+            continue
+        for ax, v in AXIS_RE.findall(ln):
+            cur["XYZ".index(ax)] = float(v)
+        moves.append([round(cur[0], 3), round(cur[1], 3), round(cur[2], 3), kind])
+        idx.append(i)
+    return {"moves": moves, "line": idx, "start": start, "lines": len(lines), "file": os.path.basename(path)}
+
+
 def _hand_job(params, what):
     params = params or {}
     job = v11.job_load(params.get("job"))
@@ -1339,6 +1366,7 @@ class Handler(v28.Handler):
                                            "/api/studio/follow": follow_view,
                                            "/api/studio/progress": progress_view,
                                            "/api/studio/continue": continue_view,
+                                           "/api/studio/program_path": program_path,
                                            "/api/studio/designs": lambda q: _DESIGNS()})
     POST_API = dict(v28.Handler.POST_API, **{
         "/api/studio/check_design": (check_design, _CHECK_DESIGN[1]),
