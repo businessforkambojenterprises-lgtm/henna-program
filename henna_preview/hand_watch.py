@@ -24,6 +24,13 @@ LIMIT_MM = 4.0              # user 2026-10-22: "widen tolerance" (was 2 mm / 20 
 MOVED_SHARE = 0.40          # for minutes; the 6 mm nozzle height keeps 2 mm, and "near" (NEAR_MM) still pauses at 1.5
 NEAR_MM = 1.5
 NEAR_XY_MM = 3.0            # skin right under the tip; the planner already lifts the tip over nearby higher skin
+# "near" needs a share of the skin there, not a few pixels (2026-10-27: two runs paused "skin within 0.7 / 1.4 mm of the
+# tip" while dropping to the first stroke - the saved pictures: 11 of 13 and 18 of 21 points 6-11 mm below the tip,
+# 2-3 points at the tip's own height = the tip itself, seen as a small blob apart from the head). Skin coming up lifts
+# the points round the tip together.
+NEAR_SHARE = 0.25
+NEAR_MIN_POINTS = 3
+NEAR_PERCENTILE = 75        # the shown / logged gap (was the 95th percentile - the tip's own pixels)
 MIN_SEEN = 0.20                     # of the design area INSIDE the camera's current view (2026-10-26, see evaluate)
 MIN_IN_VIEW = 0.05                  # and at least this much of the whole design area must be in view at all
 MIN_POINTS = 30
@@ -160,9 +167,10 @@ def evaluate(ref, live_pts, tool_xyz):
         dxy = np.hypot(live_pts[:, 0] - tool[0], live_pts[:, 1] - tool[1])
         close = live_pts[dxy <= NEAR_XY_MM]
         if len(close) >= 5:
-            gap = float(tool[2] - np.percentile(close[:, 2], 95))      # tip height above the highest skin there
+            gap = float(tool[2] - np.percentile(close[:, 2], NEAR_PERCENTILE))   # tip above the high skin there
             out["near_gap_mm"] = round(gap, 2)
-            if gap < NEAR_MM:
+            touching = int(np.sum(tool[2] - close[:, 2] < NEAR_MM))
+            if touching >= NEAR_MIN_POINTS and touching >= NEAR_SHARE * len(close):
                 return dict(out, verdict="near")
     standoff = getattr(ref, "standoff_mm", None)
     if standoff and not clear:
