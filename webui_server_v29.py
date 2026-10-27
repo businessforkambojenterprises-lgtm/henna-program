@@ -641,12 +641,47 @@ def _placement_of(job, need_pass=False):
                         if prog.get("program") else None)}
 
 
-def _follow_and_prepare(job, src, what, allow_move=False, write_program=None):
+NUDGE_STEPS_MM = (2.5, 5.0, 7.5, 10.0)
+_TALL_AT = re.compile(r"near machine X(-?\d+(?:\.\d+)?) Y(-?\d+(?:\.\d+)?)")
+
+
+def check_with_nudge(jid, design, centre, rot, nudge_ok=True):
+    """The design check at `centre`; when it is refused for tall skin under the nozzle's path, the same check with the
+    design moved away from that skin by NUDGE_STEPS_MM (user 2026-10-27: "build 3") - the first place that passes
+    every check is used. -> (check result, None | {mm, centre, away_from}). nudge_ok False: the rest of a stopped run,
+    which must stay on the strokes already drawn."""
+    c0, last = np.asarray(centre, float), None
+    for mm in (0.0,) + (NUDGE_STEPS_MM if nudge_ok else ()):
+        c = c0
+        if mm:
+            m = _TALL_AT.search(str(last))
+            v = None if m is None else c0 - np.array([float(m.group(1)), float(m.group(2))])
+            if v is None or np.hypot(*v) < 1e-6:
+                break
+            c = c0 + v / np.hypot(*v) * mm
+        try:
+            r = _route("/api/studio/check_design")(
+                {"job": jid, "svg": design["svg"], "fit_mm": design["fit_mm"], "rotation_deg": round(rot, 2),
+                 "centre_machine_xy": [round(float(x), 3) for x in c], "standoff_mm": design["standoff_mm"]})
+        except Exception as e:                              # noqa: BLE001 - only tall skin on the path is tried again
+            if "Under the nozzle's path" not in str(e):
+                raise
+            last = e
+            continue
+        if mm and ((r or {}).get("result") or {}).get("verdict") != "PASS":
+            break                                           # moved off the usable skin: further only gets worse
+        if not mm:
+            return r, None
+        return r, {"mm": mm, "centre": [round(float(x), 1) for x in c], "away_from": list(_TALL_AT.search(str(last)).groups())}
+    raise last
+
+
+def _follow_and_prepare(job, src, what, allow_move=False, write_program=None, nudge_ok=True):
     """Scan the hand where it is now and repeat src's outline, design and program on it, through the page's own routes
     (every guard): [move to the scan position], scan, hand, outline + design moved with the hand (follow_hand), the
     design check on the new scan, the program. Stops at the first refusal, naming the step."""
     try:
-        return _follow_and_prepare_steps(job, src, what, allow_move, write_program)
+        return _follow_and_prepare_steps(job, src, what, allow_move, write_program, nudge_ok)
     finally:
         PROGRESS.update(op=None, step=None)
 
@@ -664,7 +699,7 @@ def progress_view(_=None):
     return dict(PROGRESS, now=time.time())
 
 
-def _follow_and_prepare_steps(job, src, what, allow_move, write_program):
+def _follow_and_prepare_steps(job, src, what, allow_move, write_program, nudge_ok=True):
     from henna_preview import follow_hand
     jid, done, p = job["id"], [], v28._parts()
     design = src["design"]
@@ -708,14 +743,20 @@ def _follow_and_prepare_steps(job, src, what, allow_move, write_program):
     done.append("outline moved with the hand")
     centre = follow_hand.apply([design["centre_machine_xy"]], f["machine"])[0]
     rot = ((float(design["rotation_deg"]) + f["turn_deg"] + 180.0) % 360.0) - 180.0
-    r = step("the design check", lambda: _route("/api/studio/check_design")(
-        {"job": jid, "svg": design["svg"], "fit_mm": design["fit_mm"], "rotation_deg": round(rot, 2),
-         "centre_machine_xy": [round(float(v), 3) for v in centre], "standoff_mm": design["standoff_mm"]}))
+    nudge = {}
+
+    def design_check():
+        r, n = check_with_nudge(jid, design, centre, rot, nudge_ok)
+        nudge.update(n or {})
+        return r
+
+    r = step("the design check", design_check)
     verdict = ((r or {}).get("result") or {}).get("verdict")
     if verdict != "PASS":
         raise ValueError(f"{what} stopped at the design check: the design does not fit on the new scan - move or "
                          f"shrink it in Design (done: {', '.join(done)})")
-    done.append("design checked")
+    done.append("design checked" if not nudge else
+                f"design moved {nudge['mm']:g} mm away from tall skin at X{nudge['away_from'][0]} Y{nudge['away_from'][1]}")
     prog = src.get("program")
     if write_program is None:
         write_program = prog is not None
@@ -737,7 +778,7 @@ def _follow_and_prepare_steps(job, src, what, allow_move, write_program):
          f"Studio v29; job {jid}")
     return {"job": v14.job_view(job), "followed": {"shift_mm": f["shift_mm"], "turn_deg": f["turn_deg"],
                                                    "fit_mm": round(f["machine"]["rms"], 2)}, "done": done,
-            "timing_s": timing}
+            "timing_s": timing, "nudged": dict(nudge) or None}
 
 
 def _ticks(params):
@@ -881,7 +922,7 @@ def scan_and_start(params):
          "the run starts right after the checks on the new scan", f"hand moved {prep['followed']['shift_mm']} mm; "
          f"{', '.join(prep['done'])}", "started", v11.job_load(job["id"])["steps"]["scan"]["name"],
          f"Studio v29; job {job['id']}")
-    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")})
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s"), "nudged": prep.get("nudged")})
 
 
 def _program_lines_of_run(r):
@@ -959,7 +1000,7 @@ def rescan_continue(params):
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
     src["design"]["svg"] = os.path.relpath(path, base.ROOT).replace("\\", "/")
-    prep = _follow_and_prepare(job, src, what, allow_move=True, write_program=True)
+    prep = _follow_and_prepare(job, src, what, allow_move=True, write_program=True, nudge_ok=False)
     out = _start_now(job["id"], what, prep)
     redo = cp["how"] == "redo"
     _log(what, (machine.status() or {}).get("mpos"), "Quick re-scan with the strokes not drawn yet, then Start",
@@ -967,7 +1008,7 @@ def rescan_continue(params):
          f"{cp['base'] + cp['from'] + 1} of {cp['total']} ({'drawn again from its start' if redo else 'not started'}); "
          f"{orig} from stroke {from_total + 1}; hand moved {prep['followed']['shift_mm']} mm", "started",
          v11.job_load(job["id"])["steps"]["scan"]["name"], f"Studio v29; job {job['id']}")
-    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")},
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s"), "nudged": prep.get("nudged")},
                 continued={"from_stroke": from_total + 1, "total": cp["total"], "redo": redo})
 
 
@@ -1088,7 +1129,7 @@ def setup_start(params):
          f"{prep['followed']['shift_mm']} mm from the setup's hand; seconds "
          + ", ".join(f"{k} {v:g}" for k, v in (prep.get("timing_s") or {}).items()), "started",
          v11.job_load(job["id"])["steps"]["scan"]["name"], f"Studio v29; job {job['id']}")
-    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")})
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s"), "nudged": prep.get("nudged")})
 
 
 def dispense_test(params):

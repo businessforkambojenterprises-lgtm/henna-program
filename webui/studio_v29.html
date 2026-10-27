@@ -644,6 +644,7 @@ $('scanprep').onclick=async()=>{if(!scanReady()){scanPositionShow();msg('msgscan
  catch(e){msg('msgscan','err',e.message);try{setJob(await api('/api/studio/job?id='+encodeURIComponent(jobId)))}catch(_){}}
  finally{recBusy=false;machSeen=0;machGeneration++;machShow(MACH);machPoll()}
  if(r){go('run');msg('msgrun','good',`Ready: the design is on this hand (${r.followed.shift_mm} mm / ${r.followed.turn_deg} deg from the setup's hand), every check passed on this scan and the program is written. Start when ready.`)}};
+function nudgeText(p){const n=p&&p.nudged;return n?` The design was moved ${n.mm} mm away from tall skin (near X${n.away_from[0]} Y${n.away_from[1]}) so the nozzle's path clears it.`:''}
 function secText(t){if(!t)return'';const n={'the move to the scan position':'move','the scan':'scan','the hand detection':'hand','following the hand':'follow','the outline':'outline','the design check':'design check','writing the program':'program'};
  return ' Prepared in '+t.total+' s ('+Object.entries(t).filter(([k])=>k!=='total').map(([k,v])=>`${n[k]||k} ${v}`).join(', ')+').'}
 $('scanprepstart').onclick=async()=>{if(!scanReady()){scanPositionShow();if(MACH&&MACH.connected&&!MACH.homed||MACH&&!MACH.capture_ready){getReady('msgscan','The machine is not homed or not at the scan position yet.')}else msg('msgscan','err','Move to scan position first - before the hand goes in.');return}
@@ -653,7 +654,7 @@ $('scanprepstart').onclick=async()=>{if(!scanReady()){scanPositionShow();if(MACH
  catch(e){msg('msgscan','err',e.message);try{setJob(await api('/api/studio/job?id='+encodeURIComponent(jobId)))}catch(_){}}
  finally{recBusy=false;machSeen=0;machGeneration++;machShow(MACH);machPoll()}
  if(r){const {job,hand_check_warning,prepared,...m}=r;lastRunJob=job.id;lastRunState='running';setJob(job);machineAccept(m);go('run');
-  msg('msgrun',hand_check_warning?'warn':'good',(hand_check_warning||`Started: the design is on this hand (${prepared.followed.shift_mm} mm from the setup's hand).`)+secText(prepared.timing_s))}};
+  msg('msgrun',hand_check_warning?'warn':'good',(hand_check_warning||`Started: the design is on this hand (${prepared.followed.shift_mm} mm from the setup's hand).`)+nudgeText(prepared)+secText(prepared.timing_s))}};
 $('scansec').oninput=()=>$('scansecout').textContent=$('scansec').value+' s';
 $('scanrec').onclick=async()=>{if(!scanReady()){scanPositionShow();msg('msgscan','err','Wait for a fresh, homed, idle machine at the scan position.');return}
  const jobId=JOB.id;recBusy=true;machGeneration++;machShow(MACH);msg('msgscan','info','Recording - keep everything still. Then the file is checked (about 20 s).');
@@ -865,7 +866,7 @@ async function scanStartGo(path,what,text){if(machineBusy()||running())return;
  msg('msgrun','info',what+': scan, hand, outline, design check, program, then the run starts - about a minute. Keep the hand still.');
  try{const r=await api(path,{job:JOB.id,confirm_clear:true,confirm_estop:true});const {job,hand_check_warning,prepared,continued,...m}=r;
   lastRunJob=job.id;lastRunState='running';setJob(job);machineAccept(m);
-  msg('msgrun',hand_check_warning?'warn':'good',hand_check_warning||(continued?`Continuing from stroke ${continued.from_stroke} of ${continued.total}`:'Started')+` - the hand moved ${prepared.followed.shift_mm} mm since the last scan and the design followed it.`+secText(prepared.timing_s));CONT=null;renderRunHist()}
+  msg('msgrun',hand_check_warning?'warn':'good',hand_check_warning||(continued?`Continuing from stroke ${continued.from_stroke} of ${continued.total}`:'Started')+` - the hand moved ${prepared.followed.shift_mm} mm since the last scan and the design followed it.`+nudgeText(prepared)+secText(prepared.timing_s));CONT=null;renderRunHist()}
  catch(e){msg('msgrun','err',e.message);reloadJob(1);if(needsHome(e))setTimeout(()=>getReady('msgrun','The machine has to home first.'),50)}finally{runAction='';['runscanstart','runcontinue','runrescan'].forEach(id=>$(id).disabled=false);machSeen=0;machPoll();runShow()}}
 const READY_TEXT='Get ready: TAKE THE HAND OUT from under the machine first. Studio connects if needed, homes if needed (the head goes to its corner) and moves to the scan position. No hand or object is under the machine and you are at the emergency stop?';
 async function getReady(msgId,why){if(machineBusy()||running())return false;
@@ -885,7 +886,7 @@ $('runrescan').onclick=async()=>{if(machineBusy()||running())return;
  if(!confirm('Quick re-scan: the head goes to the scan position if it is not there, records a new scan and moves the outline and the design with the hand. Nothing else is in the travel area and you are at the emergency stop?'))return;
  $('runrescan').disabled=true;msg('msgrun','info','Quick re-scan: scan, hand, outline, design check and program - about a minute. Keep the hand still.');
  try{const r=await api('/api/studio/quick_rescan',{job:JOB.id,confirm_clear:true,confirm_estop:true});setJob(r.job);
-  msg('msgrun','good',`Ready: the hand moved ${r.followed.shift_mm} mm and turned ${r.followed.turn_deg} deg; the design followed it, every check passed on the new scan${r.done.includes('program written')?' and the program is written again':''}. Start when ready.`);showRun()}
+  msg('msgrun','good',`Ready: the hand moved ${r.followed.shift_mm} mm and turned ${r.followed.turn_deg} deg; the design followed it, every check passed on the new scan${r.done.includes('program written')?' and the program is written again':''}. Start when ready.`+nudgeText(r));showRun()}
  catch(e){msg('msgrun','err',e.message);if(needsHome(e))setTimeout(()=>getReady('msgrun','The machine has to home first.'),50)}finally{$('runrescan').disabled=false;machSeen=0;machPoll()}};
 
 /* ---------- 5 run ---------- */
