@@ -47,7 +47,7 @@ PRESTART_TIMEOUT_S = 8.0
 REF_STRIDE = 2
 
 machine = v26.machine
-v11.SUBJECTS[REAL] = "real hand - hover run watched by the camera (no paste)"
+v11.SUBJECTS[REAL] = "real hand - the full henna job, watched by the camera (paste as chosen in Program)"
 
 
 def machine_job_only(job):

@@ -522,58 +522,30 @@ def resume(params):
 _RESUME = v28.Handler.POST_API["/api/machine/resume"]
 
 
-# ---- live height following on a real hand (user 2026-10-24: "Option B - the nozzle follows the skin live" -> "build
-# this", after "Remove the live gap pause"): henna_preview/follow.py moves each drawing line's Z by the skin's change
-# since the scan, measured live just ahead of the tip, inside 1 mm down / 2 mm up of the checked line; the link
-# checks every changed line again and keeps the controller's queue short. Real-hand runs with the watch only.
-_FOLLOWER = {"current": None}
-
-
-def _arm_follow(job):
-    from henna_preview import follow
-    if not hasattr(machine, "arm_follow"):
-        return None
-    try:
-        c = v10.cal()
-        f = follow.Follower(v28.reference(job), v28.live_points, float(c["firmware_z_floor"]), float(c["travel_z"]))
-    except Exception:                                       # noqa: BLE001 - no reference: the checked lines only, and
-        return None                                         # v28's own refusals answer the run as before
-    _FOLLOWER["current"] = f
-    machine.arm_follow(f.adjust, f.floor_z, f.travel_z)
-    return f
-
-
-def _follow_note():
-    from henna_preview import follow
-    f, _FOLLOWER["current"] = _FOLLOWER["current"], None
-    if f is None:
-        return None
-    st = f.stats
-    if not st["lines"]:
-        return None
-    rng = (f"{st['min_dz']:+.1f} to {st['max_dz']:+.1f} mm" if st["followed"] else "none")
-    path = None
-    try:                                                    # every line's plan / measurement / correction
-        path = follow.save_record(f, os.path.join(base.ROOT, "outputs", "follow",
-                                                  dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "_follow.csv"))
-    except OSError:
-        path = None
-    return (f"live height following: {st['followed']} of {st['lines']} drawing lines moved ({rng}; band "
-            f"-{follow_band()[0]:g}/+{follow_band()[1]:g} mm), {st['unseen']} not seen"
-            + (f"; record {os.path.relpath(path, base.ROOT)}" if path else ""))
-
-
-def follow_band():
-    from henna_preview import follow
-    return follow.DOWN_MM, follow.UP_MM
-
-
-v28.WATCH_END_NOTES.append(_follow_note)
-
-
+# ---- (the hand watch during a run and the live height following it fed were removed, user 2026-10-27: "completely
+# remove this feature" -> "The whole hand watch"; henna_preview/follow.py and hand_watch.py are no longer used for runs.)
 def follow_view(_=None):
-    f = _FOLLOWER["current"]
-    return {"active": f is not None, "dz_mm": None if f is None else f.dz, "stats": None if f is None else dict(f.stats)}
+    return {"active": False, "dz_mm": None, "stats": None}
+
+
+def _real_start(job, params):
+    """v28's real-hand start - every program rule and the hand check right before Start (the hand where it was
+    scanned) - WITHOUT the hand watch during the run (user 2026-10-27: "completely remove this feature" -> "The whole
+    hand watch": no camera pauses while it runs - no "too near", "hand moved" or "cannot see") and so without live
+    height following, which needs the watch's pictures. The program's own heights and the emergency stop remain."""
+    v28.machine_job_only(job)
+    if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
+        raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
+    v28._real_rules(job, (job["steps"].get("design") or {}).get("standoff_mm", 0))
+    if float((job["steps"].get("program") or {}).get("draw_feed_mm_min", v28.REAL_FEED_MM_MIN)) > v28.REAL_FEED_MM_MIN:
+        raise ValueError(f"A real hand runs at {v28.REAL_FEED_MM_MIN} mm/min - write the program again")
+    res = v28.hand_check(job)
+    out = v28._INNER["/api/machine/run"](dict(params, confirm_prosthetic=True, confirm_unmoved=True))
+    _log("Hand check before Start", (machine.status() or {}).get("mpos"), "camera, 3 pictures",
+         "hand where it was scanned", f"realhand: median {res['median_dz_mm']} mm, {100 * res['share_off']:.0f} % off, "
+         f"{100 * res['seen_share']:.0f} % seen", "ok - no hand watch during the run", job["steps"]["scan"]["name"],
+         f"Studio v29; job {job['id']}")
+    return out
 
 
 def run(params):
@@ -590,8 +562,7 @@ def run(params):
         if job.get("subject") == "prosthetic":
             out = _prosthetic_start(job, params)
         else:
-            _arm_follow(job)                                 # a real hand, watched: live height following
-            out = v28.run(params)
+            out = _real_start(job, params)
     finally:
         machine.arm_dispense(None)                           # start_program took it, or the run was refused
         if hasattr(machine, "arm_follow"):

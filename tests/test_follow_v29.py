@@ -96,39 +96,6 @@ class LinkTests(unittest.TestCase):
         self.assertEqual(sent, ["G53 G1 X120.000 Y100.000 Z-23.000 F300", LINE, "G53 G0 Z-0.500"])
 
 
-class StudioTests(unittest.TestCase):
-    def test_only_watched_real_hand_runs_follow(self):
-        import webui_server_v29 as v29
-        armed = []
-        saved = (v29.v11.job_load, v29._z_home_check, v29.v28.run, v29._prosthetic_start,
-                 getattr(v29.machine, "arm_follow", None), v29.v28.reference, v29.v10.cal, dict(v29._FOLLOWER))
-        job = {"id": "j", "subject": "realhand", "steps": {"program": {}, "design": {"standoff_mm": 6.0}}}
-        v29.v11.job_load = lambda jid: job
-        v29._z_home_check = lambda j: None
-        v29.v28.run = lambda p: {"started": "real"}
-        v29._prosthetic_start = lambda j, p: {"started": "prosthetic"}
-        v29.machine.arm_follow = lambda fn, floor, travel: armed.append(fn is not None)
-        v29.v28.reference = lambda j: hw.Reference(skin(-30.0))
-        v29.v10.cal = lambda: {"firmware_z_floor": -49.0, "travel_z": -0.5}
-        try:
-            v29.run({"job": "j"})
-            self.assertEqual(armed, [True, False])                # armed for the run, cleared after it
-            self.assertIsNotNone(v29.follow_view()["dz_mm"])
-            armed.clear()
-            job["subject"] = "prosthetic"
-            v29.run({"job": "j"})
-            self.assertEqual(armed, [False])
-        finally:
-            (v29.v11.job_load, v29._z_home_check, v29.v28.run, v29._prosthetic_start, arm,
-             v29.v28.reference, v29.v10.cal, fol) = saved
-            if arm is None:
-                del v29.machine.arm_follow
-            else:
-                v29.machine.arm_follow = arm
-            v29._FOLLOWER.clear()
-            v29._FOLLOWER.update(fol)
-
-
 class SteadierAndRecordedTests(unittest.TestCase):
     """2026-10-24 ("keep on building camera's live work"): the median of the last 3 pictures, a following record."""
 

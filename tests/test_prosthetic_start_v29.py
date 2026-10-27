@@ -64,17 +64,16 @@ class ProstheticStartTests(unittest.TestCase):
             v29._prosthetic_start(self.job(), dict(TICKS, job="j"))
         self.assertEqual(self.started, [])
 
-    def test_real_hand_keeps_the_v28_refusal(self):
-        calls = []
-        v29.v28.run = lambda p: calls.append(p) or (_ for _ in ()).throw(ValueError("Hand check: moved"))
-        saved_load = v29.v11.job_load
+    def test_real_hand_keeps_the_hand_check_refusal(self):
+        v29.v28.hand_check = self.moved
+        saved = (v29.v11.job_load, v29.v28._real_rules)
         v29.v11.job_load = lambda job_id: self.job("realhand")
+        v29.v28._real_rules = lambda job, standoff: None
         try:
-            with self.assertRaisesRegex(ValueError, "Hand check: moved"):
-                v29.run({"job": "j"})
+            with self.assertRaisesRegex(ValueError, "Hand check: the hand moved"):
+                v29.run(dict(TICKS, job="j"))
         finally:
-            v29.v11.job_load = saved_load
-        self.assertEqual(len(calls), 1)
+            v29.v11.job_load, v29.v28._real_rules = saved
         self.assertEqual(self.started, [])
 
     def test_page_shows_the_warning(self):

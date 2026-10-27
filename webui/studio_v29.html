@@ -190,19 +190,19 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
     <span class="chip c-bad" title="Nothing here is validated for use on a person">motion_ready = false</span>
     <span class="chip c-info" id="ctlchip" title="No UGS needed">Homing, scan position + program run</span>
    </div>
-   <span id="railtext">The page homes the machine, moves to the scan position and runs the checked hover program - over the prosthetic hand only, 4 mm above measured skin, no dispensing. STOP = feed hold + reset. Real hands: camera preview only.</span></div>
+   <span id="railtext">The page homes the machine, moves to the scan position and runs the checked program at the nozzle height you chose, with the paste chosen in Program. STOP = feed hold + reset. Real hands: camera preview only.</span></div>
  </nav>
 
  <main id="main">
   <!-- welcome -->
   <section id="v-welcome">
-   <div class="head"><div><h1>Welcome to Henna Studio</h1><p>Start a new job to scan a hand, outline the area, place a design, write a checked hover program and run it from here. Or resume a job from the list.</p></div></div>
+   <div class="head"><div><h1>Welcome to Henna Studio</h1><p>Start a new job to scan a hand, outline the area, place a design, write a checked program and run it from here. Or resume a job from the list.</p></div></div>
    <div class="card" style="margin-bottom:16px"><h2>Repeat a setup</h2><p class="sub">The same design for the next hand in the same jig. Choose a setup, Move to scan position (no hand under the machine), put the hand in, then Scan &amp; start: Studio places the outline and the design on this hand, checks everything on the new scan, writes the program and starts the run.</p><div class="joblist" id="setups"></div></div>
    <div class="cols even">
     <div class="card"><h2>New job</h2><p class="sub">Choose what is under the camera.</p><div class="choice">
-     <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow: scan, region, design, hover program and run - all in Studio.</span></button>
+     <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow: scan, region, design, program (paste optional) and run - all in Studio.</span></button>
      <button class="opt" type="button" data-subject="person"><b>Real hand - camera only</b><span>Camera only: scan, region and design preview. No program.</span></button>
-     <button class="opt" type="button" data-subject="realhand"><b>Real hand - hover run</b><span>The full workflow on a real hand: 6 mm above the skin, 300 mm/min. The camera watches the hand and pauses the machine if it moves. No paste.</span></button>
+     <button class="opt" type="button" data-subject="realhand"><b>Real hand</b><span>The full henna job on a real hand: scan, design, program with paste, run. 6 mm above the skin, 300 mm/min. The camera checks the hand right before Start; keep a hand on the emergency stop while it runs.</span></button>
     </div></div>
     <div class="card"><h2>Recent jobs</h2><p class="sub">Click a job to continue where you left off.</p><div class="joblist" id="recent"></div></div>
    </div>
@@ -411,7 +411,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
 
   <!-- 4 program -->
   <section id="v-program" hidden>
-   <div class="head"><div><h1>4 · Program</h1><p>The hover program is written at the nozzle height and speed you chose. Between strokes the nozzle only hops 5 mm above the highest skin under the crossing. A separate checker re-reads it. Studio runs it in the next step.</p></div></div>
+   <div class="head"><div><h1>4 · Program</h1><p>The program is written at the nozzle height and speed you chose. Between strokes the nozzle only hops 5 mm above the highest skin under the crossing. A separate checker re-reads it. Studio runs it in the next step.</p></div></div>
    <div class="cols">
     <div class="stack">
      <div class="card"><h2>Summary</h2><dl class="kv" id="pgsum" style="margin-top:10px"></dl></div>
@@ -496,9 +496,9 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
 </div>
 
 <dialog id="dlgnew"><div class="dlg"><h2>New job</h2><p class="sub">What is under the camera?</p><div class="choice">
- <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow, including the hover run.</span></button>
+ <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow: scan, region, design, program (paste optional) and run.</span></button>
  <button class="opt" type="button" data-subject="person"><b>Real hand - camera only</b><span>Camera only: scan, region and design preview.</span></button>
-<button class="opt" type="button" data-subject="realhand"><b>Real hand - hover run</b><span>The full workflow on a real hand: 6 mm above the skin, 300 mm/min. The camera watches the hand and pauses the machine if it moves. No paste.</span></button>
+<button class="opt" type="button" data-subject="realhand"><b>Real hand</b><span>The full henna job on a real hand: scan, design, program with paste, run. 6 mm above the skin, 300 mm/min. The camera checks the hand right before Start; keep a hand on the emergency stop while it runs.</span></button>
 </div><h2 style="margin-top:18px">Saved setups</h2><p class="sub">The same design for the next hand in the same jig - then Move to scan position, hand in, Scan &amp; prepare, Start.</p>
 <div class="joblist" id="setupsnew" style="max-height:240px;overflow:auto"></div>
 <div class="foot"><span></span><button class="btn" type="button" data-close>Cancel</button></div></div></dialog>
@@ -512,8 +512,8 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
  <label class="check"><input type="checkbox" id="scanestop"><span>I am at the emergency stop.</span></label>
  <div class="msg" id="msgscanmove"></div>
  <div class="foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="scanmovego" disabled>Move to scan position</button></div></div></dialog>
-<dialog id="dlgrun"><div class="dlg"><h2>Start the hover run</h2><p class="sub">The head rises to travel height, then follows the design at the nozzle height you chose above the measured skin. No dispensing. Before it starts, the camera checks that the hand is where it was scanned; on a real hand it keeps watching and pauses the machine if the hand moves.</p>
- <label class="check"><input type="checkbox" id="rclear"><span>Nothing else is in the travel area, no paste in the dispenser, and I am at the emergency stop.</span></label>
+<dialog id="dlgrun"><div class="dlg"><h2>Start the run</h2><p class="sub">The head rises to travel height, then follows the design at the nozzle height you chose above the measured skin. With paste chosen in Program it switches on after each drop and off before each lift; with None it only hovers. Before it starts, the camera checks that the hand is where it was scanned. Nothing watches the hand while it runs - keep a hand on the emergency stop.</p>
+ <label class="check"><input type="checkbox" id="rclear"><span>Nothing else is in the travel area, the dispenser is loaded as chosen in Program (empty for None), and I am at the emergency stop.</span></label>
  <div class="msg" id="msgrundlg"></div>
  <div class="foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="rungo" disabled>Start run</button></div></div></dialog>
 <dialog id="dlgjog"><div class="dlg"><h2>Jog</h2><p class="sub" id="jogsub">Moves stay at travel height or higher, so the nozzle cannot reach a hand. Only a checked program lowers the nozzle.</p>
@@ -564,7 +564,7 @@ function machJob(s){return s==='prosthetic'||s==='realhand'}        /* v28: both
 async function loadCal(){if(!CAL)CAL=await api('/api/studio/calibration');if(!STAND)STAND=(await api('/api/studio/v14_rules')).standoff_mm_allowed}
 const STEPS=[{k:'scan',t:'Scan',s:'Record the hand at the capture pose'},{k:'region',t:'Hand & region',s:'Detect the hand and outline the area'},
  {k:'design',t:'Design',s:'Choose, size and place the design'},
- {k:'program',t:'Program',s:'Write and re-read the hover program',pros:true},{k:'run',t:'Run',s:'Studio runs it - Start, Pause, STOP',pros:true}];
+ {k:'program',t:'Program',s:'Write and re-read the program',pros:true},{k:'run',t:'Run',s:'Studio runs it - Start, Pause, STOP',pros:true}];
 function runsOfProgram(){const p=JOB&&JOB.steps.program;return p?(JOB.runs||[]).filter(r=>r.program===p.program):[]}
 function done(k){const s=JOB?JOB.steps:{};return{scan:!!s.scan,region:!!s.region,design:!!s.plan||(JOB&&JOB.subject==='person'&&!!s.design),
  program:!!s.program,run:runsOfProgram().some(r=>r.result==='finished')}[k]}
@@ -573,7 +573,7 @@ function reachable(k){if(!JOB)return false;const i=STEPS.findIndex(x=>x.k===k);i
 function renderRail(){$('steps').innerHTML=STEPS.map((x,i)=>{const lock=!reachable(x.k),d=done(x.k);
  return`<li class="step${VIEW===x.k?' on':''}${d?' done':''}${lock?' locked':''}" data-step="${x.k}" tabindex="${lock?-1:0}" role="button" aria-disabled="${lock}">
  <span class="dot">${d?'✓':i+1}</span><span><div class="t">${esc(x.t)}</div><div class="s">${esc(x.pros&&JOB&&!machJob(JOB.subject)?'Prosthetic hand only':x.s)}</div></span></li>`}).join('');
- $('jobchip').hidden=!JOB;if(JOB){$('jobname').textContent=JOB.id.replace(/-job.*$/,'');$('jobsubject').textContent=({prosthetic:'Prosthetic',realhand:'Real hand · watched run'})[JOB.subject]||'Real hand · camera only';
+ $('jobchip').hidden=!JOB;if(JOB){$('jobname').textContent=JOB.id.replace(/-job.*$/,'');$('jobsubject').textContent=({prosthetic:'Prosthetic',realhand:'Real hand'})[JOB.subject]||'Real hand · camera only';
   $('jobsubject').className='chip '+(JOB.subject==='prosthetic'?'c-acc':'c-warn')}}
 $('steps').addEventListener('click',e=>{const li=e.target.closest('.step');if(li&&reachable(li.dataset.step))go(li.dataset.step)});
 $('steps').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.dataset.step&&reachable(e.target.dataset.step)){e.preventDefault();go(e.target.dataset.step)}});
@@ -592,7 +592,7 @@ function setJob(j){JOB=j;renderRail()}
 /* ---------- welcome & jobs ---------- */
 function jobRows(list){if(!list.length)return'<div class="empty">No jobs yet.</div>';
  return list.map(j=>`<button class="jobrow" type="button" data-job="${esc(j.id)}"><span class="a">${esc(j.id.replace(/-job.*$/,'').replace(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/,'$3.$2.$1 $4:$5'))}${j.design?' · '+esc(j.design.replace('.svg','')):''}</span>
- <span class="chip ${j.verdict==='PASS'?'c-ok':j.subject==='person'?'c-warn':'c-info'}">${esc(j.status)}</span><span class="b">${j.subject==='prosthetic'?'Prosthetic':j.subject==='realhand'?'Real hand (watched run)':'Real hand (camera only)'} · ${j.machine?esc(j.machine):'no machine (before v24)'}${j.recording?' · '+esc(j.recording):''}</span></button>`).join('')}
+ <span class="chip ${j.verdict==='PASS'?'c-ok':j.subject==='person'?'c-warn':'c-info'}">${esc(j.status)}</span><span class="b">${j.subject==='prosthetic'?'Prosthetic':j.subject==='realhand'?'Real hand':'Real hand (camera only)'} · ${j.machine?esc(j.machine):'no machine (before v24)'}${j.recording?' · '+esc(j.recording):''}</span></button>`).join('')}
 function setupRows(list){if(!list.length)return'<div class="empty">No setups yet. Save one on the Run step of a job whose design passed its check.</div>';
  return list.map(t=>`<div class="row" style="gap:6px;align-items:stretch;flex-wrap:nowrap"><button class="jobrow" style="flex:1;min-width:0" type="button" data-setup="${esc(t.id)}"><span class="a">${esc(t.name)}</span><span class="chip c-info">${t.subject==='realhand'?'Real hand':'Prosthetic'}</span><span class="b">${esc(String(t.svg||'').split('/').pop().replace('.svg',''))} · ${esc(t.fit_mm)} mm · ${esc(t.standoff_mm)} mm above skin${t.paste?' · '+esc(t.paste):''}${t.machine?' · '+esc(t.machine):''}</span></button><button class="btn" type="button" data-setupdel="${esc(t.id)}" aria-label="Delete setup ${esc(t.name)}" title="Delete this setup">✕</button></div>`).join('')}
 async function loadSetups(){let h;try{h=setupRows((await api('/api/studio/setups')).setups)}catch(e){h=`<div class="empty">${esc(e.message)}</div>`}
@@ -950,8 +950,7 @@ function watchShow(){const el=$('watchline');if(VIEW!=='run'||!JOB||JOB.subject!
  else{const g=w.gap||{},gs=g.n?` Gap under the nozzle while drawing: min ${fmt(g.min,1)}, mean ${fmt(g.sum/g.n,1)}, max ${fmt(g.max,1)} mm (${g.n} readings).`:'';
   el.className='msg info';el.textContent=`Hand watch ended${w.ended?' at '+w.ended.replace('T',' '):''}.${gs}`}}
 let FOLST=null;
-setInterval(async()=>{if(VIEW!=='run'||!JOB||JOB.subject!=='realhand')return;try{WATCHST=await api('/api/studio/watch')}catch(e){}
- try{FOLST=WATCHST&&WATCHST.active?await api('/api/studio/follow'):null}catch(e){FOLST=null}watchShow()},500);
+/* the hand watch during a run was removed (2026-10-27): no polling, the line stays empty */
 async function reloadJob(tries){try{const j=await api('/api/studio/job?id='+encodeURIComponent(JOB.id));setJob(j);if(VIEW==='run')renderRunHist();
   if(tries>1&&runsOfProgram().some(r=>r.result==='running')&&!running())setTimeout(()=>reloadJob(tries-1),700)}catch(e){}}
 $('runstart').onclick=()=>{if(!canStart())return;RUN_TICKS.forEach(id=>$(id).checked=false);msg('msgrundlg','','');runShow();$('dlgrun').showModal()};
