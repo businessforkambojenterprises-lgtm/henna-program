@@ -969,6 +969,7 @@ $('runpause').onclick=async()=>{const p=prog();if(!running()||!p)return;runActio
  try{machineAccept(await api(p.paused?'/api/machine/resume':'/api/machine/pause',{}))}catch(e){msg('msgrun','err',e.message)}finally{runAction='';runShow()}};
 $('runstop').onclick=async()=>{runAction='stop';runShow();try{machineAccept(await api('/api/machine/stop',{}))}catch(e){msg('msgrun','err',e.message)}finally{runAction='';runShow()}};
 
+let LVF=null;setInterval(async()=>{if(VIEW!=='run'||!running()){LVF=null;return}try{LVF=await api('/api/studio/follow')}catch(e){LVF=null}},500);
 let LV={key:null,moves:[],line:[],yaw:0,pitch:0,zoom:1,pan:[0,0],trail:[],c:[0,0,0],s:1,drag:null};
 async function lvLoad(){const p=JOB&&JOB.steps.program;const key=p?JOB.id+'|'+(p.program||'')+'|'+((p.dispense||{}).file||''):null;
  if(key===LV.key)return;LV.key=key;LV.moves=[];LV.line=[];LV.trail=[];if(!key){lvDraw();return}
@@ -991,7 +992,7 @@ function lvDraw(){const cv=$('lv');if(!cv||VIEW!=='run')return;const w=cv.client
  if(mp){if(running()){const l=LV.trail[LV.trail.length-1];if(!l||Math.hypot(l[0]-mp[0],l[1]-mp[1],l[2]-mp[2])>0.2)LV.trail.push(mp.slice());if(LV.trail.length>400)LV.trail.shift()}
   if(LV.trail.length>1){g.beginPath();LV.trail.forEach((q,i)=>{const s=lvProj(q,w,h);i?g.lineTo(s[0],s[1]):g.moveTo(s[0],s[1])});g.strokeStyle=col('--bad');g.globalAlpha=.5;g.lineWidth=2;g.stroke();g.globalAlpha=1}
   const s=lvProj(mp,w,h);g.beginPath();g.arc(s[0],s[1],6,0,7);g.fillStyle=col('--bad');g.fill();g.strokeStyle=col('--panel');g.lineWidth=2;g.stroke()}
- const st=p&&mine?(p.paused?'paused':p.state):'';$('lvinfo').textContent=(mp?`X${fmt(mp[0],2)} Y${fmt(mp[1],2)} Z${fmt(mp[2],2)}`:'nozzle position unknown')+(done?` · line ${done} / ${p.total}`:'')+(st?` · ${st}`:'')+` · ${m.length} moves`}
+ const st=p&&mine?(p.paused?'paused':p.state):'';$('lvinfo').textContent=(mp?`X${fmt(mp[0],2)} Y${fmt(mp[1],2)} Z${fmt(mp[2],2)}`:'nozzle position unknown')+(done?` · line ${done} / ${p.total}`:'')+(st?` · ${st}`:'')+(LVF&&LVF.active&&LVF.dz_mm!=null?` · following ${LVF.dz_mm>=0?'+':''}${fmt(LVF.dz_mm,1)} mm`:'')+` · ${m.length} moves`}
 (()=>{const cv=$('lv');if(!cv)return;
  cv.addEventListener('pointerdown',e=>{LV.drag={x:e.clientX,y:e.clientY,pan:e.shiftKey};cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'});
  cv.addEventListener('pointermove',e=>{const d=LV.drag;if(!d)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;d.x=e.clientX;d.y=e.clientY;

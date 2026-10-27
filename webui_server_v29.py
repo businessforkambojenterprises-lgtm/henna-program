@@ -522,23 +522,90 @@ def resume(params):
 _RESUME = v28.Handler.POST_API["/api/machine/resume"]
 
 
-# ---- (the hand watch during a run and the live height following it fed were removed, user 2026-10-27: "completely
-# remove this feature" -> "The whole hand watch"; henna_preview/follow.py and hand_watch.py are no longer used for runs.)
+# ---- live height following on a real hand (user 2026-10-24: "Option B - the nozzle follows the skin live" -> "build
+# this", after "Remove the live gap pause"): henna_preview/follow.py moves each drawing line's Z by the skin's change
+# since the scan, measured live just ahead of the tip, inside 1 mm down / 2 mm up of the checked line; the link
+# checks every changed line again and keeps the controller's queue short. Real-hand runs with the watch only.
+_FOLLOWER = {"current": None}
+
+
+def _arm_follow(job):
+    from henna_preview import follow
+    if not hasattr(machine, "arm_follow"):
+        return None
+    try:
+        c = v10.cal()
+        f = follow.Follower(v28.reference(job), v28.live_points, float(c["firmware_z_floor"]), float(c["travel_z"]))
+    except Exception:                                       # noqa: BLE001 - no reference: the checked lines only, and
+        return None                                         # v28's own refusals answer the run as before
+    _FOLLOWER["current"] = f
+    machine.arm_follow(f.adjust, f.floor_z, f.travel_z)
+    return f
+
+
+def _follow_note():
+    from henna_preview import follow
+    f, _FOLLOWER["current"] = _FOLLOWER["current"], None
+    if f is None:
+        return None
+    st = f.stats
+    if not st["lines"]:
+        return None
+    rng = (f"{st['min_dz']:+.1f} to {st['max_dz']:+.1f} mm" if st["followed"] else "none")
+    path = None
+    try:                                                    # every line's plan / measurement / correction
+        path = follow.save_record(f, os.path.join(base.ROOT, "outputs", "follow",
+                                                  dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "_follow.csv"))
+    except OSError:
+        path = None
+    return (f"live height following: {st['followed']} of {st['lines']} drawing lines moved ({rng}; band "
+            f"-{follow_band()[0]:g}/+{follow_band()[1]:g} mm), {st['unseen']} not seen"
+            + (f"; record {os.path.relpath(path, base.ROOT)}" if path else ""))
+
+
+def follow_band():
+    from henna_preview import follow
+    return follow.DOWN_MM, follow.UP_MM
+
+
+v28.WATCH_END_NOTES.append(_follow_note)
+
+
 def follow_view(_=None):
-    return {"active": False, "dz_mm": None, "stats": None}
+    f = _FOLLOWER["current"]
+    return {"active": f is not None, "dz_mm": None if f is None else f.dz, "stats": None if f is None else dict(f.stats)}
+
+
+class _FollowCamera(v28.Watch):
+    """The camera loop of the old hand watch with EVERY pause switched off (user 2026-10-27: "completely remove this
+    feature" -> the whole hand watch; then "live height correction ... this"): during a real-hand run it only turns
+    the newest pictures into live machine points (v28.LIVE) for the height following. Nothing it sees stops or holds
+    the machine; at the end of the run the following's note and record are written (WATCH_END_NOTES)."""
+
+    def _pause(self, job, reason, mpos):
+        with self.lock:
+            self.state["would_have_paused"] = self.state.get("would_have_paused", 0) + 1
+            self.state["last_reason"] = reason
+
+
+FOLLOW_CAMERA = _FollowCamera()
 
 
 def _real_start(job, params):
     """v28's real-hand start - every program rule and the hand check right before Start (the hand where it was
     scanned) - WITHOUT the hand watch during the run (user 2026-10-27: "completely remove this feature" -> "The whole
-    hand watch": no camera pauses while it runs - no "too near", "hand moved" or "cannot see") and so without live
-    height following, which needs the watch's pictures. The program's own heights and the emergency stop remain."""
+    hand watch": no camera pauses while it runs - no "too near", "hand moved" or "cannot see"), but WITH live height
+    following (user 2026-10-27: "live height correction ... this"): FOLLOW_CAMERA feeds it pictures and never
+    pauses. The program's own heights inside the band, and the emergency stop, remain."""
     v28.machine_job_only(job)
     if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
         raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
     v28._real_rules(job, (job["steps"].get("design") or {}).get("standoff_mm", 0))
     res = v28.hand_check(job)                               # (speed and height: as chosen - user 2026-10-27 "unlock")
+    f = _arm_follow(job)                                    # live height following, inside its band, no pauses
     out = v28._INNER["/api/machine/run"](dict(params, confirm_prosthetic=True, confirm_unmoved=True))
+    if f is not None:
+        FOLLOW_CAMERA.start(job, v28.reference(job))
     _log("Hand check before Start", (machine.status() or {}).get("mpos"), "camera, 3 pictures",
          "hand where it was scanned", f"realhand: median {res['median_dz_mm']} mm, {100 * res['share_off']:.0f} % off, "
          f"{100 * res['seen_share']:.0f} % seen", "ok - no hand watch during the run", job["steps"]["scan"]["name"],
