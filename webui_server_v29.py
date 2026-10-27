@@ -193,7 +193,7 @@ def path_measure(job, design=None, standoff_mm=None):
         keep = np.hypot(*(xy - np.asarray(head[:2])).T) > pc.HEAD_FOOTPRINT_MM
         approach, _, rated = travel_route.choose(head[:2], plan["strokes"][0][0], xy, z, pc.MARGIN_MM, keep)
         if standoff_mm is None:
-            standoff_mm = (design or s.get("design") or {}).get("standoff_mm") or v28.REAL_MIN_STANDOFF_MM
+            standoff_mm = (design or s.get("design") or {}).get("standoff_mm") or v28.REAL_DEFAULT_STANDOFF_MM
         limit = float(v10.cal()["travel_z"]) - (max(float(standoff_mm), float(v27.HOP_CLEARANCE_MM)) + tc.MARGIN_MM)
         st = plan["strokes"]
         for i in range(len(st) - 1):
@@ -290,7 +290,7 @@ def reference_with_gap(job):
     """The hand watch's reference with the job's nozzle height, so the watch judges the live gap under the nozzle while
     it draws (hand_watch GAP_MIN_MM / GAP_MAX_MM; user 2026-10-24: "build A, pause below 4 mm or above 9 mm")."""
     ref = _REFERENCE(job)
-    ref.standoff_mm = float((job["steps"].get("design") or {}).get("standoff_mm") or v28.REAL_MIN_STANDOFF_MM)
+    ref.standoff_mm = float((job["steps"].get("design") or {}).get("standoff_mm") or v28.REAL_DEFAULT_STANDOFF_MM)
     return ref
 
 
@@ -537,9 +537,7 @@ def _real_start(job, params):
     if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
         raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
     v28._real_rules(job, (job["steps"].get("design") or {}).get("standoff_mm", 0))
-    if float((job["steps"].get("program") or {}).get("draw_feed_mm_min", v28.REAL_FEED_MM_MIN)) > v28.REAL_FEED_MM_MIN:
-        raise ValueError(f"A real hand runs at {v28.REAL_FEED_MM_MIN} mm/min - write the program again")
-    res = v28.hand_check(job)
+    res = v28.hand_check(job)                               # (speed and height: as chosen - user 2026-10-27 "unlock")
     out = v28._INNER["/api/machine/run"](dict(params, confirm_prosthetic=True, confirm_unmoved=True))
     _log("Hand check before Start", (machine.status() or {}).get("mpos"), "camera, 3 pictures",
          "hand where it was scanned", f"realhand: median {res['median_dz_mm']} mm, {100 * res['share_off']:.0f} % off, "
@@ -579,7 +577,7 @@ def run(params):
 # position when the head is elsewhere and the straight way there is clear), scan, hand detection, the outline and
 # the design moved WITH the hand (henna_preview/follow_hand.py), the design check on the NEW scan, and the program
 # again when there was one. It stops at the first refusal with that step's message.
-RESCAN_SECONDS = 3
+RESCAN_SECONDS = 4                      # 3 s gave 56-72 frame pairs (19-24 per second; 60 needed) - 2026-10-27
 
 
 def _route(path):
@@ -1221,8 +1219,9 @@ def _reach(job, depth_mm, fx=None):
         return None, None
     c, p = v10.cal(), v28._parts()
     lo, hi = (float(v) for v in c["standoff_mm_allowed"])
-    if job["subject"] == v28.REAL:
-        lo = max(lo, v28.REAL_MIN_STANDOFF_MM)
+    if job["subject"] == v28.REAL:                       # the height the path check will use: the design's, else the
+        lo = max(lo, float((job["steps"].get("design") or {}).get("standoff_mm")   # real-hand starting 6 mm (the
+                               or v28.REAL_DEFAULT_STANDOFF_MM))                    # minimum is 1 mm since 2026-10-27)
         hi = max(hi, lo)
     ok = depth_mm > 0
     d = np.where(ok, depth_mm, 1.0)

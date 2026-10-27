@@ -149,25 +149,25 @@ class RouteTests(unittest.TestCase):
                 f({"job": "j1", "confirm_clear": True, "confirm_estop": True})
         self.assertIn("realhand", self.v28.v11.SUBJECTS)
 
-    def test_real_hand_needs_6_mm(self):
+    def test_real_hand_height_down_to_the_machine_minimum(self):
+        """2026-10-27 "unlock speed and height options": was at least 6 mm - now the machine's own 1 mm."""
         self.job("realhand")
-        with self.assertRaisesRegex(ValueError, "6 mm or more"):
-            self.v28.check_design({"job": "j1", "standoff_mm": 4.0})
-        self.v28.check_design({"job": "j1", "standoff_mm": 6.0})
-        self.assertEqual(self.calls[0], ("clearance", 6.0))
-        self.job("realhand", standoff=4.0)
-        with self.assertRaisesRegex(ValueError, "6 mm or more"):
-            self.v28.program({"job": "j1"})
+        with self.assertRaisesRegex(ValueError, "1 mm or more"):
+            self.v28.check_design({"job": "j1", "standoff_mm": 0.5})
+        self.v28.check_design({"job": "j1", "standoff_mm": 2.0})
+        self.assertEqual(self.calls[0], ("clearance", 2.0))
+        self.job("realhand", standoff=2.0)
+        self.v28.program({"job": "j1"})
 
-    def test_real_hand_program_is_written_at_300_with_the_job_type_as_ticks(self):
+    def test_real_hand_program_keeps_the_chosen_speed_with_the_job_type_as_ticks(self):
         self.job("realhand")
         self.v28.program({"job": "j1", "draw_feed_mm_min": 1200})
         path, params = self.calls[-1]
-        self.assertEqual((path, params["draw_feed_mm_min"]), ("/api/studio/program", 300))
+        self.assertEqual((path, params["draw_feed_mm_min"]), ("/api/studio/program", 1200))   # was forced to 300
         self.assertTrue(params["confirm_prosthetic"] and params["confirm_unmoved"])
         self.job("prosthetic")
         self.v28.program({"job": "j1", "draw_feed_mm_min": 600})
-        self.assertEqual(self.calls[-1][1]["draw_feed_mm_min"], 600)              # the prosthetic keeps its choice
+        self.assertEqual(self.calls[-1][1]["draw_feed_mm_min"], 600)
 
     def test_run_needs_the_one_tick_and_a_good_hand_check(self):
         self.job("realhand")
@@ -187,9 +187,8 @@ class RouteTests(unittest.TestCase):
         run = [c for c in self.calls if c[0] == "/api/machine/run"][0][1]
         self.assertTrue(run["confirm_prosthetic"] and run["confirm_unmoved"])
         self.assertIn(("watch", "j1"), self.calls)
-        self.job("realhand", feed=600)
-        with self.assertRaisesRegex(ValueError, "300 mm/min"):
-            self.v28.run({"job": "j1", "confirm_clear": True, "confirm_estop": True})
+        self.job("realhand", feed=600)                                         # faster than 300: allowed now
+        self.v28.run({"job": "j1", "confirm_clear": True, "confirm_estop": True})
 
     def test_prosthetic_run_gets_the_hand_check_but_no_watch(self):
         self.job("prosthetic", standoff=4.0, feed=600)

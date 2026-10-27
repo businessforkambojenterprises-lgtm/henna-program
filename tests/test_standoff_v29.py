@@ -32,15 +32,16 @@ class StandoffTests(unittest.TestCase):
         finally:
             v29.v14.MIN_STANDOFF_MM, v29.v10.cal, v29._CAL = saved
 
-    def test_real_hand_keeps_6_mm(self):
+    def test_real_hand_from_1_mm(self):
+        """2026-10-27 "unlock speed and height options": a real hand down to the machine's 1 mm (was 6 mm)."""
         v28 = self.v29.v28
         saved = v28.v27.clearance
         v28.v27.clearance = lambda job, s: None
         try:
-            for low in (1.0, 2.0, 4.0, 5.5):
-                with self.assertRaisesRegex(ValueError, "6 mm"):
-                    v28._real_rules({"subject": "realhand"}, low)
-            v28._real_rules({"subject": "realhand"}, 6.0)
+            with self.assertRaisesRegex(ValueError, "1 mm"):
+                v28._real_rules({"subject": "realhand"}, 0.5)
+            for ok in (1.0, 2.0, 4.0, 6.0):
+                v28._real_rules({"subject": "realhand"}, ok)
         finally:
             v28.v27.clearance = saved
 
@@ -48,7 +49,8 @@ class StandoffTests(unittest.TestCase):
         with open(self.v29.STUDIO_HTML, encoding="utf-8") as f:
             page = f.read()
         self.assertIn("st.value=JOB.subject==='realhand'?6:Math.max(STAND[0],4)", page)   # new designs: 4 mm
-        self.assertIn("o.disabled=JOB.subject==='realhand'&&+o.value<6", page)
+        self.assertIn("[...st.options].forEach(o=>{o.disabled=false})", page)         # every height for every job
+        self.assertIn("$('pgfeed').disabled=false", page)                              # every speed for every job
         self.assertIn("(close - prosthetic)", page)
 
 

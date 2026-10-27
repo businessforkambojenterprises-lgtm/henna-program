@@ -202,7 +202,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
     <div class="card"><h2>New job</h2><p class="sub">Choose what is under the camera.</p><div class="choice">
      <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow: scan, region, design, program (paste optional) and run - all in Studio.</span></button>
      <button class="opt" type="button" data-subject="person"><b>Real hand - camera only</b><span>Camera only: scan, region and design preview. No program.</span></button>
-     <button class="opt" type="button" data-subject="realhand"><b>Real hand</b><span>The full henna job on a real hand: scan, design, program with paste, run. 6 mm above the skin, 300 mm/min. The camera checks the hand right before Start; keep a hand on the emergency stop while it runs.</span></button>
+     <button class="opt" type="button" data-subject="realhand"><b>Real hand</b><span>The full henna job on a real hand: scan, design, program with paste, run. Nozzle height and speed as you choose (starts at 6 mm and 300 mm/min). The camera checks the hand right before Start; keep a hand on the emergency stop while it runs.</span></button>
     </div></div>
     <div class="card"><h2>Recent jobs</h2><p class="sub">Click a job to continue where you left off.</p><div class="joblist" id="recent"></div></div>
    </div>
@@ -498,7 +498,7 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
 <dialog id="dlgnew"><div class="dlg"><h2>New job</h2><p class="sub">What is under the camera?</p><div class="choice">
  <button class="opt" type="button" data-subject="prosthetic"><b>Prosthetic hand</b><span>Full workflow: scan, region, design, program (paste optional) and run.</span></button>
  <button class="opt" type="button" data-subject="person"><b>Real hand - camera only</b><span>Camera only: scan, region and design preview.</span></button>
-<button class="opt" type="button" data-subject="realhand"><b>Real hand</b><span>The full henna job on a real hand: scan, design, program with paste, run. 6 mm above the skin, 300 mm/min. The camera checks the hand right before Start; keep a hand on the emergency stop while it runs.</span></button>
+<button class="opt" type="button" data-subject="realhand"><b>Real hand</b><span>The full henna job on a real hand: scan, design, program with paste, run. Nozzle height and speed as you choose (starts at 6 mm and 300 mm/min). The camera checks the hand right before Start; keep a hand on the emergency stop while it runs.</span></button>
 </div><h2 style="margin-top:18px">Saved setups</h2><p class="sub">The same design for the next hand in the same jig - then Move to scan position, hand in, Scan &amp; prepare, Start.</p>
 <div class="joblist" id="setupsnew" style="max-height:240px;overflow:auto"></div>
 <div class="foot"><span></span><button class="btn" type="button" data-close>Cancel</button></div></div></dialog>
@@ -776,7 +776,7 @@ function invalidateDes(){$('desres').hidden=true;$('toSurface').disabled=true;ms
 async function showDesign(){msg('msgdes','','');$('toSurface').disabled=!(JOB.steps.plan||(JOB.subject==='person'&&JOB.steps.design));
  $('toSurface').textContent=JOB.subject==='person'?'Finish (camera only) →':'Continue to program →';
  await loadCal();const st=$('dstand');if(!st.options.length){const[a,b]=STAND;for(let v=a;v<=b+1e-9;v+=0.5){const o=document.createElement('option');o.value=v;o.textContent=v.toFixed(1)+' mm'+(v<4?' (close - prosthetic)':'');st.appendChild(o)}}
- [...st.options].forEach(o=>{o.disabled=JOB.subject==='realhand'&&+o.value<6});if(JOB.subject==='realhand'&&+st.value<6)st.value=[...st.options].find(o=>!o.disabled).value;
+ [...st.options].forEach(o=>{o.disabled=false});
  $('dsize').min=CAL.fit_mm_allowed[0];$('dsize').max=CAL.fit_mm_allowed[1];
  try{const[d,f]=await Promise.all([api('/api/studio/designs'),api('/api/studio/design_frame?job='+encodeURIComponent(JOB.id))]);DESIGNS=d.designs;FR=f;
   dc.width=f.width;dc.height=f.height;await Promise.all([new Promise(ok=>{dImgC.onload=ok;dImgC.src=f.colour}),new Promise(ok=>{dImgH.onload=ok;dImgH.src=f.holes})]);$('dcph').hidden=true;
@@ -839,7 +839,7 @@ async function showProgram(){const s=JOB.steps;try{await loadFeeds()}catch(e){}t
  msg('msgpg','','');$('pgfeed').value=String(s.program?progFeed(s.program):(FEEDS?FEEDS.default_feed_mm_min:300));
  $('pgdisp').value=progDisp(s.program);dispDefaults();if(s.program&&s.program.dispense){$('pgstart').value=s.program.dispense.start_s;$('pgstop').value=s.program.dispense.stop_s}
  showProgOut();feedNote();
- $('pgfeed').disabled=JOB.subject==='realhand';if(JOB.subject==='realhand')$('pgfeed').value='300'}
+ $('pgfeed').disabled=false}
 function showProgOut(){const p=JOB.steps.program;$('pgout').hidden=!p;if(!p)return;$('pgdl').href=p.dispense?p.dispense.download:p.download;$('pgimg').src=p.preview+'?t='+Date.now();
  if(!progOk()){$('pgfile').textContent='';$('pgchecks').innerHTML='<li><span class="no">✕</span><span>This program was written for UGS by an older Studio. Write it again here.</span></li>';return}
  $('pgfile').textContent=(p.dispense?p.dispense.file:p.program_file).split(/[\\/]/).pop();

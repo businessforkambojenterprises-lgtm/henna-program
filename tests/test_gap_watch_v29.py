@@ -59,7 +59,7 @@ class GapTests(unittest.TestCase):
         try:
             ref = v29.reference_with_gap({"steps": {"design": {"standoff_mm": 6.0}}})
             self.assertEqual(ref.standoff_mm, 6.0)
-            self.assertEqual(v29.reference_with_gap({"steps": {}}).standoff_mm, v28.REAL_MIN_STANDOFF_MM)
+            self.assertEqual(v29.reference_with_gap({"steps": {}}).standoff_mm, v28.REAL_DEFAULT_STANDOFF_MM)
         finally:
             v29._REFERENCE = saved
         self.assertIs(v28.reference, v29.reference_with_gap)

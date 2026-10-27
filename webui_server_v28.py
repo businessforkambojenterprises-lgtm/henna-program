@@ -2,7 +2,7 @@
 
 New job type "realhand" (Real hand - hover run). The camera-only "person" job stays as it was. A realhand job uses
 the prosthetic pipeline (scan, region, design check, program, run - all the v10-v27 checks) plus:
-  - standoff at least REAL_MIN_STANDOFF_MM (6 mm) and drawing speed REAL_FEED_MM_MIN (300 mm/min);
+  - standoff at least REAL_MIN_STANDOFF_MM (6 mm until 2026-10-27, now the machine's 1 mm) and drawing speed REAL_FEED_MM_MIN (300 mm/min, now the default only);
   - the v27 travel clearance over the hand, as for the prosthetic;
   - a camera check right before Start (every machine job): the hand must be where it was scanned
     (henna_preview/hand_watch.py), else Start is refused - this replaces the "hand has not moved" tick;
@@ -37,8 +37,9 @@ from henna_preview.web_recorder import CameraService
 STUDIO_HTML = os.path.join(base.WEB_DIR, "studio_v28.html")
 REAL = "realhand"
 MACHINE_JOBS = ("prosthetic", REAL)
-REAL_MIN_STANDOFF_MM = 6.0
-REAL_FEED_MM_MIN = 300
+REAL_MIN_STANDOFF_MM = 1.0       # user 2026-10-27 "unlock speed and height options": was 6 mm - now the machine's own
+REAL_FEED_MM_MIN = 300           # lowest (as the prosthetic); 300 mm/min is the default speed, no longer the only one
+REAL_DEFAULT_STANDOFF_MM = 6.0
 WATCH_PERIOD_S = 0.2
 NO_PICTURE_S = 1.5
 UNSEEN_S = 1.5
@@ -333,8 +334,7 @@ def program(params):
     p = dict(params, confirm_prosthetic=True, confirm_unmoved=True)       # from the job type; writing moves nothing
     if job["subject"] == REAL:
         _real_rules(job, (job["steps"].get("design") or {}).get("standoff_mm", 0))
-        p["draw_feed_mm_min"] = REAL_FEED_MM_MIN
-    return _INNER["/api/studio/program"](p)
+    return _INNER["/api/studio/program"](p)                # the speed chosen on the page (300 to 1200 mm/min)
 
 
 def run(params):
@@ -344,8 +344,6 @@ def run(params):
         raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
     if job["subject"] == REAL:
         _real_rules(job, (job["steps"].get("design") or {}).get("standoff_mm", 0))
-        if float((job["steps"].get("program") or {}).get("draw_feed_mm_min", REAL_FEED_MM_MIN)) > REAL_FEED_MM_MIN:
-            raise ValueError(f"A real hand runs at {REAL_FEED_MM_MIN} mm/min - write the program again")
     res = hand_check(job)                                  # replaces the "hand has not moved" tick
     out = _INNER["/api/machine/run"](dict(params, confirm_prosthetic=True, confirm_unmoved=True))
     _log("Hand check before Start", (machine.status() or {}).get("mpos"), "camera, 3 pictures", "hand where it was scanned",
