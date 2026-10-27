@@ -38,6 +38,41 @@ def measure_under_plan(plan_xy, frame, region_mask, head, xy_cal, max_miss_mm=0.
     return out
 
 
+FOOTPRINT_MM = 2.5
+FOOTPRINT_HEAD_MM = 25.0       # nearer than the point's own skin by this much = the head / nozzle, not skin
+FOOTPRINT_PERCENTILE = 10      # of the depth round the point (the highest single pixel lifted ~1.4 mm on noise)
+FOOTPRINT_MIN_PX = 8
+
+
+def measure_with_footprint(plan_xy, frame, region_mask, head, xy_cal, max_miss_mm=0.5, radius_mm=FOOTPRINT_MM):
+    """measure_under_plan, but each 'ok' point's depth is the NEAREST measured skin (the highest) within radius_mm
+    of it in camera X/Y - inside the region or not (user 2026-10-27, video: curled fingertips rising right beside the
+    tilted nozzle touched it at 3 mm; "build 3"). The point's status and X/Y stay those of the point itself, so what
+    is drawable does not change - only how high the nozzle stays above it."""
+    from henna_preview.zcal import _cloud
+    out = measure_under_plan(plan_xy, frame, region_mask, head, xy_cal, max_miss_mm)
+    raw, scale, intr = frame["depth_raw_aligned"], frame["depth_scale_m_per_unit"], frame["colour_intrinsics"]
+    cloud = _cloud(raw, scale, intr)
+    h, w = raw.shape
+    R, t = xy_cal["R"], xy_cal["t_mm"]
+    for i, (status, p) in enumerate(out):
+        if status != "ok":
+            continue
+        cam = camera_xy_for_tool(plan_xy[i], [head["x"], head["y"]], R, t)
+        z = float(p[2])
+        u = int(round(intr["fx"] * cam[0] / z + intr["ppx"]))
+        v = int(round(intr["fy"] * cam[1] / z + intr["ppy"]))
+        r_px = int(np.ceil(radius_mm * max(intr["fx"], intr["fy"]) / z)) + 1
+        win = cloud[max(0, v - r_px):min(h, v + r_px + 1), max(0, u - r_px):min(w, u + r_px + 1)].reshape(-1, 3)
+        win = win[np.isfinite(win).all(axis=1)]
+        near = win[(np.hypot(win[:, 0] - cam[0], win[:, 1] - cam[1]) <= radius_mm)
+                   & (win[:, 2] > z - FOOTPRINT_HEAD_MM)]
+        if len(near) >= FOOTPRINT_MIN_PX:                   # the high skin there, not one noisy pixel: the
+            high = float(np.percentile(near[:, 2], FOOTPRINT_PERCENTILE))   # nearest 10 % of the measured depth
+            out[i] = ("ok", np.array([p[0], p[1], min(z, high)]))
+    return out
+
+
 def runs(status, closed):
     """Index runs of consecutive 'ok' points; a fully-ok closed path is one wrapped run."""
     n = len(status)
