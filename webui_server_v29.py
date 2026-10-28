@@ -902,6 +902,44 @@ def _record_run(job_id, run_id, error, snap):
 
 
 v14._record_run = _record_run                               # v20's run start looks it up when the run ends
+PARK_AFTER_RUN = True                                       # user 2026-10-28: "after every work finishing machine should
+PARK_WAIT_S = 20.0                                          # move to home position"
+
+
+def _park_after(job_id, run_id):
+    """After a run that FINISHED (not stopped or failed - those need homing): wait until the machine is free, then
+    up to travel Z and to X0 Y0 (the home corner, grbl_scan_link.start_park). A failure is only logged."""
+    end = time.monotonic() + PARK_WAIT_S
+    while time.monotonic() < end:
+        st = machine.status() or {}
+        if not st.get("busy"):
+            break
+        time.sleep(0.2)
+    st = machine.status() or {}
+    if st.get("busy") or not st.get("homed") or not hasattr(machine, "start_park"):
+        _log("Park at home position", st.get("mpos"), "after a finished run", "machine free and homed",
+             f"busy {st.get('busy')}, homed {st.get('homed')}", "not parked", "", f"Studio v29; job {job_id}; run {run_id}")
+        return
+
+    def done(error, *_):
+        _log("Park at home position", (machine.status() or {}).get("mpos"), "up to travel Z, then X0 Y0",
+             "at the home corner", error or "parked", "parked" if error is None else "not parked", "",
+             f"Studio v29; job {job_id}; run {run_id}")
+    try:
+        machine.start_park(on_done=done)
+    except Exception as e:                                  # noqa: BLE001 - the run itself is finished and recorded
+        done(str(e))
+
+
+def _record_run_and_park(job_id, run_id, error, snap):
+    _record_run(job_id, run_id, error, snap)
+    if PARK_AFTER_RUN and error is None and ((snap or {}).get("program") or {}).get("state") in (None, "finished"):
+        threading.Thread(target=_park_after, args=(job_id, run_id), daemon=True).start()
+
+
+def install_park_after_run():
+    """Applied when Studio v29 starts (main()) - not on import, so older versions' tests keep their own run end."""
+    v14._record_run = _record_run_and_park
 
 
 def _start_now(job_id, what, prep):
@@ -1492,6 +1530,7 @@ def main():
     v27.Handler = Handler                                   # v27.main serves v27.Handler (-> v26.main)
     install_close_heights()
     install_path_clearance()
+    install_park_after_run()
     install_free_jog()
     print("Henna Studio v29 - paste dispensing (pneumatic / servo SSR on the controller output)", flush=True)
     try:

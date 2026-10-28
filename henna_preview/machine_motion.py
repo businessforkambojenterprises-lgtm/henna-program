@@ -32,7 +32,7 @@ def values_for(motion, work_area):
         raise ValueError("the Z floor must be below the scan position")
     route = route_for(pose, travel)
     return {"POSE": pose, "TRAVEL_Z": travel, "ROUTE": route,
-            "COMMANDS": frozenset(["$HZ", "$H"] + [c for _, c in route]),
+            "COMMANDS": frozenset(["$HZ", "$H", gsl.PARK_COMMAND] + [c for _, c in route]),
             "X_MAX": float(work_area[0]), "Y_MAX": float(work_area[1])}
 
 
