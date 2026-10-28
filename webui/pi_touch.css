@@ -14,7 +14,7 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
 .brand svg{width:26px;height:26px}
 .top .spacer{display:none}
 .jobchip{max-width:160px;font-size:13px;padding:4px 8px}
-#btntheme{display:none}
+#btntheme{min-width:40px;font-size:17px}          /* light / dark (back on 2026-10-28: "where is theme changing icon?") */
 #btnmachine{max-width:170px;overflow:hidden;text-overflow:ellipsis}
 .top .btn.small{min-height:36px;padding:4px 10px;font-size:14px}
 .machine:not([hidden]){display:flex;flex-wrap:wrap;align-items:center;gap:6px;order:10;width:100%;padding:0;border:0;border-radius:0}
