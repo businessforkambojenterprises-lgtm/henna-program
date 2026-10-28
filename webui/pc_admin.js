@@ -295,6 +295,19 @@
     pane('calibrate').appendChild(note);
     put($id('calibcard'), 'calibrate');
     put(card('calmove'), 'daily'); put($id('calrefcard'), 'daily'); put(card('calcheck'), 'daily'); put(card('calhist'), 'daily');
+    var al = document.createElement('div');                 /* camera alignment, live (2026-10-28: "add this tool in */
+    al.className = 'card'; al.id = 'pialign';               /* admin section") - read-only, it moves nothing          */
+    al.innerHTML = '<h2>Camera alignment (live)</h2><p class="sub">If the camera mount was loose or knocked: head at the ' +
+      'scan position, bed as at the reference. Loosen the mount a little, turn the camera while you watch the number, ' +
+      'tighten it when it says OK, then Run daily check. Picture down = machine +X, picture right = machine +Y.</p>' +
+      '<button class="btn" type="button" id="pialigngo">Start live readout</button>' +
+      '<div id="pialignout" hidden style="margin-top:12px"><div class="row" style="gap:10px;align-items:center">' +
+      '<span class="chip" id="pialignchip"></span><b class="mono" id="pialignmm" style="font-size:22px"></b>' +
+      '<span class="mono hint" id="pialignpx" style="margin:0"></span></div>' +
+      '<p id="pialigntip" style="margin:8px 0 0"></p><p class="hint" id="pialignref" style="margin:4px 0 0"></p></div>' +
+      '<div class="msg" id="pialignmsg"></div>';
+    pane('daily').appendChild(al);
+    $id('pialigngo').onclick = function () { if (ALIGN.timer) alignStop(); else alignStart(); };
     hide(v.querySelector('.cols'));
     hide(v.querySelector('.head'));
 
@@ -363,7 +376,43 @@
     if (!inPage()) go('calib');
     selectTab('daily');
   }
+  var ALIGN = { timer: null, hist: [] };
+  var ALIGN_LABEL = { ok: ['c-ok', 'OK - tighten it here'], close: ['c-warn', 'Close'], move: ['c-bad', 'Move it'] };
+  function alignStart() {
+    ALIGN.hist = [];
+    $id('pialigngo').textContent = 'Stop';
+    $id('pialignout').hidden = false;
+    msg('pialignmsg', '', '');
+    alignTick();
+    ALIGN.timer = setInterval(alignTick, 1000);
+  }
+  function alignStop() {
+    if (ALIGN.timer) clearInterval(ALIGN.timer);
+    ALIGN.timer = null;
+    if ($id('pialigngo')) $id('pialigngo').textContent = 'Start live readout';
+  }
+  function alignTick() {
+    api('/api/admin/camera_align').then(function (r) {
+      if (!ALIGN.timer) return;
+      if (!r.ready) { msg('pialignmsg', 'info', r.reason); return; }
+      msg('pialignmsg', r.at_scan_position ? '' : 'warn', r.at_scan_position ? '' :
+        'The head is not at the scan position - the number only means something there (Move to scan position above).');
+      ALIGN.hist = ALIGN.hist.concat([[r.x_px, r.y_px, r.shift_mm, r.state, r.tips]]).slice(-3);
+      var n = ALIGN.hist.length, x = 0, y = 0, mm = 0;
+      ALIGN.hist.forEach(function (h) { x += h[0] / n; y += h[1] / n; mm += h[2] / n; });
+      var last = ALIGN.hist[n - 1], st = mm <= 0.3 ? 'ok' : mm <= 0.7 ? 'close' : 'move', lab = ALIGN_LABEL[st];
+      $id('pialignchip').className = 'chip ' + lab[0]; $id('pialignchip').textContent = lab[1];
+      $id('pialignmm').textContent = mm.toFixed(2) + ' mm';
+      $id('pialignpx').textContent = '(picture x ' + (x >= 0 ? '+' : '') + x.toFixed(1) + ' px, y ' + (y >= 0 ? '+' : '') +
+        y.toFixed(1) + ' px)';
+      $id('pialigntip').textContent = st === 'ok' ? 'Good - tighten the mount here and check it stays OK.' :
+        (last[4].length ? last[4].join('; ') + '.' : '');
+      $id('pialignref').textContent = 'Against the reference of ' + String(r.reference || '-').replace('T', ' ') +
+        '. The daily check has the final word.';
+    }).catch(function (e) { if (ALIGN.timer) msg('pialignmsg', 'err', e.message); });
+  }
   function selectTab(t) {
+    alignStop();
     TAB = t;
     page.querySelectorAll('.pitab').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === t); });
     page.querySelectorAll('.pipane').forEach(function (p) { p.hidden = p.getAttribute('data-pane') !== t; });
@@ -586,7 +635,7 @@
   if (typeof go === 'function') {
     var origGoAdmin = go;
     go = function (view) {
-      if (view !== 'calib') document.body.classList.remove('pi-admin', 'pi-daily');
+      if (view !== 'calib') { document.body.classList.remove('pi-admin', 'pi-daily'); alignStop(); }
       else if (!admin() && !document.body.classList.contains('pi-daily')) {
         document.body.classList.add('pi-daily');
         var r = origGoAdmin.apply(this, arguments);

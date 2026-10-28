@@ -522,23 +522,90 @@ def resume(params):
 _RESUME = v28.Handler.POST_API["/api/machine/resume"]
 
 
-# ---- (the hand watch during a run and the live height following it fed were removed, user 2026-10-27: "completely
-# remove this feature" -> "The whole hand watch"; henna_preview/follow.py and hand_watch.py are no longer used for runs.)
+# ---- live height following on a real hand (user 2026-10-24: "Option B - the nozzle follows the skin live" -> "build
+# this", after "Remove the live gap pause"): henna_preview/follow.py moves each drawing line's Z by the skin's change
+# since the scan, measured live just ahead of the tip, inside 1 mm down / 2 mm up of the checked line; the link
+# checks every changed line again and keeps the controller's queue short. Real-hand runs with the watch only.
+_FOLLOWER = {"current": None}
+
+
+def _arm_follow(job):
+    from henna_preview import follow
+    if not hasattr(machine, "arm_follow"):
+        return None
+    try:
+        c = v10.cal()
+        f = follow.Follower(v28.reference(job), v28.live_points, float(c["firmware_z_floor"]), float(c["travel_z"]))
+    except Exception:                                       # noqa: BLE001 - no reference: the checked lines only, and
+        return None                                         # v28's own refusals answer the run as before
+    _FOLLOWER["current"] = f
+    machine.arm_follow(f.adjust, f.floor_z, f.travel_z)
+    return f
+
+
+def _follow_note():
+    from henna_preview import follow
+    f, _FOLLOWER["current"] = _FOLLOWER["current"], None
+    if f is None:
+        return None
+    st = f.stats
+    if not st["lines"]:
+        return None
+    rng = (f"{st['min_dz']:+.1f} to {st['max_dz']:+.1f} mm" if st["followed"] else "none")
+    path = None
+    try:                                                    # every line's plan / measurement / correction
+        path = follow.save_record(f, os.path.join(base.ROOT, "outputs", "follow",
+                                                  dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "_follow.csv"))
+    except OSError:
+        path = None
+    return (f"live height following: {st['followed']} of {st['lines']} drawing lines moved ({rng}; band "
+            f"-{follow_band()[0]:g}/+{follow_band()[1]:g} mm), {st['unseen']} not seen"
+            + (f"; record {os.path.relpath(path, base.ROOT)}" if path else ""))
+
+
+def follow_band():
+    from henna_preview import follow
+    return follow.DOWN_MM, follow.UP_MM
+
+
+v28.WATCH_END_NOTES.append(_follow_note)
+
+
 def follow_view(_=None):
-    return {"active": False, "dz_mm": None, "stats": None}
+    f = _FOLLOWER["current"]
+    return {"active": f is not None, "dz_mm": None if f is None else f.dz, "stats": None if f is None else dict(f.stats)}
+
+
+class _FollowCamera(v28.Watch):
+    """The camera loop of the old hand watch with EVERY pause switched off (user 2026-10-27: "completely remove this
+    feature" -> the whole hand watch; then "live height correction ... this"): during a real-hand run it only turns
+    the newest pictures into live machine points (v28.LIVE) for the height following. Nothing it sees stops or holds
+    the machine; at the end of the run the following's note and record are written (WATCH_END_NOTES)."""
+
+    def _pause(self, job, reason, mpos):
+        with self.lock:
+            self.state["would_have_paused"] = self.state.get("would_have_paused", 0) + 1
+            self.state["last_reason"] = reason
+
+
+FOLLOW_CAMERA = _FollowCamera()
 
 
 def _real_start(job, params):
     """v28's real-hand start - every program rule and the hand check right before Start (the hand where it was
     scanned) - WITHOUT the hand watch during the run (user 2026-10-27: "completely remove this feature" -> "The whole
-    hand watch": no camera pauses while it runs - no "too near", "hand moved" or "cannot see") and so without live
-    height following, which needs the watch's pictures. The program's own heights and the emergency stop remain."""
+    hand watch": no camera pauses while it runs - no "too near", "hand moved" or "cannot see"), but WITH live height
+    following (user 2026-10-27: "live height correction ... this"): FOLLOW_CAMERA feeds it pictures and never
+    pauses. The program's own heights inside the band, and the emergency stop, remain."""
     v28.machine_job_only(job)
     if params.get("confirm_clear") is not True or params.get("confirm_estop") is not True:
         raise ValueError("Confirm that nothing else is in the travel area and that you are at the emergency stop")
     v28._real_rules(job, (job["steps"].get("design") or {}).get("standoff_mm", 0))
     res = v28.hand_check(job)                               # (speed and height: as chosen - user 2026-10-27 "unlock")
+    f = _arm_follow(job)                                    # live height following, inside its band, no pauses
     out = v28._INNER["/api/machine/run"](dict(params, confirm_prosthetic=True, confirm_unmoved=True))
+    if f is not None:
+        FOLLOW_CAMERA.start(job, v28.reference(job))
     _log("Hand check before Start", (machine.status() or {}).get("mpos"), "camera, 3 pictures",
          "hand where it was scanned", f"realhand: median {res['median_dz_mm']} mm, {100 * res['share_off']:.0f} % off, "
          f"{100 * res['seen_share']:.0f} % seen", "ok - no hand watch during the run", job["steps"]["scan"]["name"],
@@ -641,12 +708,47 @@ def _placement_of(job, need_pass=False):
                         if prog.get("program") else None)}
 
 
-def _follow_and_prepare(job, src, what, allow_move=False, write_program=None):
+NUDGE_STEPS_MM = (2.5, 5.0, 7.5, 10.0)
+_TALL_AT = re.compile(r"near machine X(-?\d+(?:\.\d+)?) Y(-?\d+(?:\.\d+)?)")
+
+
+def check_with_nudge(jid, design, centre, rot, nudge_ok=True):
+    """The design check at `centre`; when it is refused for tall skin under the nozzle's path, the same check with the
+    design moved away from that skin by NUDGE_STEPS_MM (user 2026-10-27: "build 3") - the first place that passes
+    every check is used. -> (check result, None | {mm, centre, away_from}). nudge_ok False: the rest of a stopped run,
+    which must stay on the strokes already drawn."""
+    c0, last = np.asarray(centre, float), None
+    for mm in (0.0,) + (NUDGE_STEPS_MM if nudge_ok else ()):
+        c = c0
+        if mm:
+            m = _TALL_AT.search(str(last))
+            v = None if m is None else c0 - np.array([float(m.group(1)), float(m.group(2))])
+            if v is None or np.hypot(*v) < 1e-6:
+                break
+            c = c0 + v / np.hypot(*v) * mm
+        try:
+            r = _route("/api/studio/check_design")(
+                {"job": jid, "svg": design["svg"], "fit_mm": design["fit_mm"], "rotation_deg": round(rot, 2),
+                 "centre_machine_xy": [round(float(x), 3) for x in c], "standoff_mm": design["standoff_mm"]})
+        except Exception as e:                              # noqa: BLE001 - only tall skin on the path is tried again
+            if "Under the nozzle's path" not in str(e):
+                raise
+            last = e
+            continue
+        if mm and ((r or {}).get("result") or {}).get("verdict") != "PASS":
+            break                                           # moved off the usable skin: further only gets worse
+        if not mm:
+            return r, None
+        return r, {"mm": mm, "centre": [round(float(x), 1) for x in c], "away_from": list(_TALL_AT.search(str(last)).groups())}
+    raise last
+
+
+def _follow_and_prepare(job, src, what, allow_move=False, write_program=None, nudge_ok=True):
     """Scan the hand where it is now and repeat src's outline, design and program on it, through the page's own routes
     (every guard): [move to the scan position], scan, hand, outline + design moved with the hand (follow_hand), the
     design check on the new scan, the program. Stops at the first refusal, naming the step."""
     try:
-        return _follow_and_prepare_steps(job, src, what, allow_move, write_program)
+        return _follow_and_prepare_steps(job, src, what, allow_move, write_program, nudge_ok)
     finally:
         PROGRESS.update(op=None, step=None)
 
@@ -664,7 +766,7 @@ def progress_view(_=None):
     return dict(PROGRESS, now=time.time())
 
 
-def _follow_and_prepare_steps(job, src, what, allow_move, write_program):
+def _follow_and_prepare_steps(job, src, what, allow_move, write_program, nudge_ok=True):
     from henna_preview import follow_hand
     jid, done, p = job["id"], [], v28._parts()
     design = src["design"]
@@ -708,14 +810,20 @@ def _follow_and_prepare_steps(job, src, what, allow_move, write_program):
     done.append("outline moved with the hand")
     centre = follow_hand.apply([design["centre_machine_xy"]], f["machine"])[0]
     rot = ((float(design["rotation_deg"]) + f["turn_deg"] + 180.0) % 360.0) - 180.0
-    r = step("the design check", lambda: _route("/api/studio/check_design")(
-        {"job": jid, "svg": design["svg"], "fit_mm": design["fit_mm"], "rotation_deg": round(rot, 2),
-         "centre_machine_xy": [round(float(v), 3) for v in centre], "standoff_mm": design["standoff_mm"]}))
+    nudge = {}
+
+    def design_check():
+        r, n = check_with_nudge(jid, design, centre, rot, nudge_ok)
+        nudge.update(n or {})
+        return r
+
+    r = step("the design check", design_check)
     verdict = ((r or {}).get("result") or {}).get("verdict")
     if verdict != "PASS":
         raise ValueError(f"{what} stopped at the design check: the design does not fit on the new scan - move or "
                          f"shrink it in Design (done: {', '.join(done)})")
-    done.append("design checked")
+    done.append("design checked" if not nudge else
+                f"design moved {nudge['mm']:g} mm away from tall skin at X{nudge['away_from'][0]} Y{nudge['away_from'][1]}")
     prog = src.get("program")
     if write_program is None:
         write_program = prog is not None
@@ -737,7 +845,7 @@ def _follow_and_prepare_steps(job, src, what, allow_move, write_program):
          f"Studio v29; job {jid}")
     return {"job": v14.job_view(job), "followed": {"shift_mm": f["shift_mm"], "turn_deg": f["turn_deg"],
                                                    "fit_mm": round(f["machine"]["rms"], 2)}, "done": done,
-            "timing_s": timing}
+            "timing_s": timing, "nudged": dict(nudge) or None}
 
 
 def _ticks(params):
@@ -794,6 +902,44 @@ def _record_run(job_id, run_id, error, snap):
 
 
 v14._record_run = _record_run                               # v20's run start looks it up when the run ends
+PARK_AFTER_RUN = True                                       # user 2026-10-28: "after every work finishing machine should
+PARK_WAIT_S = 20.0                                          # move to home position"
+
+
+def _park_after(job_id, run_id):
+    """After a run that FINISHED (not stopped or failed - those need homing): wait until the machine is free, then
+    up to travel Z and to X0 Y0 (the home corner, grbl_scan_link.start_park). A failure is only logged."""
+    end = time.monotonic() + PARK_WAIT_S
+    while time.monotonic() < end:
+        st = machine.status() or {}
+        if not st.get("busy"):
+            break
+        time.sleep(0.2)
+    st = machine.status() or {}
+    if st.get("busy") or not st.get("homed") or not hasattr(machine, "start_park"):
+        _log("Park at home position", st.get("mpos"), "after a finished run", "machine free and homed",
+             f"busy {st.get('busy')}, homed {st.get('homed')}", "not parked", "", f"Studio v29; job {job_id}; run {run_id}")
+        return
+
+    def done(error, *_):
+        _log("Park at home position", (machine.status() or {}).get("mpos"), "up to travel Z, then X0 Y0",
+             "at the home corner", error or "parked", "parked" if error is None else "not parked", "",
+             f"Studio v29; job {job_id}; run {run_id}")
+    try:
+        machine.start_park(on_done=done)
+    except Exception as e:                                  # noqa: BLE001 - the run itself is finished and recorded
+        done(str(e))
+
+
+def _record_run_and_park(job_id, run_id, error, snap):
+    _record_run(job_id, run_id, error, snap)
+    if PARK_AFTER_RUN and error is None and ((snap or {}).get("program") or {}).get("state") in (None, "finished"):
+        threading.Thread(target=_park_after, args=(job_id, run_id), daemon=True).start()
+
+
+def install_park_after_run():
+    """Applied when Studio v29 starts (main()) - not on import, so older versions' tests keep their own run end."""
+    v14._record_run = _record_run_and_park
 
 
 def _start_now(job_id, what, prep):
@@ -858,6 +1004,33 @@ def get_ready(params):
     return dict(v14.machine_status(), done=done)
 
 
+def program_path(q):
+    """The moves of the job's written program for the live view (user 2026-10-27: "i want live visualize like ugs"):
+    {"moves": [[x, y, z, kind], ...] - kind 1 drawing (G1), 0 travel / hop (G0) - one per program line that moves,
+    "line": that move's index among the program's command lines (what the link counts as sent), "start": the scan
+    position}. Read-only, from the same file a run sends (the paste program when there is one)."""
+    from henna_preview.continue_run import AXIS_RE
+    job = v11.job_load(q.get("job", [""])[0])
+    pr = job["steps"].get("program") or {}
+    path = (pr.get("dispense") or {}).get("file") or pr.get("program_file")
+    pd = v10.out_dir("program", pr["program"]) if pr.get("program") else None
+    if not (path and pd and _same(os.path.dirname(path), pd) and os.path.isfile(path)):
+        return {"moves": [], "line": [], "start": None}
+    with open(path, encoding="ascii") as f:
+        lines = _command_lines(f.read())
+    start = [float(v) for v in job["steps"]["scan"]["mpos"]]
+    cur, moves, idx = list(start), [], []
+    for i, ln in enumerate(lines):
+        kind = 1 if ln.startswith("G53 G1 ") else 0 if ln.startswith("G53 G0 ") else None
+        if kind is None:
+            continue
+        for ax, v in AXIS_RE.findall(ln):
+            cur["XYZ".index(ax)] = float(v)
+        moves.append([round(cur[0], 3), round(cur[1], 3), round(cur[2], 3), kind])
+        idx.append(i)
+    return {"moves": moves, "line": idx, "start": start, "lines": len(lines), "file": os.path.basename(path)}
+
+
 def _hand_job(params, what):
     params = params or {}
     job = v11.job_load(params.get("job"))
@@ -881,7 +1054,7 @@ def scan_and_start(params):
          "the run starts right after the checks on the new scan", f"hand moved {prep['followed']['shift_mm']} mm; "
          f"{', '.join(prep['done'])}", "started", v11.job_load(job["id"])["steps"]["scan"]["name"],
          f"Studio v29; job {job['id']}")
-    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")})
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s"), "nudged": prep.get("nudged")})
 
 
 def _program_lines_of_run(r):
@@ -959,7 +1132,7 @@ def rescan_continue(params):
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
     src["design"]["svg"] = os.path.relpath(path, base.ROOT).replace("\\", "/")
-    prep = _follow_and_prepare(job, src, what, allow_move=True, write_program=True)
+    prep = _follow_and_prepare(job, src, what, allow_move=True, write_program=True, nudge_ok=False)
     out = _start_now(job["id"], what, prep)
     redo = cp["how"] == "redo"
     _log(what, (machine.status() or {}).get("mpos"), "Quick re-scan with the strokes not drawn yet, then Start",
@@ -967,7 +1140,7 @@ def rescan_continue(params):
          f"{cp['base'] + cp['from'] + 1} of {cp['total']} ({'drawn again from its start' if redo else 'not started'}); "
          f"{orig} from stroke {from_total + 1}; hand moved {prep['followed']['shift_mm']} mm", "started",
          v11.job_load(job["id"])["steps"]["scan"]["name"], f"Studio v29; job {job['id']}")
-    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")},
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s"), "nudged": prep.get("nudged")},
                 continued={"from_stroke": from_total + 1, "total": cp["total"], "redo": redo})
 
 
@@ -1088,7 +1261,7 @@ def setup_start(params):
          f"{prep['followed']['shift_mm']} mm from the setup's hand; seconds "
          + ", ".join(f"{k} {v:g}" for k, v in (prep.get("timing_s") or {}).items()), "started",
          v11.job_load(job["id"])["steps"]["scan"]["name"], f"Studio v29; job {job['id']}")
-    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s")})
+    return dict(out, prepared={"followed": prep["followed"], "done": prep["done"], "timing_s": prep.get("timing_s"), "nudged": prep.get("nudged")})
 
 
 def dispense_test(params):
@@ -1298,6 +1471,7 @@ class Handler(v28.Handler):
                                            "/api/studio/follow": follow_view,
                                            "/api/studio/progress": progress_view,
                                            "/api/studio/continue": continue_view,
+                                           "/api/studio/program_path": program_path,
                                            "/api/studio/designs": lambda q: _DESIGNS()})
     POST_API = dict(v28.Handler.POST_API, **{
         "/api/studio/check_design": (check_design, _CHECK_DESIGN[1]),
@@ -1356,6 +1530,7 @@ def main():
     v27.Handler = Handler                                   # v27.main serves v27.Handler (-> v26.main)
     install_close_heights()
     install_path_clearance()
+    install_park_after_run()
     install_free_jog()
     print("Henna Studio v29 - paste dispensing (pneumatic / servo SSR on the controller output)", flush=True)
     try:

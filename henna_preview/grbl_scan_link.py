@@ -21,7 +21,11 @@ ROUTE = (
     ("move_xy", "$J=G21 G90 G53 X145.800 Y42.600 F1000"),
     ("lower_to_capture", "$J=G21 G90 G53 Z-40.000 F300"),
 )
-COMMANDS = frozenset(["$HZ", "$H"] + [command for _, command in ROUTE])
+# Park at the home corner after a finished run (user 2026-10-28: "after every work finishing machine should move to
+# home position"): up to travel Z, then X0 Y0 - where homing leaves the head - at travel height. No homing cycle.
+PARK_XY = (0.0, 0.0)
+PARK_COMMAND = "$J=G21 G90 G53 X0.000 Y0.000 F1000"
+COMMANDS = frozenset(["$HZ", "$H", PARK_COMMAND] + [command for _, command in ROUTE])
 STATUS_RE = re.compile(r"^<([A-Za-z]+)(?::\d+)?\|MPos:(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)(?:\|[^<>]*)?>$")
 
 
@@ -418,6 +422,25 @@ class GrblScanLink:
                 self._check_token_locked(token)
                 self.capture_ready = True
                 self.capture_error = None
+        return self._start_worker(owner, action, on_done)
+
+    def start_park(self, on_done=None):
+        """Up to travel Z where the head is, then across to X0 Y0 at travel Z (the home corner). Each stage verified
+        like Move to scan position; the head is no longer at the scan position afterwards."""
+        self._config()
+        owner = self._new_operation("park", require_homed=True)
+        with self._lock:
+            self.capture_ready = False
+
+        def action(token):
+            self._fresh_idle(token)
+            with self._lock:
+                self._check_token_locked(token)
+                start = tuple(self.mpos)
+            lift = (start[0], start[1], TRAVEL_Z)
+            self._command(ROUTE[0][1], token, "raise_to_travel", lift, self._move_timeout, required_start=start)
+            self._command(PARK_COMMAND, token, "park_xy", (PARK_XY[0], PARK_XY[1], TRAVEL_Z), self._move_timeout,
+                          required_start=lift)
         return self._start_worker(owner, action, on_done)
 
     @contextmanager

@@ -8,7 +8,6 @@ saved scans. Saving and measuring are hand_scan_collect.py's (outputs/hand_scans
 Only this computer can open it (127.0.0.1).
 """
 import csv
-import io
 import json
 import os
 import sys
@@ -17,7 +16,6 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
-import numpy as np
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)

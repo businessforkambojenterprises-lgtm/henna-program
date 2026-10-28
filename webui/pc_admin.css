@@ -53,7 +53,7 @@ input[type=password]{width:100%;padding:9px 11px;border-radius:10px;border:1px s
 .pineedline.pi-okline{color:var(--ok,#2e7d32)}
 #calibcard .hint b{font-weight:700}
 #picaljog{min-height:36px}
-body.pi-daily #pitabs,body.pi-daily #pilockbtn,body.pi-daily #calrefcard{display:none!important}
+body.pi-daily #pitabs,body.pi-daily #pilockbtn,body.pi-daily #calrefcard,body.pi-daily #pialign{display:none!important}
 .pipane[data-pane=paste]:not([hidden]),.pipane[data-pane=pin]:not([hidden]){
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;
   margin-bottom:12px;max-width:720px}

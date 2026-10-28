@@ -136,6 +136,15 @@ def wrap_plan(original, info, travel_z_of=None):
     return plan_hops if gaps else original
 
 
+def use_footprint():
+    """The design planning (step 21's plan_design, used by steps 22 and 23 alike) keeps the nozzle above the highest
+    skin within FOOTPRINT_MM round each point, not only the skin under it (user 2026-10-27: curled fingertips beside the
+    tilted nozzle touched it - "build 3"). The design check and the program measure the same way."""
+    import step21_design_preview as s21
+    from henna_preview.smooth_path import measure_with_footprint
+    s21.measure_under_plan = measure_with_footprint
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if not argv or argv[0] not in SCRIPTS:
@@ -155,6 +164,7 @@ def main(argv=None):
         mod.program_with_hops = wrap_program(mod.program_with_hops, approach(cfg))
     if hasattr(mod, "plan_hops"):
         mod.plan_hops = wrap_plan(mod.plan_hops, approach(cfg))
+    use_footprint()
     sys.argv = [mod.__file__] + rest
     mod.main()
     return 0

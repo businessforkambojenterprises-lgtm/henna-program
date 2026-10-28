@@ -363,7 +363,9 @@ class ScanLinkTests(unittest.TestCase):
 
     def test_public_api_has_no_arbitrary_command_sender(self):
         public = sorted(n for n in dir(mod.GrblScanLink) if not n.startswith("_"))
-        self.assertEqual(public, ["capture_guard", "connect", "disconnect", "start_homing", "start_scan_position", "status", "status_line", "stop"])
+        # start_park (2026-10-28): another fixed route - up to travel Z, then X0 Y0 - not a command sender
+        self.assertEqual(public, ["capture_guard", "connect", "disconnect", "start_homing", "start_park",
+                                  "start_scan_position", "status", "status_line", "stop"])
 
 
 if __name__ == "__main__":

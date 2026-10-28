@@ -110,6 +110,33 @@ class LinkCommandTests(unittest.TestCase):
     def tearDown(self):
         machine_motion.apply(machine_motion.BELT_DRIVE)
 
+    def test_park_after_work_goes_up_then_to_the_home_corner(self):
+        """2026-10-28 "after every work finishing machine should move to home position": up to travel Z, then X0 Y0."""
+        choose("ball-screw")
+        from henna_preview import grbl_scan_link as gsl
+        from henna_preview.grbl_program_link_v22 import GrblProgramLinkV22
+        fake = FakeSerial(state="Alarm")
+        link = GrblProgramLinkV22(v25.link_cfg, opener=lambda p: fake, poll_s=0.01, fresh_s=0.3,
+                                  homing_timeout=1.0, move_timeout=1.0, status_timeout=0.3)
+        try:
+            link.connect("FAKE", wait_s=0.5)
+            link.start_homing()
+            self.assertTrue(wait_until(lambda: link.status()["homed"]), link.status())
+            link.start_scan_position()
+            self.assertTrue(wait_until(lambda: link.status()["capture_ready"]), link.status())
+            before = len(fake.commands())
+            done = []
+            link.start_park(on_done=lambda error, *a: done.append(error))
+            self.assertTrue(wait_until(lambda: bool(done)), link.status())
+            self.assertEqual(done, [None])
+            travel = ball_screw_motion()["travel_z"]
+            self.assertEqual(fake.commands()[before:], [f"$J=G21 G90 G53 Z{travel:.3f} F300", gsl.PARK_COMMAND])
+            self.assertEqual(link.status()["mpos"], [0.0, 0.0, travel])
+            self.assertFalse(link.status()["capture_ready"])                      # no longer at the scan position
+        finally:
+            if not link.status()["busy"]:
+                link.disconnect()
+
     def test_belt_drive_route_unchanged(self):
         cmds, pos = self.run_route("belt-drive")
         self.assertEqual(cmds, ["$HZ", "$H"] + [c for _, c in BELT_ROUTE])

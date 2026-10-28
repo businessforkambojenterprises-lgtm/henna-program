@@ -18,6 +18,7 @@ Not ported (Pi only): the camera child process, the GPIO pause button, the servo
 cleanup, the touch layout, drag-to-scroll, the small-screen confirm box and the full-screen region editor.
 Everything else is v29 unchanged; start_studio_pc.bat starts this file.
 """
+import json
 import os
 import sys
 import threading
@@ -150,10 +151,44 @@ def pc_page():
     return html[:i] + f'<script id="pc-admin-js">\nwindow.STUDIO_BOOT = "{BOOT}";\n{js}\n</script>\n' + html[i:]
 
 
+_ALIGN_REF = {"key": None, "gray": None, "created": None}
+
+
+def camera_align_view(_=None):
+    """Admin -> Daily check -> Camera alignment (user 2026-10-28: "add this tool in admin section"): the live picture's
+    shift against the daily-check reference, in mm, and which way to turn the camera. Read-only - it moves nothing."""
+    from henna_preview import camera_align
+    path = camera_align.reference_path(HERE, v26.profiles.active_id())
+    if not os.path.isfile(path):
+        return {"ready": False, "reason": "no daily-check reference yet - set it first (bed as every day, no hand)"}
+    key = (path, os.path.getmtime(path))
+    if _ALIGN_REF["key"] != key:
+        created = None
+        try:
+            with open(os.path.join(os.path.dirname(path), "reference.json"), encoding="utf-8") as f:
+                created = json.load(f).get("created")
+        except (OSError, ValueError):
+            pass
+        _ALIGN_REF.update(key=key, gray=camera_align.load_reference(path), created=created)
+    cam = studio.v10.camera
+    if cam.status().get("state") == "off" and hasattr(cam, "start_preview"):
+        try:
+            cam.start_preview()
+        except Exception as e:                              # noqa: BLE001 - say why there is no picture
+            return {"ready": False, "reason": f"the camera could not start: {e}"}
+    jpeg = cam.jpeg()
+    if not jpeg:
+        return {"ready": False, "reason": "waiting for the camera picture"}
+    st = studio.machine.status() or {}
+    out = camera_align.measure(_ALIGN_REF["gray"], camera_align.preview_gray(jpeg))
+    return dict(out, ready=True, reference=_ALIGN_REF["created"], at_scan_position=bool(st.get("capture_ready")))
+
+
 class PcHandler(studio.Handler):
     server_version = studio.Handler.server_version + "-pc"
     GET_API = dict(studio.Handler.GET_API, **{"/api/admin/paste_setup": paste_setup_view,
-                                              "/api/admin/jog_limits": jog_limits})
+                                              "/api/admin/jog_limits": jog_limits,
+                                              "/api/admin/camera_align": camera_align_view})
     POST_API = dict(studio.Handler.POST_API, **{"/api/admin/status": (admin_status, False),
                                                 "/api/admin/unlock": (admin_unlock, False),
                                                 "/api/admin/set_pin": (admin_set_pin, False),
