@@ -157,6 +157,8 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
 .pbfill{height:100%;width:0;background:var(--accent);border-radius:6px;transition:width .3s linear}
 .pbpct{font-variant-numeric:tabular-nums;font-size:13px;font-weight:650;text-align:right}
 .edbar{width:min(70%,420px);text-align:left}
+.btn.block{white-space:normal;line-height:1.25;overflow-wrap:anywhere}
+.foot{flex-wrap:wrap;gap:8px}
 </style>
 </head>
 <body>
@@ -468,9 +470,9 @@ dialog::backdrop{background:rgba(20,18,15,.45)}
       <p class="hint">Pause holds the motion and stops the paste; Resume turns the paste on first, then moves on. STOP holds and resets the controller (paste off) - home again afterwards.</p>
       <div class="msg" id="msgrun"></div>
      </div>
-     <div class="card" id="lvcard"><div class="row" style="justify-content:space-between;align-items:center"><h2>Live view</h2>
-      <div class="row" style="gap:6px"><button class="btn small" id="lvtop" type="button">Top</button><button class="btn small" id="lv3d" type="button">3D</button><button class="btn small" id="lvfit" type="button">Fit</button></div></div>
-      <canvas id="lv" aria-label="Live view of the program path and the nozzle" style="display:block;width:100%;height:360px;margin-top:8px;border-radius:12px;background:var(--canvas);touch-action:none;cursor:grab"></canvas>
+     <div class="card" id="lvcard"><div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><h2>Live view</h2>
+      <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn small" id="lvtop" type="button">Top</button><button class="btn small" id="lv3d" type="button">3D</button><button class="btn small" id="lvfit" type="button">Fit</button></div></div>
+      <canvas id="lv" aria-label="Live view of the program path and the nozzle" style="display:block;width:100%;height:min(360px,62vw);min-height:220px;margin-top:8px;border-radius:12px;background:var(--canvas);touch-action:none;cursor:grab"></canvas>
       <div class="row" style="gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12.5px;color:var(--muted)"><span><b style="color:var(--text)">━</b> drawing</span><span>┅ travel / hop</span><span><b style="color:var(--accent)">━</b> sent</span><span><b style="color:var(--bad)">●</b> nozzle</span></div>
       <div class="hint mono" id="lvinfo" style="margin-top:4px"></div></div>
      <div class="card"><h2>Runs of this job</h2><div id="runhist" style="margin-top:8px"></div></div>
@@ -970,16 +972,18 @@ $('runpause').onclick=async()=>{const p=prog();if(!running()||!p)return;runActio
 $('runstop').onclick=async()=>{runAction='stop';runShow();try{machineAccept(await api('/api/machine/stop',{}))}catch(e){msg('msgrun','err',e.message)}finally{runAction='';runShow()}};
 
 let LVF=null;setInterval(async()=>{if(VIEW!=='run'||!running()){LVF=null;return}try{LVF=await api('/api/studio/follow')}catch(e){LVF=null}},500);
-let LV={key:null,moves:[],line:[],yaw:0,pitch:0,zoom:1,pan:[0,0],trail:[],c:[0,0,0],s:1,drag:null};
+let LV={key:null,moves:[],line:[],yaw:0,pitch:0,zoom:1,pan:[0,0],trail:[],c:[0,0,0],s:1,drag:null,auto:true,fitW:0,fitH:0};
 async function lvLoad(){const p=JOB&&JOB.steps.program;const key=p?JOB.id+'|'+(p.program||'')+'|'+((p.dispense||{}).file||''):null;
  if(key===LV.key)return;LV.key=key;LV.moves=[];LV.line=[];LV.trail=[];if(!key){lvDraw();return}
  try{const r=await api('/api/studio/program_path?job='+encodeURIComponent(JOB.id));if(LV.key!==key)return;LV.moves=r.moves||[];LV.line=r.line||[];LV.total=r.lines||0;lvFit()}catch(e){LV.moves=[]}lvDraw()}
-function lvFit(){const m=LV.moves;if(!m.length)return;let lo=[1e9,1e9,1e9],hi=[-1e9,-1e9,-1e9];
+function lvFit(){const all=LV.moves;if(!all.length)return;const d=all.filter(p=>p[3]===1),m=d.length?d:all;let lo=[1e9,1e9,1e9],hi=[-1e9,-1e9,-1e9];
  m.forEach(p=>{for(let k=0;k<3;k++){lo[k]=Math.min(lo[k],p[k]);hi[k]=Math.max(hi[k],p[k])}});LV.c=lo.map((v,k)=>(v+hi[k])/2);
- const cv=$('lv'),w=cv.clientWidth||600,h=cv.clientHeight||360;LV.s=0.9*Math.min(w/Math.max(10,hi[0]-lo[0]),h/Math.max(10,hi[1]-lo[1]));LV.zoom=1;LV.pan=[0,0]}
+ const cv=$('lv'),w=cv.clientWidth,h=cv.clientHeight;if(!w||!h){LV.fitW=0;return}
+ LV.s=0.86*Math.min(w/Math.max(10,hi[0]-lo[0]),h/Math.max(10,hi[1]-lo[1]));LV.zoom=1;LV.pan=[0,0];LV.fitW=w;LV.fitH=h;LV.auto=true}
 function lvProj(p,w,h){const x=p[0]-LV.c[0],y=p[1]-LV.c[1],z=p[2]-LV.c[2],cy=Math.cos(LV.yaw),sy=Math.sin(LV.yaw),cp=Math.cos(LV.pitch),sp=Math.sin(LV.pitch);
  const X=x*cy-y*sy,Y=x*sy+y*cy,S=LV.s*LV.zoom;return[w/2+LV.pan[0]+X*S,h/2+LV.pan[1]-(Y*cp+z*sp)*S]}
 function lvDraw(){const cv=$('lv');if(!cv||VIEW!=='run')return;const w=cv.clientWidth,h=cv.clientHeight,dpr=window.devicePixelRatio||1;
+ if(LV.moves.length&&w&&h&&LV.auto&&(w!==LV.fitW||h!==LV.fitH))lvFit();
  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr)}
  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);const css=getComputedStyle(document.documentElement),col=n=>css.getPropertyValue(n).trim();
  const m=LV.moves;if(!m.length){g.fillStyle=col('--muted');g.font='14px system-ui';g.textAlign='center';g.fillText(JOB&&JOB.steps.program?'Loading the program…':'Write the program to see its path',w/2,h/2);$('lvinfo').textContent='';return}
@@ -996,9 +1000,9 @@ function lvDraw(){const cv=$('lv');if(!cv||VIEW!=='run')return;const w=cv.client
 (()=>{const cv=$('lv');if(!cv)return;
  cv.addEventListener('pointerdown',e=>{LV.drag={x:e.clientX,y:e.clientY,pan:e.shiftKey};cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'});
  cv.addEventListener('pointermove',e=>{const d=LV.drag;if(!d)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;d.x=e.clientX;d.y=e.clientY;
-  if(d.pan){LV.pan[0]+=dx;LV.pan[1]+=dy}else{LV.yaw+=dx*0.01;LV.pitch=Math.max(0,Math.min(1.45,LV.pitch+dy*0.01))}lvDraw()});
+  if(d.pan){LV.pan[0]+=dx;LV.pan[1]+=dy;LV.auto=false}else{LV.yaw+=dx*0.01;LV.pitch=Math.max(0,Math.min(1.45,LV.pitch+dy*0.01))}lvDraw()});
  cv.addEventListener('pointerup',()=>{LV.drag=null;cv.style.cursor='grab'});
- cv.addEventListener('wheel',e=>{e.preventDefault();LV.zoom=Math.max(0.2,Math.min(20,LV.zoom*Math.pow(1.15,-Math.sign(e.deltaY))));lvDraw()},{passive:false});
+ cv.addEventListener('wheel',e=>{e.preventDefault();LV.zoom=Math.max(0.2,Math.min(20,LV.zoom*Math.pow(1.15,-Math.sign(e.deltaY))));LV.auto=false;lvDraw()},{passive:false});
  cv.addEventListener('dblclick',()=>{LV.yaw=0;LV.pitch=0;lvFit();lvDraw()});
  $('lvtop').onclick=()=>{LV.yaw=0;LV.pitch=0;lvDraw()};$('lv3d').onclick=()=>{LV.yaw=-0.6;LV.pitch=1.0;lvDraw()};$('lvfit').onclick=()=>{lvFit();lvDraw()};
  setInterval(()=>{if(VIEW==='run'){lvLoad();lvDraw()}},250);window.addEventListener('resize',()=>{if(VIEW==='run')lvDraw()})})();
