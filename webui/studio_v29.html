@@ -558,6 +558,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('button[data-copy
  navigator.clipboard.writeText(b.dataset.copy).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1200)},()=>{b.textContent='Select + Ctrl+C'})});
 function store(k,v){try{v===undefined?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}
 function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function liveWindow(){try{return sessionStorage.getItem('studio-live')==='1'}catch(e){return false}}
+function shortcutName(){return window.STUDIO_SHORTCUT||'Henna Studio (PC - latest)'}
 
 /* theme */
 (()=>{const t=load('studio-theme');if(t)document.documentElement.dataset.theme=t})();
@@ -617,9 +619,9 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-subj
  try{const j=await api('/api/studio/job_new',{subject:b.dataset.subject});JOB=j;store('studio-job',j.id);go('scan')}catch(err){alert(err.message)}});
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
 $('btnexit').onclick=async()=>{
- if(!confirm('Close Henna Studio? The camera is turned off, the machine is disconnected and the Studio window closes. Start it again from the desktop shortcut "Henna Studio (PC - latest)".'))return;
+ if(!confirm('Close Henna Studio? The camera is turned off, the machine is disconnected and the Studio window closes. Start it again from the desktop shortcut "'+shortcutName()+'".'))return;
  try{await api('/api/studio/exit',{confirm:true})}catch(e){alert(e.message);return}
- clearInterval(camTimer);document.body.innerHTML='<div style="display:grid;place-items:center;min-height:100vh;padding:24px;text-align:center"><div><h1>Henna Studio is closed</h1><p class="sub">The camera is off and the machine is disconnected. You can close this tab.<br>Start Studio again from the desktop shortcut "Henna Studio (PC - latest)".</p></div></div>';
+ clearInterval(camTimer);store('studio-job');document.body.innerHTML='<div style="display:grid;place-items:center;min-height:100vh;padding:24px;text-align:center"><div><h1>Henna Studio is closed</h1><p class="sub">The camera is off and the machine is disconnected. You can close this tab.<br>Start Studio again from the desktop shortcut "'+esc(shortcutName())+'".</p></div></div>';
  setTimeout(()=>{try{window.close()}catch(e){}},300)};
 $('btnnew').onclick=()=>{$('setupsnew').innerHTML='<div class="empty"><span class="spin"></span></div>';loadSetups();$('dlgnew').showModal()};
 $('btnjobs').onclick=async()=>{$('joblist').innerHTML='<div class="empty"><span class="spin"></span></div>';$('dlgjobs').showModal();
@@ -1259,7 +1261,7 @@ machInit();
 
 /* ---------- start ---------- */
 (async()=>{try{await loadMachines()}catch(e){}try{await loadCal()}catch(e){}
- const last=load('studio-job');if(last){try{await openJob(last);return}catch(e){store('studio-job')}}go('welcome')})();
+ const last=liveWindow()?load('studio-job'):null;try{sessionStorage.setItem('studio-live','1')}catch(e){}if(last){try{await openJob(last);return}catch(e){store('studio-job')}}go('welcome')})();
 </script>
 </body>
 </html>
