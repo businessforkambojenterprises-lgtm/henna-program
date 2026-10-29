@@ -13,3 +13,6 @@ models/*.task
 *.bag
 *.db3
 desktop_build/build_tools/
+
+# The Pi's own validation log (webui_server_pi.use_pi_log, 2026-10-29) - stays on the Pi
+validation_log_pi.csv

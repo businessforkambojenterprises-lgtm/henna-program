@@ -317,6 +317,22 @@ class PiHandler(studio.Handler):
 studio.Handler = PiHandler                                  # v29.main serves studio.Handler
 
 
+PI_LOG_NAME = "validation_log_pi.csv"
+
+
+def use_pi_log(root=None):
+    """The Pi's own validation log (user 2026-10-29: "separate Pi log"): Studio on the Pi writes here instead of the
+    shared validation_log_S2026-10-05-A.csv, which the laptop keeps in git - so "git pull" on the Pi never stops at the
+    log again. The file is git-ignored and starts with the shared log's columns. -> its path."""
+    from henna_preview.web_log import COLUMNS
+    path = os.path.join(root or os.path.dirname(os.path.abspath(__file__)), PI_LOG_NAME)
+    if not os.path.isfile(path):
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(",".join(COLUMNS) + "\n")
+    studio.v10.LOG_FILE = path
+    return path
+
+
 def _stop(signum, frame):
     raise KeyboardInterrupt                                 # -> v26.main's safe shutdown (stop a moving machine, disconnect)
 
@@ -328,6 +344,7 @@ if __name__ == "__main__":
     # Both INT and TERM now run the same safe shutdown as Ctrl+C.
     signal.signal(signal.SIGINT, _stop)
     signal.signal(signal.SIGTERM, _stop)
+    print(f"Validation log (this Pi's own): {use_pi_log()}", flush=True)
     print("Raspberry Pi: camera in its own process + faster live preview + touch layout", flush=True)
     print(f"Pause button GPIO{PAUSE_BUTTON.state['pin']}: {PAUSE_BUTTON.start()}", flush=True)
     if PASTE_ON_PI:

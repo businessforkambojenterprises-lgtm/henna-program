@@ -5,6 +5,9 @@
    instead of pressing it. A short tap is untouched. Real touch events (if the browser sends them) scroll natively
    and are left alone. Never on the drawing pictures, sliders, inputs or the X/Y nudge / jog buttons' own drags.
    Added by webui_server_pi.py; the laptop page never gets it. */
+/* Exit names the Pi's own desktop shortcut (2026-10-29: it named the laptop's "Henna Studio (PC - latest)"). */
+window.STUDIO_SHORTCUT = 'Henna Studio';
+
 (function () {
   'use strict';
   var THRESHOLD = 8, FRICTION = 0.92, MIN_V = 0.02;
