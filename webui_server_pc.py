@@ -99,7 +99,7 @@ def pc_program(params):
 
 
 # Admin jog: the Pi's rules (webui_server_pi.pi_jog) - with a valid session Z free to the floor, X/Y at any height
-# down to it inside the work area; without one v29's jog (travel height, real-hand rule).
+# down to it inside the work area; without one Z as v29 (not below travel height) and X/Y at any height (2026-10-31).
 _REQ = threading.local()
 _JOG = studio.Handler.POST_API["/api/machine/jog"]
 
@@ -110,8 +110,14 @@ def z_floor():
 
 
 def pc_jog(params):
-    if not getattr(_REQ, "admin", False):
+    admin = getattr(_REQ, "admin", False)
+    # X and Y move at any height in the normal Jog too (user 2026-10-31: "remove it everywhere" - the scan position of
+    # the belt drive is 20 mm below travel Z, so X/Y were locked at the scan position); Z keeps the normal rules there.
+    # A real-hand job still refuses sideways jogs (v29).
+    if not admin and params.get("axis") not in ("X", "Y"):
         return _JOG[0](params)
+    if not admin and studio._ACTIVE["subject"] in studio.NO_SIDEWAYS:
+        return _JOG[0](params)                              # -> v29's "Sideways jog is off while a real-hand job is open"
     if params.get("confirm_no_person") is not True:
         raise ValueError("Confirm that no person's hand is under the machine before jogging")
     if studio.v10.camera.status()["state"] == "recording":

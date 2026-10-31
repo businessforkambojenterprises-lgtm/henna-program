@@ -186,7 +186,8 @@ class PcServerTests(unittest.TestCase):
             pc.pc_jog(dict(p, axis="Z", direction=-1))
             with self.assertRaisesRegex(ValueError, "no person"):
                 pc.pc_jog(dict(p, confirm_no_person=False))
-            self.assertEqual(sent, ["v29 X", "admin X", "admin Z -40"])
+            # without a session X/Y also go through the any-height jog (2026-10-31: "remove it everywhere")
+            self.assertEqual(sent, ["admin X", "admin X", "admin Z -40"])
             h = object.__new__(pc.PcHandler)
             h.path, h.headers = "/api/machine/jog", FakeHeaders()
             h._host_ok = lambda: False
