@@ -3,9 +3,9 @@
   "note": "The approved calibration set and fixed path rules the web page v10 uses. Change only after a new calibration is approved by the user.",
   "decided_by": "user: X/Y block-corrected 2026-10-07, Z k 141.47 2026-10-07, depth scale 2026-10-05; path rules 2026-10-05 (floor skin+1, 300/1000, travel -20); 15-frame median 2026-10-07",
   "capture_pose_mpos": [
-    110.201,
+    70.201,
     42.599,
-    -40.0
+    -170.0
   ],
   "xy_calibration": "validation/S2026-10-06-C/results/nozzle_xy_calibration_20261007-085810_blockshift.json",
   "z_calibration": "validation/S2026-10-06-C/results/nozzle_z_calibration_20261007-110656.json",

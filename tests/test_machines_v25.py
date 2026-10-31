@@ -71,7 +71,9 @@ class MotionValueTests(unittest.TestCase):
         self.assertEqual(machine_motion.BELT_DRIVE["ROUTE"], BELT_ROUTE)
         self.assertEqual(machine_motion.BELT_DRIVE["POSE"], (145.8, 42.6, -40.0))
         belt = v25.profiles.get("belt-drive")
-        self.assertEqual(machine_motion.values_for(belt["motion"], belt["work_area_mm"]), machine_motion.BELT_DRIVE)
+        # the scan position moves with the user's choices (registry); everything else is still exactly the old code
+        old_pose = dict(belt["motion"], scan_pose_mpos=list(machine_motion.BELT_DRIVE["POSE"]))
+        self.assertEqual(machine_motion.values_for(old_pose, belt["work_area_mm"]), machine_motion.BELT_DRIVE)
         v25.profiles.check_consistent(belt)                       # registry == current_calibration.json
 
     def test_bad_values_are_refused(self):
@@ -139,8 +141,10 @@ class LinkCommandTests(unittest.TestCase):
 
     def test_belt_drive_route_unchanged(self):
         cmds, pos = self.run_route("belt-drive")
-        self.assertEqual(cmds, ["$HZ", "$H"] + [c for _, c in BELT_ROUTE])
-        self.assertEqual(pos, [145.8, 42.6, -40.0])
+        belt = v25.profiles.get("belt-drive")["motion"]             # the scan position is the registry's (user's choice)
+        route = machine_motion.route_for(belt["scan_pose_mpos"], belt["travel_z"])
+        self.assertEqual(cmds, ["$HZ", "$H"] + [c for _, c in route])
+        self.assertEqual(pos, [float(v) for v in belt["scan_pose_mpos"]])
 
     def test_ball_screw_route(self):
         cmds, pos = self.run_route("ball-screw")

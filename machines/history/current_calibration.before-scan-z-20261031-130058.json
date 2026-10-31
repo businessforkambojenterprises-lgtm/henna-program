@@ -1,0 +1,33 @@
+{
+  "schema": "current_calibration/1",
+  "note": "The approved calibration set and fixed path rules the web page v10 uses. Change only after a new calibration is approved by the user.",
+  "decided_by": "user: X/Y block-corrected 2026-10-07, Z k 141.47 2026-10-07, depth scale 2026-10-05; path rules 2026-10-05 (floor skin+1, 300/1000, travel -20); 15-frame median 2026-10-07",
+  "capture_pose_mpos": [
+    70.201,
+    42.599,
+    -40.0
+  ],
+  "xy_calibration": "validation/S2026-10-06-C/results/nozzle_xy_calibration_20261007-085810_blockshift.json",
+  "z_calibration": "validation/S2026-10-06-C/results/nozzle_z_calibration_20261007-110656.json",
+  "depth_scale": "validation/S2026-10-05-A/results/camera_depth_scale_step14.json",
+  "frames": 15,
+  "min_valid_frac": 0.8,
+  "max_mad_mm": 1.0,
+  "floor_above_skin_mm": 1.0,
+  "draw_feed_mm_min": 300.0,
+  "travel_feed_mm_min": 1000.0,
+  "travel_z": -20.0,
+  "firmware_z_floor": -189.0,
+  "standoff_mm_allowed": [
+    3.0,
+    6.0
+  ],
+  "fit_mm_allowed": [
+    10.0,
+    100.0
+  ],
+  "paper_mm_allowed": [
+    0.05,
+    0.3
+  ]
+}

@@ -38,7 +38,7 @@ BOOT = str(time.time())                     # this Studio start: the page opens 
 
 ADMIN = AdminLock()
 ADMIN_PATHS = {"/api/machines/select", "/api/machines/add", "/api/machines/recalibrate", "/api/machines/setup_area",
-               "/api/machines/setup_scan", "/api/admin/paste_setup"}
+               "/api/machines/setup_scan", "/api/admin/paste_setup", "/api/admin/scan_position"}
 ADMIN_PREFIXES = ("/api/calibration/",)
 OPERATOR_PATHS = {"/api/calibration/scan_position", "/api/calibration/check"}      # the daily check: operators
 
@@ -184,16 +184,57 @@ def camera_align_view(_=None):
     return dict(out, ready=True, reference=_ALIGN_REF["created"], at_scan_position=bool(st.get("capture_ready")))
 
 
+def scan_position_view(_=None):
+    """Admin -> Machine -> Scan position (user 2026-10-31: "also give option to edit move to scan in admin panel"): the
+    active machine's scan position and limits, and - when connected and homed - where the head is now (to copy)."""
+    m = v26.profiles.active()
+    mo = v26.profiles.motion(m)
+    st = studio.machine.status() or {}
+    head = st.get("mpos") if st.get("connected") and st.get("homed") and st.get("state") == "Idle" else None
+    return {"machine": m["name"], "scan_pose": [float(v) for v in mo["scan_pose_mpos"]], "travel_z": float(mo["travel_z"]),
+            "z_floor": float(mo["firmware_z_floor"]), "work_area": [float(v) for v in m["work_area_mm"]],
+            "connected": bool(st.get("connected")), "head": head}
+
+
+def scan_position_save(params):
+    """Both files (registry and calibration) change together, as machine_scan_xy_set.py and machine_scan_z_set.py do;
+    only while the machine is disconnected (the link takes the new values then). The daily reference must be set again."""
+    import machine_scan_xy_set
+    import machine_scan_z_set
+    if params.get("confirm") is not True:
+        raise ValueError("Confirm the new scan position")
+    if (studio.machine.status() or {}).get("connected"):
+        raise studio.MachineError("Disconnect the machine first (the new position is taken when it is off)")
+    try:
+        x, y, z = (float(params[k]) for k in ("x", "y", "z"))
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("X, Y and Z: numbers in mm")
+    mid = v26.profiles.active_id()
+    m = v26.profiles.get(mid)
+    mo = v26.profiles.motion(m)
+    x, y = machine_scan_xy_set.check_value(x, y, m["work_area_mm"])
+    z = machine_scan_z_set.check_value(z, mo)                    # both checked before either file is written
+    before = [float(v) for v in mo["scan_pose_mpos"]]
+    machine_scan_xy_set.set_scan_xy(v26.profiles, mid, x, y)
+    machine_scan_z_set.set_scan_z(v26.profiles, mid, z)
+    v26.apply_active()
+    v26._log("Scan position changed in Admin", None, "Admin scan position", "scan position inside the work area, Z between "
+             "the floor and travel Z", f"{before} -> {[x, y, z]}", "changed")
+    return dict(scan_position_view(), saved=True, before=before)
+
+
 class PcHandler(studio.Handler):
     server_version = studio.Handler.server_version + "-pc"
     GET_API = dict(studio.Handler.GET_API, **{"/api/admin/paste_setup": paste_setup_view,
                                               "/api/admin/jog_limits": jog_limits,
-                                              "/api/admin/camera_align": camera_align_view})
+                                              "/api/admin/camera_align": camera_align_view,
+                                              "/api/admin/scan_position": scan_position_view})
     POST_API = dict(studio.Handler.POST_API, **{"/api/admin/status": (admin_status, False),
                                                 "/api/admin/unlock": (admin_unlock, False),
                                                 "/api/admin/set_pin": (admin_set_pin, False),
                                                 "/api/admin/lock": (admin_lock, False),
                                                 "/api/admin/paste_setup": (paste_setup_save, False),
+                                                "/api/admin/scan_position": (scan_position_save, False),
                                                 "/api/studio/program": (pc_program, _PROGRAM[1]),
                                                 "/api/machine/jog": (pc_jog, _JOG[1])})
 
