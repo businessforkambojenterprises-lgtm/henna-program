@@ -9,6 +9,7 @@ remember() records the original values when a test module is loaded - unittest l
 runs any test, and no test module imports v24 or later at load time, so these are the originals. A v10-v23 test
 module calls apply() in setUpModule and undo() in tearDownModule: its tests see the original modules whatever ran
 before, and the later tests get back exactly what was there."""
+import os
 import sys
 
 _MISSING = object()
@@ -16,17 +17,24 @@ _SEEN = {}                 # (module name, attribute) -> original value
 _LINKS = {}                # id(link) -> (link, own _calibration or _MISSING)
 
 ATTRS = {
-    "webui_server_v10": ("cal", "log_row", "camera", "STEP22"),
+    "webui_server_v10": ("cal", "log_row", "camera", "STEP22", "CAL_FILE"),
     "webui_server_v11": ("prosthetic_only",),
     "webui_server_v14": ("MIN_STANDOFF_MM", "jog_step_ok", "JOG_STEP_TEXT"),
     "webui_server_v17": ("checked_program", "STEP23"),
-    "henna_preview.grbl_program_link": ("jog_step_ok", "JOG_STEP_TEXT"),
+    "henna_preview.grbl_program_link": ("jog_step_ok", "JOG_STEP_TEXT", "TRAVEL_Z", "X_MAX", "Y_MAX"),
+    # the machine link's motion values: Studio v25+ sets them from the ACTIVE machine's registry entry (the user moves
+    # the belt drive's scan position and travel Z), the v10-v23 tests expect the original belt-drive constants
+    "henna_preview.grbl_scan_link": ("POSE", "TRAVEL_Z", "ROUTE", "COMMANDS"),
 }
 # The shared machine link: which object each module's `machine` names and its class are left as they are (v15-v22
 # point the older modules at the newest link on purpose, and their tests check that); only the calibration source
 # that v24-v26 give it is put back.
 LINK_MODULES = ("webui_server_v13", "webui_server_v14", "webui_server_v15", "webui_server_v16", "webui_server_v17",
                 "webui_server_v20", "webui_server_v21", "webui_server_v22", "webui_server_v23")
+# What the v10-v23 tests read as "the calibration": a frozen copy of the belt drive's file as it was when they were
+# written, NOT the live current_calibration.json - the user moves the belt drive's scan position, travel Z and floor.
+FIXTURE_CAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "belt_drive_calibration.json")
+OVERRIDES = {("webui_server_v10", "CAL_FILE"): FIXTURE_CAL}
 LATER = ("webui_server_v24", "webui_server_v25", "webui_server_v26", "webui_server_v27", "webui_server_v28",
          "webui_server_v29")
 
@@ -55,7 +63,7 @@ def apply():
         mod = sys.modules.get(name)
         if mod is not None:
             now.append((mod, a, getattr(mod, a, _MISSING)))
-            setattr(mod, a, value)
+            setattr(mod, a, OVERRIDES.get((name, a), value))
     links = []
     for link, cal in _LINKS.values():
         links.append((link, link.__dict__.get("_calibration", _MISSING)))

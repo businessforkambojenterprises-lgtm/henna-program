@@ -71,8 +71,9 @@ class MotionValueTests(unittest.TestCase):
         self.assertEqual(machine_motion.BELT_DRIVE["ROUTE"], BELT_ROUTE)
         self.assertEqual(machine_motion.BELT_DRIVE["POSE"], (145.8, 42.6, -40.0))
         belt = v25.profiles.get("belt-drive")
-        # the scan position moves with the user's choices (registry); everything else is still exactly the old code
-        old_pose = dict(belt["motion"], scan_pose_mpos=list(machine_motion.BELT_DRIVE["POSE"]))
+        # the scan position and travel Z move with the user's choices (registry); everything else is still exactly the old code
+        old_pose = dict(belt["motion"], scan_pose_mpos=list(machine_motion.BELT_DRIVE["POSE"]),
+                        travel_z=machine_motion.BELT_DRIVE["TRAVEL_Z"])
         self.assertEqual(machine_motion.values_for(old_pose, belt["work_area_mm"]), machine_motion.BELT_DRIVE)
         v25.profiles.check_consistent(belt)                       # registry == current_calibration.json
 
