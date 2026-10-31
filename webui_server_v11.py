@@ -148,12 +148,21 @@ def use_recording(params):
 
 
 # ---------------- 2 hand & region ----------------
+# The hand model's own confidence is tried at 0.5 first; a hand that fills the picture (camera close, wrist cut off) is
+# found only at 0.3 (user 2026-10-31, scan Z -170: "no hand found" with a clear hand; 0.3 finds it, so does a smaller
+# hand at 0.5). The landmarks are guides - the outline comes from the measured depth - so the lower try is safe.
+DETECT_CONFIDENCES = (0.5, 0.3)
+
+
 def detect(params):
     job = job_load(params.get("job"))
     need(job, "scan")
     sc = job["steps"]["scan"]
-    r = v2.run_step04({"path": sc["recording"], "frame": int(sc["frame_pairs"]) // 2, "min_confidence": 0.5})
-    rep = r["report"]
+    for conf in DETECT_CONFIDENCES:
+        r = v2.run_step04({"path": sc["recording"], "frame": int(sc["frame_pairs"]) // 2, "min_confidence": conf})
+        rep = r["report"]
+        if rep.get("hand_detected"):
+            break
     h = rep["hands"][0] if rep.get("hands") else None
     info = {"run": "web:" + r["run_id"], "detected": bool(rep.get("hand_detected")), "frame": int(sc["frame_pairs"]) // 2,
             "score": round(h["score"], 3) if h else None,
