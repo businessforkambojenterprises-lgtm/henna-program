@@ -17,7 +17,7 @@
   "draw_feed_mm_min": 300.0,
   "travel_feed_mm_min": 1000.0,
   "travel_z": -20.0,
-  "firmware_z_floor": -97.0,
+  "firmware_z_floor": -189.0,
   "standoff_mm_allowed": [
     3.0,
     6.0
