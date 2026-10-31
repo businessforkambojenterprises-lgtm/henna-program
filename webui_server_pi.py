@@ -223,7 +223,10 @@ def z_floor():
 
 
 def pi_jog(params):
-    if not getattr(_REQ, "admin", False):
+    admin = getattr(_REQ, "admin", False)
+    # X and Y move at any height in the normal Jog too (user 2026-10-31: "remove it everywhere"; as webui_server_pc);
+    # Z keeps the normal rules there, and a real-hand job still refuses sideways jogs (v29).
+    if not admin and (params.get("axis") not in ("X", "Y") or studio._ACTIVE["subject"] in studio.NO_SIDEWAYS):
         return _JOG[0](params)
     if params.get("confirm_no_person") is not True:
         raise ValueError("Confirm that no person's hand is under the machine before jogging")

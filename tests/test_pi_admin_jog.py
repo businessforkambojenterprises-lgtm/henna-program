@@ -115,7 +115,17 @@ class PiJogRoutingTests(unittest.TestCase):
                     pi.pi_jog(dict(z, confirm_no_person=False))
                 pi._REQ.admin = False
                 pi.pi_jog(z)
-                self.assertEqual(calls, [("adminZ", -1, 23.4, -40.0), ("adminXY", "X", -5.0), ("v29", "Z")])
+                # 2026-10-31 "remove it everywhere": X/Y at any height without a session too; not in a real-hand job
+                pi.pi_jog(dict(z, axis="X"))
+                active = dict(pi.studio._ACTIVE)
+                pi.studio._ACTIVE["subject"] = "realhand"
+                try:
+                    pi.pi_jog(dict(z, axis="Y"))
+                finally:
+                    pi.studio._ACTIVE.clear()
+                    pi.studio._ACTIVE.update(active)
+                self.assertEqual(calls, [("adminZ", -1, 23.4, -40.0), ("adminXY", "X", -5.0), ("v29", "Z"),
+                                         ("adminXY", "X", -5.0), ("v29", "Y")])
                 self.assertIn("/api/pi/jog_limits", pi.PiHandler.GET_API)
             finally:
                 (pi.admin_jog.start_admin_z, pi.admin_jog.start_admin_xy, pi.z_floor, pi.studio._JOG, pi._JOG,
