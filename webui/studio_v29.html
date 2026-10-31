@@ -1085,11 +1085,11 @@ function jogShow(){if(!$('dlgjog').open)return;jogLimits();const m=MACH||{},fres
  $('jogpos').innerHTML=m.mpos?`X ${fmt(m.mpos[0],2)}<br>Y ${fmt(m.mpos[1],2)}<br>Z ${fmt(z,2)}`:'–';
  document.querySelectorAll('[data-jog]').forEach(b=>{const[ax,d]=b.dataset.jog.split(','),dir=+d;let allow=ok;const AM=activeMachine();if(allow&&!(AM&&AM.work_area_mm)&&!(ax==='Z'&&dir>0))allow=false;
   if(allow&&ax==='Z'){const t=+(z+dir*jogStep).toFixed(3);if(t>Z_TOP+1e-9||(dir<0&&t<TRAVEL_Z-1e-9))allow=false}
-  else if(allow){if(z<TRAVEL_Z-0.05)allow=false;else{const i=ax==='X'?0:1,t=m.mpos[i]+dir*jogStep;if(t<0||t>JOG_XY[i])allow=false}}
+  else if(allow){const i=ax==='X'?0:1,t=m.mpos[i]+dir*jogStep;if(t<0||t>JOG_XY[i])allow=false}
   b.disabled=!allow});
  let help;if(!fresh||!m.connected)help='Connect the machine first.';else if(!m.homed)help='Home first.';else if(busy==='jog')help='Moving…';
  else if(busy)help='Machine busy.';else if(!$('jnoperson').checked)help='Tick the box to enable the buttons.';
- else if(z!=null&&z<TRAVEL_Z-0.05)help=`The nozzle is below Z ${TRAVEL_Z}: raise Z first (Z+). X and Y unlock at Z ${TRAVEL_Z} or higher.`;
+ else if(z!=null&&z<TRAVEL_Z-0.05)help=`The nozzle is below travel height Z ${TRAVEL_Z}: X and Y move slowly here - watch the nozzle.`;
  else help='Each press moves the distance above and waits until the machine stops. Greyed buttons would leave the allowed area.';
  $('joghelp').textContent=help;$('jogstop').hidden=!(busy==='jog'||(m.connected&&m.state&&!['Idle','Alarm'].includes(m.state)));
  $('jdistv').textContent=(jogStep<10?jogStep.toFixed(1):String(jogStep))+' mm'}
