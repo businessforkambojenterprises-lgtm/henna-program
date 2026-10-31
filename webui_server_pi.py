@@ -98,7 +98,7 @@ def servo_save(params):
 ADMIN = AdminLock()
 ADMIN_PATHS = {"/api/machines/select", "/api/machines/add", "/api/machines/recalibrate", "/api/machines/setup_area",
                "/api/machines/setup_scan", "/api/pi/servo/try", "/api/pi/servo/save", "/api/pi/paste_setup",
-               "/api/pi/storage/settings", "/api/pi/storage/cleanup"}
+               "/api/pi/storage/settings", "/api/pi/storage/cleanup", "/api/pi/scan_position"}
 ADMIN_PREFIXES = ("/api/calibration/",)
 # The daily check stays with the operator (user 2026-10-16: "operator should run"): moving to its scan position and
 # running it. Setting the reference, calibrating and choosing the machine stay under Admin.
@@ -150,6 +150,46 @@ def paste_setup_save(params):
                 f"{v.get('label')}" + (f", start {v['start_s']:g} s, stop {v['stop_s']:g} s" if v.get("start_s") is not None else ""),
                 "saved", "", "Studio Pi admin")
     return {"setup": v}
+
+
+def scan_position_view(_=None):
+    """Admin -> Machine -> Scan position (user 2026-10-31: "add scan position option to pi admin panel", as on the PC):
+    the active machine's scan position and limits, and - when connected and homed - where the head is now (to copy)."""
+    m = v26.profiles.active()
+    mo = v26.profiles.motion(m)
+    st = studio.machine.status() or {}
+    head = st.get("mpos") if st.get("connected") and st.get("homed") and st.get("state") == "Idle" else None
+    return {"machine": m["name"], "scan_pose": [float(v) for v in mo["scan_pose_mpos"]], "travel_z": float(mo["travel_z"]),
+            "z_floor": float(mo["firmware_z_floor"]), "work_area": [float(v) for v in m["work_area_mm"]],
+            "connected": bool(st.get("connected")), "head": head}
+
+
+def scan_position_save(params):
+    """Both files (registry and calibration) change together, as machine_scan_xy_set.py and machine_scan_z_set.py do;
+    only while the machine is disconnected (the link takes the new values then). The daily reference must be set again."""
+    import machine_scan_xy_set
+    import machine_scan_z_set
+    p = params or {}
+    if p.get("confirm") is not True:
+        raise ValueError("Confirm the new scan position")
+    if (studio.machine.status() or {}).get("connected"):
+        raise studio.MachineError("Disconnect the machine first (the new position is taken when it is off)")
+    try:
+        x, y, z = (float(p[k]) for k in ("x", "y", "z"))
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("X, Y and Z: numbers in mm")
+    mid = v26.profiles.active_id()
+    m = v26.profiles.get(mid)
+    mo = v26.profiles.motion(m)
+    x, y = machine_scan_xy_set.check_value(x, y, m["work_area_mm"])
+    z = machine_scan_z_set.check_value(z, mo)                    # both checked before either file is written
+    before = [float(v) for v in mo["scan_pose_mpos"]]
+    machine_scan_xy_set.set_scan_xy(v26.profiles, mid, x, y)
+    machine_scan_z_set.set_scan_z(v26.profiles, mid, z)
+    v26.apply_active()
+    studio._log("Admin: scan position changed", None, "Admin -> Machine -> Scan position", "inside the work area, Z between "
+                "the floor and travel Z", f"{before} -> {[x, y, z]}", "changed", "", "Studio Pi admin")
+    return dict(scan_position_view(), saved=True, before=before)
 
 
 # ---------- storage (user 2026-10-17: guard + cleanup) ----------
@@ -280,10 +320,12 @@ class PiHandler(studio.Handler):
                                               "/api/pi/paste_output": paste_view,
                                               "/api/pi/paste_setup": paste_setup_view,
                                               "/api/pi/storage": storage_view,
-                                              "/api/pi/jog_limits": jog_limits})
+                                              "/api/pi/jog_limits": jog_limits,
+                                              "/api/pi/scan_position": scan_position_view})
     POST_API = dict(studio.Handler.POST_API, **{"/api/pi/servo/try": (servo_try, False),
                                                 "/api/pi/servo/save": (servo_save, False),
                                                 "/api/pi/paste_setup": (paste_setup_save, False),
+                                                "/api/pi/scan_position": (scan_position_save, False),
                                                 "/api/pi/admin/status": (admin_status, False),
                                                 "/api/pi/admin/unlock": (admin_unlock, False),
                                                 "/api/pi/admin/set_pin": (admin_set_pin, False),

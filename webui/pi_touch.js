@@ -188,7 +188,7 @@ window.STUDIO_SHORTCUT = 'Henna Studio';
 (function () {
   'use strict';
   var ADMIN_TOKEN = null, SETUP = null, DISP = null, STORE = null;
-  var ADMIN_RE = /^\/api\/(calibration\/|machines\/(select|add|recalibrate|setup_area|setup_scan)$|pi\/servo\/|pi\/paste_setup$|pi\/storage\/)/;
+  var ADMIN_RE = /^\/api\/(calibration\/|machines\/(select|add|recalibrate|setup_area|setup_scan)$|pi\/servo\/|pi\/paste_setup$|pi\/storage\/|pi\/scan_position$)/;
   function $id(id) { return document.getElementById(id); }
   function esc2(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
@@ -473,6 +473,20 @@ window.STUDIO_SHORTCUT = 'Henna Studio';
     function put(el, t) { if (el) pane(t).appendChild(el); }
     function card(id) { var e = $id(id); return e && e.closest('.card'); }
     put(card('mlist'), 'machine'); put($id('setupcard'), 'machine'); put(card('calstatus'), 'machine');
+    var sp = document.createElement('div');                 /* the scan position, editable (2026-10-31: "add scan     */
+    sp.className = 'card'; sp.id = 'piscan';                /* position option to pi admin panel", as on the PC)      */
+    sp.innerHTML = '<h2>Scan position</h2><p class="sub">Where "Move to scan position" takes the head. Jog the head to the ' +
+      'spot you want, then <b>Use head position</b> (machine connected and homed), <b>Disconnect</b>, and <b>Save</b>. Or type ' +
+      'the numbers. Z must be between the floor and travel Z.</p>' +
+      '<div class="mono" id="piscannow" style="margin:6px 0"></div>' +
+      '<div class="row" style="gap:6px;flex-wrap:wrap">' +
+      '<label class="hint" style="margin:0">X <input id="piscanx" type="number" inputmode="decimal" step="0.001" style="width:110px"></label>' +
+      '<label class="hint" style="margin:0">Y <input id="piscany" type="number" inputmode="decimal" step="0.001" style="width:110px"></label>' +
+      '<label class="hint" style="margin:0">Z <input id="piscanz" type="number" inputmode="decimal" step="0.001" style="width:110px"></label></div>' +
+      '<div class="pibtns" style="margin-top:8px"><button class="btn" type="button" id="piscanhead">Use head position</button>' +
+      '<button class="btn primary" type="button" id="piscansave">Save</button></div>' +
+      '<p class="hint" id="piscanlim"></p><div class="msg" id="piscanmsg"></div>';
+    pane('machine').appendChild(sp);
     var note = document.createElement('div');
     note.className = 'card'; note.id = 'pinocal';
     note.innerHTML = '<h2>Calibrate</h2><p class="sub">This machine is calibrated and in use. To calibrate it again - after ' +
@@ -530,6 +544,33 @@ window.STUDIO_SHORTCUT = 'Henna Studio';
     $id('piposjog').onclick = function () { var j = $id('mjog'); if (j && !$id('piposjog').disabled) j.click(); };
     $id('pilockbtn').onclick = lock;
     $id('pitomachine').onclick = function () { selectTab('machine'); };
+    $id('piscanhead').onclick = function () { scanLoad(true); };
+    $id('piscansave').onclick = scanSave;
+  }
+  function scanShow(v) { return 'X' + v[0].toFixed(3) + ' Y' + v[1].toFixed(3) + ' Z' + v[2].toFixed(3); }
+  function scanLoad(fromHead) {
+    getj('/api/pi/scan_position').then(function (r) {
+      if (r.error) { msg('piscanmsg', 'err', r.error); return; }
+      $id('piscannow').textContent = r.machine + ': now ' + scanShow(r.scan_pose);
+      $id('piscanlim').textContent = 'Work area X 0-' + r.work_area[0] + ', Y 0-' + r.work_area[1] + '. Z floor ' + r.z_floor +
+        ', travel Z ' + r.travel_z + '.';
+      if (fromHead) {
+        if (!r.head) { msg('piscanmsg', 'warn', 'The head position is only known when the machine is connected, homed and Idle.'); return; }
+        ['x', 'y', 'z'].forEach(function (k, i) { $id('piscan' + k).value = r.head[i].toFixed(3); });
+        msg('piscanmsg', 'good', 'Head position copied. Disconnect, then Save.');
+      } else if (!$id('piscanx').value) {
+        ['x', 'y', 'z'].forEach(function (k, i) { $id('piscan' + k).value = r.scan_pose[i].toFixed(3); });
+      }
+    }).catch(function (e) { msg('piscanmsg', 'err', e.message); });
+  }
+  function scanSave() {
+    var b = { confirm: true, x: $id('piscanx').value, y: $id('piscany').value, z: $id('piscanz').value };
+    msg('piscanmsg', 'info', 'Saving');
+    post('/api/pi/scan_position', b).then(function (r) {
+      scanLoad(false);
+      msg('piscanmsg', 'good', 'Saved: ' + scanShow(r.scan_pose) + '. Now set a new daily-check reference (Daily check, ' +
+        'bed empty, no hand).');
+    }).catch(function (e) { msg('piscanmsg', 'err', e.message); });
   }
   function showAdminPage(tab) {
     if (typeof machineBusy === 'function' && machineBusy()) { alert('Wait until the machine has finished.'); return; }
@@ -559,6 +600,7 @@ window.STUDIO_SHORTCUT = 'Henna Studio';
     if (typeof msg === 'function') msg('piposmsg', '', '');
     clearSafe();
     if (t === 'paste') renderPaste(); else if (t === 'storage') renderStorage(); else if (t === 'pin') renderPin();
+    else if (t === 'machine' && admin()) scanLoad(false);
     if (admin()) checkSession();
     window.scrollTo({ top: 0 });
   }
