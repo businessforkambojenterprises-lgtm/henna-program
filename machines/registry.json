@@ -15,13 +15,14 @@
       "notes": "calibrated 2026-10-05 to 2026-10-07 (X/Y block-corrected, Z k 141.47, depth scale g 0.979); unchanged",
       "motion": {
         "scan_pose_mpos": [
-          145.8,
-          42.6,
+          110.201,
+          42.599,
           -40.0
         ],
         "travel_z": -20.0,
         "firmware_z_floor": -97.0,
-        "source": "copied from current_calibration.json (unchanged); the values fixed in the machine link until v24"
+        "source": "copied from current_calibration.json (unchanged); the values fixed in the machine link until v24",
+        "scan_xy_changed": "scan X/Y 145.8,42.6 -> 110.201,42.599 (20261031-120405, machine_scan_xy_set.py; Z, travel Z, floor unchanged)"
       }
     },
     {
