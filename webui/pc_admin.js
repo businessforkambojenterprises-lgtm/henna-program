@@ -30,7 +30,7 @@
 (function () {
   'use strict';
   var ADMIN_TOKEN = null, SETUP = null, DISP = null;
-  var ADMIN_RE = /^\/api\/(calibration\/|machines\/(select|add|recalibrate|setup_area|setup_scan)$|admin\/paste_setup$)/;
+  var ADMIN_RE = /^\/api\/(calibration\/|machines\/(select|add|recalibrate|setup_area|setup_scan)$|admin\/(paste_setup|scan_position)$)/;
   function $id(id) { return document.getElementById(id); }
   function esc2(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
@@ -307,6 +307,23 @@
       '<p id="pialigntip" style="margin:8px 0 0"></p><p class="hint" id="pialignref" style="margin:4px 0 0"></p></div>' +
       '<div class="msg" id="pialignmsg"></div>';
     pane('daily').appendChild(al);
+    var sp = document.createElement('div');                 /* the scan position, editable (2026-10-31: "also give    */
+    sp.className = 'card'; sp.id = 'piscan';                /* option to edit move to scan in admin panel")           */
+    sp.innerHTML = '<h2>Scan position</h2><p class="sub">Where "Move to scan position" takes the head. Jog the head to the ' +
+      'spot you want, then <b>Use head position</b> (machine connected and homed), <b>Disconnect</b>, and <b>Save</b>. Or type ' +
+      'the numbers. Z must be between the floor and travel Z.</p>' +
+      '<div class="mono" id="piscannow" style="margin:6px 0"></div>' +
+      '<div class="row" style="gap:6px;flex-wrap:wrap">' +
+      '<label class="hint" style="margin:0">X <input id="piscanx" type="number" step="0.001" style="width:96px"></label>' +
+      '<label class="hint" style="margin:0">Y <input id="piscany" type="number" step="0.001" style="width:96px"></label>' +
+      '<label class="hint" style="margin:0">Z <input id="piscanz" type="number" step="0.001" style="width:96px"></label></div>' +
+      '<div class="pibtns" style="margin-top:8px"><button class="btn" type="button" id="piscanhead">Use head position</button>' +
+      '<button class="btn primary" type="button" id="piscansave">Save</button></div>' +
+      '<p class="hint" id="piscanlim"></p><div class="msg" id="piscanmsg"></div>';
+    pane('machine').appendChild(sp);
+    $id('piscanhead').onclick = function () { scanLoad(true); };
+    $id('piscansave').onclick = scanSave;
+    scanLoad(false);
     $id('pialigngo').onclick = function () { if (ALIGN.timer) alignStop(); else alignStart(); };
     hide(v.querySelector('.cols'));
     hide(v.querySelector('.head'));
@@ -375,6 +392,31 @@
     $id('pititle').textContent = 'Daily check';
     if (!inPage()) go('calib');
     selectTab('daily');
+  }
+  function scanShow(v) { return 'X' + v[0].toFixed(3) + ' Y' + v[1].toFixed(3) + ' Z' + v[2].toFixed(3); }
+  function scanLoad(fromHead) {
+    getj('/api/admin/scan_position').then(function (r) {
+      if (r.error) { msg('piscanmsg', 'err', r.error); return; }
+      $id('piscannow').textContent = r.machine + ': now ' + scanShow(r.scan_pose);
+      $id('piscanlim').textContent = 'Work area X 0-' + r.work_area[0] + ', Y 0-' + r.work_area[1] + '. Z floor ' + r.z_floor +
+        ', travel Z ' + r.travel_z + '.';
+      if (fromHead) {
+        if (!r.head) { msg('piscanmsg', 'warn', 'The head position is only known when the machine is connected, homed and Idle.'); return; }
+        ['x', 'y', 'z'].forEach(function (k, i) { $id('piscan' + k).value = r.head[i].toFixed(3); });
+        msg('piscanmsg', 'good', 'Head position copied. Disconnect, then Save.');
+      } else if (!$id('piscanx').value) {
+        ['x', 'y', 'z'].forEach(function (k, i) { $id('piscan' + k).value = r.scan_pose[i].toFixed(3); });
+      }
+    }).catch(function (e) { msg('piscanmsg', 'err', e.message); });
+  }
+  function scanSave() {
+    var b = { confirm: true, x: $id('piscanx').value, y: $id('piscany').value, z: $id('piscanz').value };
+    msg('piscanmsg', 'info', 'Saving');
+    post('/api/admin/scan_position', b).then(function (r) {
+      scanLoad(false);
+      msg('piscanmsg', 'good', 'Saved: ' + scanShow(r.scan_pose) + '. Now set a new daily-check reference (Daily check, ' +
+        'bed empty, no hand).');
+    }).catch(function (e) { msg('piscanmsg', 'err', e.message); });
   }
   var ALIGN = { timer: null, hist: [] };
   var ALIGN_LABEL = { ok: ['c-ok', 'OK - tighten it here'], close: ['c-warn', 'Close'], move: ['c-bad', 'Move it'] };

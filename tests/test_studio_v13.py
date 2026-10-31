@@ -24,7 +24,16 @@ def setUpModule():
 def tearDownModule():
     studio_pristine.undo(_PRISTINE)
 
-LINE = "<Idle|MPos:145.800,42.600,-40.000|FS:0,0>"
+
+
+def pose():
+    """The capture pose Studio checks the head against: the approved calibration's (the user moves it - registry and
+    calibration file change together)."""
+    return tuple(server.v10.cal()["capture_pose_mpos"])
+
+
+def line():
+    return "<Idle|MPos:%.3f,%.3f,%.3f|FS:0,0>" % pose()
 
 
 class StudioScanPosition(unittest.TestCase):
@@ -71,7 +80,7 @@ class StudioScanPosition(unittest.TestCase):
         def guard():
             events.append("locked")
             try:
-                yield LINE
+                yield line()
             finally:
                 events.append("released")
 
@@ -89,7 +98,7 @@ class StudioScanPosition(unittest.TestCase):
     def test_movement_during_capture_rejects_file_before_publication(self):
         @contextmanager
         def guard():
-            yield LINE
+            yield line()
             raise server.MachineError("Position changed during recording")
 
         self.machine.capture_guard.side_effect = guard
@@ -107,7 +116,7 @@ class StudioScanPosition(unittest.TestCase):
             save.assert_not_called()
 
     def test_success_publishes_verified_actual_position(self):
-        self.machine.capture_guard.return_value.__enter__.return_value = LINE
+        self.machine.capture_guard.return_value.__enter__.return_value = line()
         info = {"frame_pairs": 150, "depth_units_m": .0001, "camera_settings": {}, "median_depth_mm": 150}
         with TemporaryDirectory() as folder, \
              patch.object(server.v10.v2, "APPROVED_RECORDING_DIRS", [folder]), \
@@ -117,8 +126,8 @@ class StudioScanPosition(unittest.TestCase):
              patch.object(server.v10.camera, "record", return_value=info):
             server.scan({"job": "test-job", "status_line": "forged", "seconds": 5})
             actual = save.call_args.args[2]
-            self.assertEqual(actual["status_line"], LINE)
-            self.assertEqual(list(actual["mpos"]), [145.8, 42.6, -40.0])
+            self.assertEqual(actual["status_line"], line())
+            self.assertEqual(list(actual["mpos"]), [round(v, 3) for v in pose()])
             self.assertEqual(actual["frame_pairs"], 150)
 
 
